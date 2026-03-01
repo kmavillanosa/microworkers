@@ -114,6 +114,143 @@ export class PaymongoService {
 		const json = (await res.json()) as { data?: CheckoutSessionResource }
 		return json?.data ?? null
 	}
+
+	/**
+	 * Create a Payment Intent with QR Ph, attach a qrph payment method, and return the QR image.
+	 * Customer scans the QR with GCash/Maya/bank app to pay. Amount in PHP pesos.
+	 * Minimum amount per PayMongo is 20 PHP (2000 centavos) for Payment Intents.
+	 */
+	async createPaymentIntentQrPh(params: {
+		orderId: string
+		amountPesos: number
+		description: string
+		billing?: { name?: string; email?: string }
+	}): Promise<{ paymentIntentId: string; qrImageUrl: string; amountPesos: number }> {
+		const secretKey = this.getSecretKey()
+		const auth = Buffer.from(`${secretKey}:`).toString('base64')
+		const amountCentavos = Math.round(params.amountPesos * 100)
+		if (amountCentavos < 2000) {
+			throw new Error('Amount must be at least ₱20.00 for QR Ph payment')
+		}
+
+		// 1. Create Payment Intent with qrph allowed
+		const piRes = await fetch(`${PAYMONGO_API}/payment_intents`, {
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/json',
+				Authorization: `Basic ${auth}`,
+			},
+			body: JSON.stringify({
+				data: {
+					attributes: {
+						amount: amountCentavos,
+						currency: 'PHP',
+						payment_method_allowed: ['qrph'],
+						description: params.description.slice(0, 255),
+						metadata: { order_id: params.orderId },
+					},
+				},
+			}),
+		})
+		if (!piRes.ok) {
+			const err = await piRes.text()
+			throw new Error(`PayMongo Payment Intent failed: ${piRes.status} ${err}`)
+		}
+		const piJson = (await piRes.json()) as {
+			data?: { id?: string; attributes?: { client_key?: string } }
+		}
+		const paymentIntentId = piJson?.data?.id
+		if (!paymentIntentId) {
+			throw new Error('PayMongo did not return Payment Intent id')
+		}
+
+		// 2. Create QR Ph payment method
+		const pmBody: { data: { attributes: { type: string; billing?: { name?: string; email?: string } } } } = {
+			data: {
+				attributes: {
+					type: 'qrph',
+					...(params.billing &&
+						(params.billing.name || params.billing.email) && {
+							billing: {
+								...(params.billing.name && { name: params.billing.name.slice(0, 255) }),
+								...(params.billing.email && { email: params.billing.email.slice(0, 255) }),
+							},
+						}),
+				},
+			},
+		}
+		const pmRes = await fetch(`${PAYMONGO_API}/payment_methods`, {
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/json',
+				Authorization: `Basic ${auth}`,
+			},
+			body: JSON.stringify(pmBody),
+		})
+		if (!pmRes.ok) {
+			const err = await pmRes.text()
+			throw new Error(`PayMongo Payment Method (qrph) failed: ${pmRes.status} ${err}`)
+		}
+		const pmJson = (await pmRes.json()) as { data?: { id?: string } }
+		const paymentMethodId = pmJson?.data?.id
+		if (!paymentMethodId) {
+			throw new Error('PayMongo did not return Payment Method id')
+		}
+
+		// 3. Attach payment method to Payment Intent → get QR image in next_action
+		const attachRes = await fetch(`${PAYMONGO_API}/payment_intents/${paymentIntentId}/attach`, {
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/json',
+				Authorization: `Basic ${auth}`,
+			},
+			body: JSON.stringify({
+				data: {
+					attributes: {
+						payment_method: paymentMethodId,
+					},
+				},
+			}),
+		})
+		if (!attachRes.ok) {
+			const err = await attachRes.text()
+			throw new Error(`PayMongo attach (qrph) failed: ${attachRes.status} ${err}`)
+		}
+		const attachJson = (await attachRes.json()) as {
+			data?: {
+				attributes?: {
+					next_action?: {
+						type?: string
+						code?: { image_url?: string }
+					}
+				}
+			}
+		}
+		const qrImageUrl =
+			attachJson?.data?.attributes?.next_action?.code?.image_url ?? ''
+		if (!qrImageUrl) {
+			throw new Error('PayMongo did not return QR Ph image_url')
+		}
+		return {
+			paymentIntentId,
+			qrImageUrl,
+			amountPesos: params.amountPesos,
+		}
+	}
+
+	/**
+	 * Retrieve a Payment Intent by id (e.g. to get metadata.order_id from webhook).
+	 */
+	async getPaymentIntent(paymentIntentId: string): Promise<PaymentIntentResource | null> {
+		const secretKey = this.getSecretKey()
+		const auth = Buffer.from(`${secretKey}:`).toString('base64')
+		const res = await fetch(`${PAYMONGO_API}/payment_intents/${paymentIntentId}`, {
+			headers: { Authorization: `Basic ${auth}` },
+		})
+		if (!res.ok) return null
+		const json = (await res.json()) as { data?: PaymentIntentResource }
+		return json?.data ?? null
+	}
 }
 
 /** Checkout Session resource as returned by PayMongo (for webhook + retrieve). */
@@ -150,5 +287,13 @@ export interface CheckoutSessionResource {
 				external_reference_number?: string
 			}
 		}>
+	}
+}
+
+/** Payment Intent resource (for QR Ph webhook: get metadata.order_id). */
+export interface PaymentIntentResource {
+	id?: string
+	attributes?: {
+		metadata?: { order_id?: string }
 	}
 }

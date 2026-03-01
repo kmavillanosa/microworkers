@@ -133,6 +133,9 @@ export default function OrderPage() {
   const [submitting, setSubmitting] = useState(false)
   const [previewFrameIndex, setPreviewFrameIndex] = useState(0)
   const [previewSize, setPreviewSize] = useState<PreviewSize>('phone')
+  /** PayMongo QR Ph: after creating payment intent we show scan-to-pay page with PayMongo's QR (amount >= ₱20). */
+  const [paymongoQrImageUrl, setPaymongoQrImageUrl] = useState<string | null>(null)
+  const [paymongoAmountPesos, setPaymongoAmountPesos] = useState<number | null>(null)
 
   /** From API GET /api/orders/pricing; safe fallbacks only when API has not responded yet. */
   const wordsPerFrame = pricing?.wordsPerFrame ?? 1
@@ -226,9 +229,30 @@ export default function OrderPage() {
       return
     }
     setSubmitting(true)
+    setError('')
     try {
       const id = await ensureOrderId()
       const origin = window.location.origin
+
+      if (amountPesos >= 20) {
+        const res = await fetch(`${API}/api/orders/${id}/paymongo-qr`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ amountPesos }),
+        })
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}))
+          throw new Error((err as { message?: string }).message || 'QR payment failed')
+        }
+        const data = (await res.json()) as { qrImageUrl: string; amountPesos: number }
+        if (data.qrImageUrl) {
+          setPaymongoQrImageUrl(data.qrImageUrl)
+          setPaymongoAmountPesos(data.amountPesos)
+          return
+        }
+        throw new Error('No QR image returned')
+      }
+
       const res = await fetch(`${API}/api/orders/${id}/paymongo-checkout`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -400,6 +424,41 @@ export default function OrderPage() {
     : transcriptPending
       ? 'Transcribing your clip…'
       : 'Redirecting to checkout…'
+
+  if (paymongoQrImageUrl && paymongoAmountPesos != null) {
+    return (
+      <div className="container order-page">
+        <div className="card payment-qr-card">
+          <h1 className="payment-qr-title">Scan to pay</h1>
+          <p className="payment-qr-amount" aria-label={`Amount: ${paymongoAmountPesos} pesos`}>
+            Amount: <strong>₱{paymongoAmountPesos.toLocaleString()}</strong>
+          </p>
+          <p className="payment-qr-hint">
+            Scan the QR code with GCash, Maya, or your bank app to complete payment.
+          </p>
+          <div className="payment-qr-wrap">
+            <img
+              src={paymongoQrImageUrl}
+              alt="QR code: scan to pay with GCash, Maya, or bank app"
+              className="payment-qr-image"
+              width={280}
+              height={280}
+            />
+          </div>
+          <button
+            type="button"
+            className="btn payment-qr-btn-back"
+            onClick={() => {
+              setPaymongoQrImageUrl(null)
+              setPaymongoAmountPesos(null)
+            }}
+          >
+            Back to order
+          </button>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="container order-page">

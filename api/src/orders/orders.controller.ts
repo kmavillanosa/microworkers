@@ -23,6 +23,7 @@ import { ReelsService } from '../reels/reels.service'
 import { ConfirmPaymentDto } from './dto/confirm-payment.dto'
 import { CreateOrderDto } from './dto/create-order.dto'
 import { PaymongoCheckoutDto } from './dto/paymongo-checkout.dto'
+import { PaymongoQrDto } from './dto/paymongo-qr.dto'
 import { PaymongoService } from '../paymongo/paymongo.service'
 import { SettingsService } from '../settings/settings.service'
 import { SetOrderStatusDto } from './dto/set-order-status.dto'
@@ -300,6 +301,34 @@ export class OrdersController {
 			paymentMethodTypes,
 		})
 		return { checkoutUrl }
+	}
+
+	@Post(':id/paymongo-qr')
+	async createPaymongoQr(
+		@Param('id') id: string,
+		@Body() body: PaymongoQrDto,
+	) {
+		const order = await this.ordersService.getById(id)
+		const amountPesos = body.amountPesos
+		const description = `Reel order · ₱${amountPesos}`
+		const billing =
+			order.customerName?.trim() || order.customerEmail?.trim()
+				? {
+					...(order.customerName?.trim() && { name: order.customerName.trim() }),
+					...(order.customerEmail?.trim() && { email: order.customerEmail.trim() }),
+				}
+				: undefined
+		const result = await this.paymongoService.createPaymentIntentQrPh({
+			orderId: id,
+			amountPesos,
+			description,
+			billing,
+		})
+		return {
+			qrImageUrl: result.qrImageUrl,
+			amountPesos: result.amountPesos,
+			paymentIntentId: result.paymentIntentId,
+		}
 	}
 
 	@Patch(':id/status')
