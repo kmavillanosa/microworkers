@@ -7,14 +7,12 @@
  * Optional: WORKER_SECRET on both sides for auth.
  */
 import 'dotenv/config'
-import { createRequire } from 'module'
 import fs from 'fs'
 import path from 'path'
 import { fileURLToPath } from 'url'
+import { runGenerator, outputDir } from './run-generator.js'
 
-const require = createRequire(import.meta.url)
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
-const { runGenerator, outputDir } = require('./run-generator.js')
 
 const API_BASE = process.env.VPS_API_URL || process.env.API_BASE_URL || 'http://localhost:3010'
 const WORKER_SECRET = process.env.WORKER_SECRET

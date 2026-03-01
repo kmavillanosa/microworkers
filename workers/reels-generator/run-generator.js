@@ -3,10 +3,12 @@
  * Requires REPO_ROOT (path to repo), Python in .reels-venv, and job payload from API.
  * Returns { outputFolderName } on success.
  */
-const { spawn } = require('child_process')
-const fs = require('fs').promises
-const path = require('path')
+import { spawn } from 'child_process'
+import fs from 'fs/promises'
+import path from 'path'
+import { fileURLToPath } from 'url'
 
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const repoRoot = process.env.REPO_ROOT || path.resolve(__dirname, '../..')
 const pythonExe = process.env.REELS_PYTHON_EXE ||
   (process.platform === 'win32'
@@ -47,7 +49,7 @@ function buildVoiceArgs(job) {
   return ['--voice-engine', 'edge', '--voice-name', job.voiceName || 'en-US-GuyNeural', '--edge-rate', '-5']
 }
 
-async function runGenerator(job, apiBaseUrl) {
+export async function runGenerator(job, apiBaseUrl) {
   await fs.mkdir(scriptsDir, { recursive: true })
   await fs.mkdir(outputDir, { recursive: true })
 
@@ -135,4 +137,4 @@ async function runGenerator(job, apiBaseUrl) {
   return { outputFolderName, folderPath }
 }
 
-module.exports = { runGenerator, outputDir, repoRoot }
+export { outputDir, repoRoot }
