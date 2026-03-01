@@ -411,7 +411,7 @@ export class PipelineService {
     const deadline = Date.now() + JOB_TIMEOUT_MS
     while (Date.now() < deadline) {
       await this.sleep(POLL_INTERVAL_MS)
-      const job = this.reelsService.getJob(jobId)
+      const job = await this.reelsService.getJob(jobId)
       if (job.status === 'completed' || job.status === 'failed') return job
     }
     throw new Error(`Job ${jobId} timed out after ${JOB_TIMEOUT_MS / 60000} minutes`)

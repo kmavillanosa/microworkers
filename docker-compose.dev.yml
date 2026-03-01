@@ -13,7 +13,7 @@ services:
       MYSQL_USER: ${MYSQL_USER}
       MYSQL_PASSWORD: ${MYSQL_PASSWORD}
     ports:
-      - "3306:3306"
+      - "3307:3306"
     volumes:
       - mysql_data_dev:/var/lib/mysql
       - ./api/mysql-initdb.d:/docker-entrypoint-initdb.d
@@ -32,7 +32,7 @@ services:
       PMA_PORT: 3306
       UPLOAD_LIMIT: 64M
     ports:
-      - "8080:80"
+      - "8081:80"
     depends_on:
       mysql:
         condition: service_healthy
@@ -59,7 +59,7 @@ services:
       TYPEORM_DATABASE_NAME: ${TYPEORM_DATABASE_NAME}
       CORS_ORIGINS: ${CORS_ORIGINS}
     ports:
-      - "3000:3000"
+      - "3010:3000"
     volumes:
       - .:/app/data
     depends_on:
@@ -73,10 +73,11 @@ services:
       dockerfile: Dockerfile
       args:
         VITE_API_BASE_URL: ${VITE_API_BASE_URL}
+        VITE_API_VPS_BASE_URL: ${VITE_API_VPS_BASE_URL}
         VITE_APP_ENV: ${VITE_APP_ENV}
     container_name: microworkers-dev-web
     ports:
-      - "5173:80"
+      - "5175:80"
     restart: unless-stopped
 
   web-orders:
@@ -89,7 +90,7 @@ services:
         VITE_APP_ENV: ${VITE_APP_ENV}
     container_name: microworkers-dev-web-orders
     ports:
-      - "5174:80"
+      - "5176:80"
     depends_on:
       - api
     restart: unless-stopped

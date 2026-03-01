@@ -4,7 +4,7 @@ Separate web app for customers to place reel orders. They choose fonts, clips, a
 
 ## Run
 
-- Ensure the main API is running (e.g. `http://localhost:3000`).
+- Ensure the main API is running (e.g. `http://localhost:3010`).
 - Set `VITE_API_BASE_URL` if the API is on another host/port (optional; default points to the usual API).
 - From this folder:
 

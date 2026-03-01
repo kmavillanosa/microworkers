@@ -21,7 +21,7 @@ export class ReelsController {
   }
 
   @Get('jobs/:jobId')
-  getJob(@Param('jobId') jobId: string) {
+  async getJob(@Param('jobId') jobId: string) {
     return this.reelsService.getJob(jobId);
   }
 

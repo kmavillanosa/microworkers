@@ -1,0 +1,57 @@
+# Deploy microworkers to VPS (same pattern as bill-tracker).
+# On push to main: SSH to VPS, clone/pull repo to /microworkers, run docker compose deploy.
+# Required secrets: VPS_SSH_KEY, MYSQL_*, TYPEORM_*, CORS_ORIGINS, VITE_API_BASE_URL_WEB_ORDERS, etc.
+
+name: Deploy to VPS
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install SSH key
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.VPS_SSH_KEY }}
+
+      - name: Deploy to VPS
+        run: |
+          ssh -o StrictHostKeyChecking=no root@88.222.245.88 << 'REMOTE'
+          set -e
+          if [ ! -d "/microworkers/.git" ]; then
+            git clone https://github.com/${{ github.repository }}.git /microworkers
+          else
+            cd /microworkers
+            git fetch origin
+            git checkout -f main
+            git pull origin main
+          fi
+
+          cd /microworkers
+
+          export MYSQL_ROOT_PASSWORD="${{ secrets.MYSQL_ROOT_PASSWORD }}"
+          export MYSQL_DATABASE="${{ secrets.MYSQL_DATABASE }}"
+          export MYSQL_USER="${{ secrets.MYSQL_USER }}"
+          export MYSQL_PASSWORD="${{ secrets.MYSQL_PASSWORD }}"
+          export TYPEORM_DATABASE_PORT="${{ secrets.TYPEORM_DATABASE_PORT }}"
+          export TYPEORM_DATABASE_USERNAME="${{ secrets.TYPEORM_DATABASE_USERNAME }}"
+          export TYPEORM_DATABASE_PASSWORD="${{ secrets.TYPEORM_DATABASE_PASSWORD }}"
+          export TYPEORM_DATABASE_NAME="${{ secrets.TYPEORM_DATABASE_NAME }}"
+          export CORS_ORIGINS="${{ secrets.CORS_ORIGINS }}"
+          export VITE_API_BASE_URL_WEB_ORDERS="${{ secrets.VITE_API_BASE_URL_WEB_ORDERS }}"
+          export VITE_PAYMONGO_ENABLED="${{ secrets.VITE_PAYMONGO_ENABLED }}"
+          export VITE_APP_ENV="${{ secrets.VITE_APP_ENV }}"
+          export REELS_MAX_CONCURRENT_JOBS="${{ secrets.REELS_MAX_CONCURRENT_JOBS }}"
+          export PAYMONGO_SECRET_KEY="${{ secrets.PAYMONGO_SECRET_KEY }}"
+          export WORKER_SECRET="${{ secrets.WORKER_SECRET }}"
+
+          docker compose -f docker-compose.deploy.yml down || true
+          docker compose -f docker-compose.deploy.yml up -d --build
+          REMOTE

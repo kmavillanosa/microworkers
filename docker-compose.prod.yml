@@ -21,7 +21,8 @@ services:
       timeout: 5s
       retries: 10
     restart: always
-    # Do not expose 3306 to host in production unless required for remote admin
+    ports:
+      - "3307:3306"
 
   api:
     build:
@@ -44,7 +45,7 @@ services:
       TYPEORM_DATABASE_NAME: ${TYPEORM_DATABASE_NAME}
       CORS_ORIGINS: ${CORS_ORIGINS}
     ports:
-      - "3000:3000"
+      - "3010:3000"
     volumes:
       - .:/app/data
     depends_on:
@@ -58,10 +59,11 @@ services:
       dockerfile: Dockerfile
       args:
         VITE_API_BASE_URL: ${VITE_API_BASE_URL}
+        VITE_API_VPS_BASE_URL: ${VITE_API_VPS_BASE_URL}
         VITE_APP_ENV: ${VITE_APP_ENV}
     container_name: microworkers-prod-web
     ports:
-      - "80:80"
+      - "8082:80"
     depends_on:
       - api
     restart: always
@@ -76,7 +78,7 @@ services:
         VITE_APP_ENV: ${VITE_APP_ENV}
     container_name: microworkers-prod-web-orders
     ports:
-      - "443:80"
+      - "8443:80"
     depends_on:
       - api
     restart: always

@@ -240,8 +240,12 @@ type FacebookStatusResponse = {
 // Helpers
 // ---------------------------------------------------------------------------
 
+/** Local API (backoffice talks to this for orders, Generate reel, etc.). */
 const apiBaseUrl =
-  import.meta.env.VITE_API_BASE_URL ?? "http://localhost:3000";
+  import.meta.env.VITE_API_BASE_URL ?? "http://localhost:3010";
+
+/** VPS API (customer orders, receipts, worker uploads). Set when you need to reference VPS (e.g. receipt links). */
+const apiVpsBaseUrl = import.meta.env.VITE_API_VPS_BASE_URL ?? "";
 
 const appEnv = (import.meta.env.VITE_APP_ENV ?? "local").toLowerCase();
 const envLabel =
@@ -256,15 +260,18 @@ function OrderOutputPage({
   reels,
   navigate,
   apiBaseUrl: baseUrl,
+  apiVpsBaseUrl: vpsBaseUrl,
 }: {
   orders: Order[];
   reels: ReelItem[];
   navigate: (path: string) => void;
   apiBaseUrl: string;
+  apiVpsBaseUrl: string;
 }) {
   const { orderId } = useParams<{ orderId: string }>();
   const order = orders.find((o) => o.id === orderId);
   const orderReels = reels.filter((r) => r.orderId === orderId);
+  const mediaBase = vpsBaseUrl || baseUrl;
 
   if (!orderId) {
     return (
@@ -319,7 +326,7 @@ function OrderOutputPage({
                   {new Date(reel.createdAt).toLocaleString()}
                 </p>
                 <video
-                  src={`${baseUrl}${reel.videoUrl}`}
+                  src={`${mediaBase}${reel.videoUrl}`}
                   controls
                   style={{
                     maxWidth: "100%",
@@ -330,7 +337,7 @@ function OrderOutputPage({
                 />
                 <p style={{ marginTop: "0.5rem" }}>
                   <a
-                    href={`${baseUrl}${reel.videoUrl}`}
+                    href={`${mediaBase}${reel.videoUrl}`}
                     target="_blank"
                     rel="noreferrer"
                     className="small"
@@ -5508,6 +5515,7 @@ function App() {
               reels={reels}
               navigate={navigate}
               apiBaseUrl={apiBaseUrl}
+              apiVpsBaseUrl={apiVpsBaseUrl}
             />
           }
         />

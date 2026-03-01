@@ -39,6 +39,8 @@ import { PaymongoWebhookController } from './webhooks/paymongo-webhook.controlle
 import { AppSettingEntity } from './settings/app-setting.entity';
 import { SettingsController } from './settings/settings.controller';
 import { SettingsService } from './settings/settings.service';
+import { ReelJobEntity } from './reels/reel-job.entity';
+import { WorkerReelJobsController } from './worker/worker-reel-jobs.controller';
 
 @Module({
   imports: [
@@ -55,6 +57,7 @@ import { SettingsService } from './settings/settings.service';
       FontEntity,
       ClipEntity,
       AppSettingEntity,
+      ReelJobEntity,
     ]),
     ScheduleModule.forRoot(),
     ServeStaticModule.forRoot(
@@ -76,7 +79,7 @@ import { SettingsService } from './settings/settings.service';
       },
     ),
   ],
-  controllers: [AccountsController, ReelsController, ClipsController, OrderClipsController, YoutubeController, FacebookController, CaptionsController, PipelineController, OrdersController, FontsController, ImageCacheController, PaymongoWebhookController, SettingsController],
+  controllers: [AccountsController, ReelsController, ClipsController, OrderClipsController, YoutubeController, FacebookController, CaptionsController, PipelineController, OrdersController, FontsController, ImageCacheController, PaymongoWebhookController, SettingsController, WorkerReelJobsController],
   providers: [AccountsService, ReelsService, ClipsService, YoutubeService, FacebookService, CaptionsService, PipelineService, OrdersService, FontsService, ImageCacheService, PaymongoService, SettingsService],
 })
 export class AppModule {}

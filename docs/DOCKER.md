@@ -17,10 +17,12 @@ All services run with Docker Compose: **MySQL**, **API**, **web** (main app), **
    ```bash
    docker compose -f docker-compose.local.yml --env-file .env.local up -d
    ```
-   - API: http://localhost:3000  
-   - Web: http://localhost:5173  
-   - Web-orders: http://localhost:5174  
-   - phpMyAdmin: http://localhost:8080  
+   - API: http://localhost:3010  
+   - Web: http://localhost:5175  
+   - Web-orders: http://localhost:5176  
+   - phpMyAdmin: http://localhost:8081  
+
+   Ports are chosen to avoid conflicts with other services on the same host (e.g. MySQL 3307, API 3010, phpMyAdmin 8081). See **Ports** below.  
 
 3. **Assets and output**
    - The API container mounts the **repo root** at `/app/data` (`REPO_ROOT=/app/data`). So the API sees your local `assets/` (fonts, game-clips, credentials, voices) and `output/` on the host. No need to copy assets into the image; add or update files in `assets/` and `output/` on the host and the container uses them.
@@ -29,25 +31,27 @@ All services run with Docker Compose: **MySQL**, **API**, **web** (main app), **
 4. **First-time MySQL**
    - The `api/mysql-initdb.d/grant_privileges.sql` script runs on first MySQL start: it creates the `reelmaker` database and grants the app user access. No manual GRANT needed when using the Compose MySQL service.
 
-## Services
+## Services and ports (VPS-friendly)
 
-| Service     | Image build        | Port  | Notes |
-|------------|--------------------|-------|--------|
-| mysql      | `mysql:8.0`        | 3306  | Init runs `api/mysql-initdb.d/*.sql` on first start. |
-| phpmyadmin | `phpmyadmin/phpmyadmin` | 8080  | Web UI for MySQL. Open http://localhost:8080 — log in as `root` or `user` (passwords from .env). |
-| api        | `./api/Dockerfile` | 3000  | NestJS; uses `api/.env.local` (or .env.dev / .env.prod) and DB. |
-| web        | `./web/Dockerfile` | 5173→80 | Vite build + nginx; `VITE_API_BASE_URL` set to `http://localhost:3000` at build. |
-| web-orders | `./web-orders/Dockerfile` | 5174→80 | Same as web. |
+Ports are chosen to avoid conflicts with other services on the same host (e.g. bill-tracker on 3004/3005/3306/8080, Portainer on 9000/9443).
+
+| Service     | Image / build      | Host port → container | Notes |
+|------------|--------------------|------------------------|--------|
+| mysql      | `mysql:8.0`        | **3307** → 3306        | Init runs `api/mysql-initdb.d/*.sql` on first start. |
+| phpmyadmin | `phpmyadmin/phpmyadmin` | **8081** → 80     | Web UI for MySQL. Open http://localhost:8081 — log in as `root` or `user`. |
+| api        | `./api/Dockerfile` | **3010** → 3000        | NestJS; uses `api/.env.local` (or .env.dev / .env.prod) and DB. |
+| web        | `./web/Dockerfile` | **5175** (local/dev) or **8082** (prod) → 80 | Vite build + nginx. Set `VITE_API_BASE_URL` to API URL (e.g. http://localhost:3010). |
+| web-orders | `./web-orders/Dockerfile` | **5176** (local/dev) or **8443** (deploy/prod) → 80 | Same as web. |
 
 ## Build args (frontends)
 
 - **VITE_API_BASE_URL**  
-  Set in `docker-compose.yml` build args for `web` and `web-orders`. Default `http://localhost:3000` so the browser (on the host) can call the API. If you put a reverse proxy in front, change this to the public API URL and rebuild the frontend images.
+  Set in root env (e.g. `.env.local`) and passed as build args. Use the **host** API URL (e.g. `http://localhost:3010` or `http://your-vps:3010`) so the browser can call the API. For production behind a proxy, set to the public API URL and rebuild.
 
 ## Transcription and reels-generator services
 
 - **Transcription** (`workers/transcription`): Separate Docker service that polls MySQL for clips with `transcript_status='pending'`, runs `transcribe_clip.py`, and updates the DB. Used in **deploy** and **local** compose. Set **`RUN_TRANSCRIPTION_IN_API=false`** in the API (deploy compose does this) so the API does not run transcription in-process.
-- **Reels-generator** (`workers/reels-generator`): Separate Docker service intended to run **locally only** (heavy CPU). In `docker-compose.local.yml` under the **`workers`** profile. Currently a placeholder until the API exposes a job queue; until then, video generation runs in the API. See **`workers/README.md`**.
+- **Reels-generator** (`workers/reels-generator`): Runs **locally only**; polls VPS API for jobs, runs `reels_generator.py`, uploads output to VPS so the customer sees the reel on their receipt. **Web-orders** uses VPS API URL; **backoffice** (generate orders) uses local API URL; **worker** uses VPS API URL. See **`workers/README.md`** and **`docs/DEPLOY.md`**.
 
 ## Deploy (CI/CD): API + web-orders + transcription
 
@@ -61,8 +65,8 @@ To deploy only the **light** stack (API + web-orders, no web backoffice), use **
 
 **Intended flow:**
 - **Remote (deployed):** API + web-orders + MySQL. Customers place orders via web-orders; API stores orders and serves data.
-- **Your machine (local):** Run the **web backoffice** only (e.g. `cd web && npm run dev`). Point it at the deployed API by setting **`VITE_API_BASE_URL`** in `web/.env` (or `web/.env.local`) to your deployed API URL (e.g. `https://api.yourdomain.com`). The backoffice then pulls order details from the deployed API.
-- **Video generation:** Today the Python reels generator runs **inside the API process** (same container). So either:
+- **Your machine (local):** **Web-orders** uses **VPS API URL**. **Backoffice** (generate/process orders) uses **local API URL** (e.g. `VITE_API_BASE_URL=http://localhost:3010` in `web/.env.local`). Run the **local API** with **VPS MySQL** so it sees the same orders and creates reel jobs; run the **reels-generator** worker with **VPS_API_URL** so it uploads output to the VPS — then the **customer** sees the reel on their receipt.
+- **Video generation / worker:** With **REELS_RUN_IN_PROCESS=false** on VPS, the local worker polls VPS and uploads output; customer sees the reel on receipt. See **`docs/DEPLOY.md`**. Legacy options:
   - **Option A:** Run the API locally as well (e.g. `docker-compose.local.yml` or `cd api && npm run start:dev`), with that local API using the **same MySQL** as the deployed API (e.g. `TYPEORM_DATABASE_HOST` = your deployed DB host). Then the local API runs the generator; output is on your disk. To “send it back online” you would need a way to sync or upload that output to the server (e.g. an upload endpoint, or shared storage).
   - **Option B:** Run generation on the deployed server (current behavior). If the server is light on CPU, set **`REELS_MAX_CONCURRENT_JOBS=1`** (or `0` to effectively disable) in `api/.env.prod` to limit load until you add a separate local worker or upload flow.
 
@@ -70,7 +74,7 @@ See **`docs/DEPLOY.md`** for a short deployment and architecture summary.
 
 ## CORS
 
-The API reads **CORS_ORIGINS** from the environment (comma-separated). Compose sets it to `http://localhost:5173,http://localhost:5174,http://localhost:3000`. For production, set it to your real frontend origins.
+The API reads **CORS_ORIGINS** from the environment (comma-separated). Include your frontend origins (e.g. `http://localhost:5175,http://localhost:5176,http://localhost:3010` or your VPS URLs). For production, set it to your real frontend origins.
 
 ## Using an external MySQL host
 
@@ -128,5 +132,5 @@ The share is the whole repo (assets, output, api, web, etc.). To restrict to onl
 
 - **API:** `cd api && npm run start:dev` (uses `api/.env` or `api/.env.local`, DB host as in that file).
 - **Web:** `cd web && npm run dev` (default port 5173).
-- **Web-orders:** `cd web-orders && npm run dev` (port 5174).
+- **Web-orders:** `cd web-orders && npm run dev` (port 5174). When using Docker, backoffice is on **5175** and web-orders on **5176**; API on **3010**.
 - Set `VITE_API_BASE_URL` in the frontend apps if the API is not on the default URL.

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
 
-const API = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3000'
+const API = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3010'
 
 type OrderStatus = 'pending' | 'accepted' | 'declined' | 'processing' | 'ready_for_sending' | 'closed'
 

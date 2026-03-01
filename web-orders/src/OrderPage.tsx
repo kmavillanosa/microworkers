@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useSearchParams } from 'react-router-dom'
 
-const API = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3000'
+const API = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3010'
 
 interface FontItem {
   id: string

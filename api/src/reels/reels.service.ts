@@ -16,6 +16,7 @@ import { OrdersService } from '../orders/orders.service';
 import { CreateReelDto } from './dto/create-reel.dto';
 import { piperVoiceCatalog } from './piper-catalog';
 import { BgMode, ReelItem, ReelJob, UploadPlatform, UploadRecord, VoiceEngine } from './reels.types';
+import { ReelJobEntity } from './reel-job.entity';
 
 interface LocalVoice {
   id: string;
@@ -107,10 +108,14 @@ export class ReelsService {
   private runningCount = 0;
   private readonly jobTimeoutMs = 15 * 60 * 1000;
   private readonly pythonVerbose = process.env.REELS_PYTHON_VERBOSE === '1';
+  /** When false (e.g. on VPS), jobs are queued in DB only; a local worker runs generation and uploads output. */
+  private readonly runInProcess = process.env.REELS_RUN_IN_PROCESS !== 'false';
 
   constructor(
     @InjectRepository(FontEntity)
     private readonly fontRepo: Repository<FontEntity>,
+    @InjectRepository(ReelJobEntity)
+    private readonly reelJobRepo: Repository<ReelJobEntity>,
     private readonly ordersService: OrdersService,
   ) {}
 
@@ -245,20 +250,27 @@ export class ReelsService {
     };
 
     this.jobs.set(id, job);
-    this.queue.push(id);
-    this.logger.log(
-      `Queued reel job ${id} (engine=${voiceEngine}, bgMode=${bgMode}, clip=${job.clipName ?? 'auto'}, font=${job.fontName ?? 'default'}, queue=${this.queue.length})`,
-    );
-    this.processQueue();
+    if (this.runInProcess) {
+      this.queue.push(id);
+      this.logger.log(
+        `Queued reel job ${id} (engine=${voiceEngine}, bgMode=${bgMode}, clip=${job.clipName ?? 'auto'}, font=${job.fontName ?? 'default'}, queue=${this.queue.length})`,
+      );
+      this.processQueue();
+    } else {
+      await this.persistJobToDb(job);
+      this.logger.log(
+        `Queued reel job ${id} for worker (engine=${voiceEngine}, bgMode=${bgMode}). Set REELS_RUN_IN_PROCESS=false; local worker will process.`,
+      );
+    }
     return job;
   }
 
-  getJob(jobId: string): ReelJob {
-    const job = this.jobs.get(jobId);
-    if (!job) {
-      throw new NotFoundException('Job not found');
-    }
-    return job;
+  async getJob(jobId: string): Promise<ReelJob> {
+    const fromMemory = this.jobs.get(jobId);
+    if (fromMemory) return fromMemory;
+    const entity = await this.reelJobRepo.findOne({ where: { id: jobId } });
+    if (!entity) throw new NotFoundException('Job not found');
+    return this.entityToJob(entity);
   }
 
   async listReels(): Promise<ReelItem[]> {
@@ -1077,6 +1089,67 @@ export class ReelsService {
     await writeFile(metaPath, JSON.stringify(meta, null, 2), 'utf8');
   }
 
+  private async persistJobToDb(job: ReelJob): Promise<void> {
+    const entity = this.jobToEntity(job);
+    await this.reelJobRepo.save(entity);
+  }
+
+  private jobToEntity(job: ReelJob): ReelJobEntity {
+    const e = new ReelJobEntity();
+    e.id = job.id;
+    e.script = job.script;
+    e.title = job.title ?? null;
+    e.clip_name = job.clipName ?? null;
+    e.font_name = job.fontName ?? null;
+    e.voice_engine = job.voiceEngine;
+    e.voice_name = job.voiceName ?? null;
+    e.voice_rate = job.voiceRate ?? 180;
+    e.bg_mode = job.bgMode ?? 'auto';
+    e.status = job.status as ReelJobEntity['status'];
+    e.progress = job.progress ?? 0;
+    e.stage = job.stage ?? null;
+    e.created_at = new Date(job.createdAt);
+    e.updated_at = new Date(job.updatedAt);
+    e.output_folder = job.outputFolder ?? null;
+    e.error = job.error ?? null;
+    e.order_id = job.orderId ?? null;
+    e.output_size = job.outputSize ?? null;
+    e.use_clip_audio = job.useClipAudio ?? false;
+    e.use_clip_audio_with_narrator = job.useClipAudioWithNarrator ?? false;
+    e.transcript_segments = job.transcriptSegments ?? null;
+    e.niche_id = job.nicheId ?? null;
+    e.niche_label = job.nicheLabel ?? null;
+    return e;
+  }
+
+  private entityToJob(entity: ReelJobEntity): ReelJob {
+    return {
+      id: entity.id,
+      script: entity.script,
+      title: entity.title ?? undefined,
+      clipName: entity.clip_name ?? undefined,
+      fontName: entity.font_name ?? undefined,
+      voiceEngine: entity.voice_engine as VoiceEngine,
+      voiceName: entity.voice_name ?? undefined,
+      voiceRate: entity.voice_rate ?? 180,
+      bgMode: (entity.bg_mode as BgMode) ?? 'auto',
+      status: entity.status,
+      progress: entity.progress ?? 0,
+      stage: entity.stage ?? undefined,
+      createdAt: entity.created_at.toISOString(),
+      updatedAt: entity.updated_at.toISOString(),
+      outputFolder: entity.output_folder ?? undefined,
+      error: entity.error ?? undefined,
+      orderId: entity.order_id ?? undefined,
+      outputSize: (entity.output_size as ReelJob['outputSize']) ?? undefined,
+      useClipAudio: entity.use_clip_audio ?? undefined,
+      useClipAudioWithNarrator: entity.use_clip_audio_with_narrator ?? undefined,
+      transcriptSegments: entity.transcript_segments ?? undefined,
+      nicheId: entity.niche_id ?? undefined,
+      nicheLabel: entity.niche_label ?? undefined,
+    };
+  }
+
   private updateJob(jobId: string, patch: Partial<ReelJob>): void {
     const existing = this.jobs.get(jobId);
     if (!existing) {
@@ -1091,6 +1164,106 @@ export class ReelsService {
     await mkdir(paths.outputDir, { recursive: true });
     await mkdir(paths.scriptsDir, { recursive: true });
     await mkdir(paths.piperVoicesDir, { recursive: true });
+  }
+
+  /** Worker (offline): list jobs with status=queued from DB for local processing. */
+  async listQueuedJobsForWorker(): Promise<ReelJob[]> {
+    const rows = await this.reelJobRepo.find({
+      where: { status: 'queued' },
+      order: { created_at: 'ASC' },
+    });
+    return rows.map((e) => this.entityToJob(e));
+  }
+
+  /** Worker: claim a job (set status=processing) so only one worker processes it. */
+  async claimJobForWorker(jobId: string): Promise<ReelJob> {
+    const entity = await this.reelJobRepo.findOne({ where: { id: jobId } });
+    if (!entity) throw new NotFoundException('Job not found');
+    if (entity.status !== 'queued') {
+      throw new BadRequestException(`Job ${jobId} is not queued (status=${entity.status})`);
+    }
+    entity.status = 'processing';
+    entity.updated_at = new Date();
+    await this.reelJobRepo.save(entity);
+    const job = this.entityToJob(entity);
+    this.jobs.set(jobId, job);
+    return job;
+  }
+
+  /** Worker: update job status/progress (e.g. completed, failed) and optionally output_folder. */
+  async updateJobFromWorker(
+    jobId: string,
+    patch: {
+      status?: ReelJob['status'];
+      progress?: number;
+      stage?: string;
+      outputFolder?: string;
+      error?: string;
+    },
+  ): Promise<ReelJob> {
+    const entity = await this.reelJobRepo.findOne({ where: { id: jobId } });
+    if (!entity) throw new NotFoundException('Job not found');
+    if (patch.status != null) entity.status = patch.status as ReelJobEntity['status'];
+    if (patch.progress != null) entity.progress = patch.progress;
+    if (patch.stage != null) entity.stage = patch.stage;
+    if (patch.outputFolder != null) entity.output_folder = patch.outputFolder;
+    if (patch.error != null) entity.error = patch.error;
+    entity.updated_at = new Date();
+    await this.reelJobRepo.save(entity);
+    const job = this.entityToJob(entity);
+    this.jobs.set(jobId, job);
+    return job;
+  }
+
+  /**
+   * Worker: save uploaded reel output files to VPS and mark job completed.
+   * Creates output/<outputFolderName>/ with reel.mp4, reel.srt, reel.txt, optional reel-audio.wav.
+   */
+  async saveReelOutputFromWorker(
+    jobId: string,
+    outputFolderName: string,
+    files: {
+      video: Buffer;
+      srt: Buffer;
+      txt: Buffer;
+      audio?: Buffer;
+    },
+  ): Promise<ReelItem> {
+    const entity = await this.reelJobRepo.findOne({ where: { id: jobId } });
+    if (!entity) throw new NotFoundException('Job not found');
+    await this.ensureDirectories();
+    const folderPath = join(paths.outputDir, outputFolderName);
+    await mkdir(folderPath, { recursive: true });
+    await writeFile(join(folderPath, 'reel.mp4'), files.video);
+    await writeFile(join(folderPath, 'reel.srt'), files.srt);
+    await writeFile(join(folderPath, 'reel.txt'), files.txt);
+    if (files.audio?.length) {
+      await writeFile(join(folderPath, 'reel-audio.wav'), files.audio);
+    }
+    const meta: ReelMeta = {
+      orderId: entity.order_id ?? undefined,
+      nicheId: entity.niche_id ?? undefined,
+      nicheLabel: entity.niche_label ?? undefined,
+    };
+    await this.writeReelMeta(outputFolderName, meta);
+    entity.status = 'completed';
+    entity.progress = 100;
+    entity.stage = 'Completed';
+    entity.output_folder = outputFolderName;
+    entity.error = null;
+    entity.updated_at = new Date();
+    await this.reelJobRepo.save(entity);
+    const job = this.entityToJob(entity);
+    this.jobs.set(jobId, job);
+    if (entity.order_id) {
+      await this.ordersService.markReadyForSending(entity.order_id).catch((err) => {
+        this.logger.warn(`Failed to mark order ${entity.order_id} ready_for_sending: ${String(err)}`);
+      });
+    }
+    const reels = await this.listReels();
+    const item = reels.find((r) => r.id === outputFolderName);
+    if (!item) throw new NotFoundException('Reel output not found after save');
+    return item;
   }
 
   /**

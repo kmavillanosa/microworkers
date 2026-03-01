@@ -185,7 +185,7 @@ export class YoutubeService {
   }
 
   private getRedirectUri() {
-    return process.env.YOUTUBE_REDIRECT_URI ?? 'http://localhost:3000/api/youtube/callback'
+    return process.env.YOUTUBE_REDIRECT_URI ?? 'http://localhost:3010/api/youtube/callback'
   }
 
   private getWebRedirectUrl() {

@@ -749,7 +749,7 @@ export class FacebookService {
   }
 
   private getRedirectUri() {
-    return process.env.FB_REDIRECT_URI ?? 'http://localhost:3000/api/facebook/callback'
+    return process.env.FB_REDIRECT_URI ?? 'http://localhost:3010/api/facebook/callback'
   }
 
   private getWebRedirectUrl() {
@@ -757,6 +757,6 @@ export class FacebookService {
   }
 
   private getApiBaseUrl() {
-    return process.env.API_BASE_URL ?? 'http://localhost:3000'
+    return process.env.API_BASE_URL ?? 'http://localhost:3010'
   }
 }
