@@ -36,6 +36,11 @@ jobs:
 
           cd /microworkers
 
+          mkdir -p assets/game-clips assets/order-clips assets/db assets/credentials \
+            assets/cache/images assets/voices/piper output scripts
+          [ -d assets/fonts ] || mkdir -p assets/fonts
+          chown -R 1000:1000 assets output scripts
+
           export MYSQL_ROOT_PASSWORD="${{ secrets.MYSQL_ROOT_PASSWORD }}"
           export MYSQL_DATABASE="${{ secrets.MYSQL_DATABASE }}"
           export MYSQL_USER="${{ secrets.MYSQL_USER }}"
