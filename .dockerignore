@@ -1,0 +1,9 @@
+# Root .dockerignore: applied when build context is repo root. Per-service builds use their own context.
+.git
+**/node_modules
+**/.env
+**/dist
+*.log
+.env
+.env.*
+!.env.example

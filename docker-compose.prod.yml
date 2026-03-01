@@ -1,0 +1,85 @@
+# Production. Run: docker compose -f docker-compose.prod.yml --env-file .env.prod up -d
+# API uses api/.env.prod; MySQL and build args use .env.prod (root). No phpMyAdmin.
+
+name: microworkers-prod
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: microworkers-prod-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+    volumes:
+      - mysql_data_prod:/var/lib/mysql
+      - ./api/mysql-initdb.d:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD", "sh", "-c", "mysqladmin ping -h localhost -u root -p$$MYSQL_ROOT_PASSWORD"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: always
+    # Do not expose 3306 to host in production unless required for remote admin
+
+  api:
+    build:
+      context: .
+      dockerfile: api/Dockerfile
+    container_name: microworkers-prod-api
+    env_file:
+      - ./api/.env.prod
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      REPO_ROOT: /app/data
+      REELS_PYTHON_EXE: /usr/bin/python3
+      REELS_PYTHON_VERBOSE: "0"
+      REELS_MAX_CONCURRENT_JOBS: ${REELS_MAX_CONCURRENT_JOBS}
+      TYPEORM_DATABASE_HOST: mysql
+      TYPEORM_DATABASE_PORT: ${TYPEORM_DATABASE_PORT}
+      TYPEORM_DATABASE_USERNAME: ${TYPEORM_DATABASE_USERNAME}
+      TYPEORM_DATABASE_PASSWORD: ${TYPEORM_DATABASE_PASSWORD}
+      TYPEORM_DATABASE_NAME: ${TYPEORM_DATABASE_NAME}
+      CORS_ORIGINS: ${CORS_ORIGINS}
+    ports:
+      - "3000:3000"
+    volumes:
+      - .:/app/data
+    depends_on:
+      mysql:
+        condition: service_healthy
+    restart: always
+
+  web:
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL}
+        VITE_APP_ENV: ${VITE_APP_ENV}
+    container_name: microworkers-prod-web
+    ports:
+      - "80:80"
+    depends_on:
+      - api
+    restart: always
+
+  web-orders:
+    build:
+      context: ./web-orders
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL_WEB_ORDERS}
+        VITE_PAYMONGO_ENABLED: ${VITE_PAYMONGO_ENABLED}
+        VITE_APP_ENV: ${VITE_APP_ENV}
+    container_name: microworkers-prod-web-orders
+    ports:
+      - "443:80"
+    depends_on:
+      - api
+    restart: always
+
+volumes:
+  mysql_data_prod:

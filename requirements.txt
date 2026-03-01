@@ -1,0 +1,7 @@
+moviepy
+imageio-ffmpeg
+pyttsx3
+Pillow
+numpy
+edge-tts
+faster-whisper

@@ -1,0 +1,150 @@
+# Local. Run: docker compose -f docker-compose.local.yml --env-file .env.local up -d
+# Includes transcription service (optional: set RUN_TRANSCRIPTION_IN_API=false in api/.env.local to use it)
+# and reels-generator (placeholder until API job queue is added). Web backoffice + heavy processing run here.
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: microworkers-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./api/mysql-initdb.d:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD", "sh", "-c", "mysqladmin ping -h localhost -u root -p$$MYSQL_ROOT_PASSWORD"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    container_name: microworkers-phpmyadmin
+    environment:
+      PMA_HOST: mysql
+      PMA_PORT: 3306
+      UPLOAD_LIMIT: 64M
+    ports:
+      - "8080:80"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    restart: unless-stopped
+
+  api:
+    build:
+      context: .
+      dockerfile: api/Dockerfile
+    container_name: microworkers-api
+    env_file:
+      - ./api/.env.local
+    environment:
+      NODE_ENV: development
+      PORT: 3000
+      REPO_ROOT: /app/data
+      REELS_PYTHON_EXE: /usr/bin/python3
+      REELS_PYTHON_VERBOSE: "1"
+      REELS_MAX_CONCURRENT_JOBS: ${REELS_MAX_CONCURRENT_JOBS}
+      TYPEORM_DATABASE_HOST: mysql
+      TYPEORM_DATABASE_PORT: ${TYPEORM_DATABASE_PORT}
+      TYPEORM_DATABASE_USERNAME: ${TYPEORM_DATABASE_USERNAME}
+      TYPEORM_DATABASE_PASSWORD: ${TYPEORM_DATABASE_PASSWORD}
+      TYPEORM_DATABASE_NAME: ${TYPEORM_DATABASE_NAME}
+      CORS_ORIGINS: ${CORS_ORIGINS}
+    ports:
+      - "3000:3000"
+    volumes:
+      - .:/app/data
+    depends_on:
+      mysql:
+        condition: service_healthy
+    restart: unless-stopped
+
+  web:
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL}
+        VITE_APP_ENV: ${VITE_APP_ENV}
+    container_name: microworkers-web
+    ports:
+      - "5173:80"
+    restart: unless-stopped
+
+  web-orders:
+    build:
+      context: ./web-orders
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL_WEB_ORDERS}
+        VITE_PAYMONGO_ENABLED: ${VITE_PAYMONGO_ENABLED}
+        VITE_APP_ENV: ${VITE_APP_ENV}
+    container_name: microworkers-web-orders
+    ports:
+      - "5174:80"
+    depends_on:
+      - api
+    restart: unless-stopped
+
+  transcription:
+    build:
+      context: .
+      dockerfile: workers/transcription/Dockerfile
+    container_name: microworkers-transcription
+    environment:
+      REPO_ROOT: /data
+      REELS_PYTHON_EXE: /usr/bin/python3
+      TYPEORM_DATABASE_HOST: mysql
+      TYPEORM_DATABASE_PORT: ${TYPEORM_DATABASE_PORT}
+      TYPEORM_DATABASE_USERNAME: ${TYPEORM_DATABASE_USERNAME}
+      TYPEORM_DATABASE_PASSWORD: ${TYPEORM_DATABASE_PASSWORD}
+      TYPEORM_DATABASE_NAME: ${TYPEORM_DATABASE_NAME}
+    volumes:
+      - .:/data
+    depends_on:
+      mysql:
+        condition: service_healthy
+    restart: unless-stopped
+
+  reels-generator:
+    build:
+      context: .
+      dockerfile: workers/reels-generator/Dockerfile
+    container_name: microworkers-reels-generator
+    environment:
+      API_BASE_URL: http://api:3000
+      REPO_ROOT: /data
+    volumes:
+      - .:/data
+    depends_on:
+      - api
+    restart: unless-stopped
+    profiles:
+      - workers
+
+  samba:
+    image: dperson/samba
+    container_name: microworkers-samba
+    profiles:
+      - share
+    ports:
+      - "139:139"
+      - "445:445"
+    environment:
+      SHARE: "microworkers;/data;yes;no;no;${SAMBA_USER}"
+      USER: "${SAMBA_USER};${SAMBA_PASSWORD}"
+      WORKGROUP: "${SAMBA_WORKGROUP}"
+      PERMISSIONS: "1"
+    volumes:
+      - .:/data
+    restart: unless-stopped
+
+volumes:
+  mysql_data:

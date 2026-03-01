@@ -1,0 +1,79 @@
+# Dependencies
+node_modules/
+
+# Environment and secrets (do not commit)
+.env
+.env.local
+.env.dev
+.env.prod
+.env.*.local
+
+# Build outputs
+dist/
+build/
+output/
+.next/
+out/
+
+# Python (reels generator and local venvs)
+.reels-venv/
+.venv/
+__pycache__/
+*.py[cod]
+*.pyo
+.Python
+*.egg-info/
+.eggs/
+*.egg
+
+# Credentials and local DB (tokens, OAuth, accounts DB)
+assets/credentials/
+assets/db/
+
+# Logs and temp
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.npm
+.cache
+*.tmp
+*.temp
+.temp/
+tmp/
+temp/
+
+# Testing and coverage
+coverage/
+.nyc_output/
+.turbo/
+
+# API-generated temp (script/transcript files per job)
+scripts/api-script-*.txt
+scripts/api-transcript-*.json
+
+# IDE and editors
+.idea/
+.vscode/
+.continue/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+ehthumbs.db
+
+# TypeScript / tooling
+*.tsbuildinfo
+.eslintcache
+.prettierignore
+
+# Piper TTS voice models (.onnx + .onnx.json) — add locally or download from https://huggingface.co/rhasspy/piper-voices
+assets/voices/piper/
+
+# Large media — add locally or use LFS
+assets/game-clips/
+# assets/order-clips/
+# assets/cache/
