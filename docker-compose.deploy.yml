@@ -36,7 +36,6 @@ services:
       REPO_ROOT: /app/data
       REELS_PYTHON_EXE: /usr/bin/python3
       REELS_PYTHON_VERBOSE: "0"
-      REELS_PYTHON_VERBOSE: "0"
       REELS_MAX_CONCURRENT_JOBS: ${REELS_MAX_CONCURRENT_JOBS}
       REELS_RUN_IN_PROCESS: "false"
       RUN_TRANSCRIPTION_IN_API: "false"
