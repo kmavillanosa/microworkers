@@ -266,11 +266,15 @@ export class ReelsService {
   }
 
   async getJob(jobId: string): Promise<ReelJob> {
+    const entity = await this.reelJobRepo.findOne({ where: { id: jobId } });
+    if (entity) {
+      const job = this.entityToJob(entity);
+      this.jobs.set(jobId, job);
+      return job;
+    }
     const fromMemory = this.jobs.get(jobId);
     if (fromMemory) return fromMemory;
-    const entity = await this.reelJobRepo.findOne({ where: { id: jobId } });
-    if (!entity) throw new NotFoundException('Job not found');
-    return this.entityToJob(entity);
+    throw new NotFoundException('Job not found');
   }
 
   async listReels(): Promise<ReelItem[]> {

@@ -1375,12 +1375,20 @@ function App() {
     }
   }, [reels, youtubeTitle]);
 
+  // Poll job status in real time when there are active jobs; refresh immediately when tab becomes visible so completion is detected and notification can fire
   useEffect(() => {
     if (!activeJobs.length) return;
-    const interval = window.setInterval(() => {
-      void refreshActiveJobs();
-    }, 2500);
-    return () => window.clearInterval(interval);
+    const poll = () => void refreshActiveJobs();
+    poll();
+    const interval = window.setInterval(poll, 1500);
+    const onVisible = () => {
+      if (document.visibilityState === "visible") poll();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      window.clearInterval(interval);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
   }, [activeJobs.length]);
 
   // Auto-select first connected account when lists change
@@ -2858,8 +2866,8 @@ function App() {
       }
       navigate("/outputs");
       sendNotification(
-        "Reel Ready! 🎬",
-        "Your reel finished generating. Head to Outputs to preview and upload.",
+        "Reel ready 🎬",
+        "Generation and upload are done. Open Outputs to preview or share.",
       );
     }
     if (hasNewFailed) {
