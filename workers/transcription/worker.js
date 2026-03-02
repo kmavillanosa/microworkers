@@ -29,6 +29,16 @@ function getDbConfig() {
   }
 }
 
+function isConnectionClosedError(err) {
+  const msg = err?.message ?? ''
+  return (
+    msg.includes('closed state') ||
+    msg.includes('Connection lost') ||
+    err?.code === 'PROTOCOL_CONNECTION_LOST' ||
+    err?.code === 'ECONNRESET'
+  )
+}
+
 async function runTranscribe(inputPath) {
   return new Promise((resolve, reject) => {
     const proc = spawn(PYTHON_EXE, [TRANSCRIBE_SCRIPT, inputPath], {
@@ -84,7 +94,7 @@ async function main() {
   }
 
   console.log('Transcription worker started. Polling for pending clips...' + (VERBOSE ? ' (verbose)' : ''))
-  const conn = await createConnection(dbConfig)
+  let conn = await createConnection(dbConfig)
 
   while (true) {
     try {
@@ -176,7 +186,18 @@ async function main() {
       if (VERBOSE) console.log('[verbose] Result:', { language: parsed?.language, segments: parsed?.segments?.length ?? 0, textLen: text?.length ?? 0 })
       console.log(`Transcribed ${filename} -> ${text ? 'completed' : 'empty'}`)
     } catch (err) {
-      console.error('Worker loop error:', err)
+      if (isConnectionClosedError(err)) {
+        console.error('MySQL connection closed, reconnecting...', err.message)
+        try {
+          conn.destroy()
+        } catch {
+          // ignore
+        }
+        conn = await createConnection(dbConfig)
+        console.log('Reconnected to MySQL.')
+      } else {
+        console.error('Worker loop error:', err)
+      }
       await new Promise((r) => setTimeout(r, POLL_MS))
     }
   }
