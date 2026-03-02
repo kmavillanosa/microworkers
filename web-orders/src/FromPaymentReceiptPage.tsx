@@ -105,14 +105,18 @@ export default function FromPaymentReceiptPage() {
     setError(null)
     try {
       const res = await fetch(`${API}/api/orders/by-checkout-session/${encodeURIComponent(sid)}`)
-      if (res.ok) {
-        const order = await res.json()
-        if (order?.id) {
-          navigate(`/receipt/${order.id}`, { replace: true })
-          return
-        }
+      const data = await res.json().catch(() => ({}))
+      if (res.ok && data?.id) {
+        navigate(`/receipt/${data.id}`, { replace: true })
+        return
       }
-      setLookupError('Order not found for this session. Check the ID (starts with cs_) or contact support.')
+      const apiMessage = typeof (data as { message?: string }).message === 'string'
+        ? (data as { message: string }).message
+        : null
+      setLookupError(
+        apiMessage ||
+          'Order not found for this session. Check the ID (starts with cs_) or contact support.',
+      )
       setError('Missing checkout session. If you just paid, your order was created; you can look it up below or check your email.')
     } catch {
       setLookupError('Lookup failed. Please try again or contact support.')

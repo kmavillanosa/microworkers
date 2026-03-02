@@ -90,8 +90,26 @@ export class OrdersService {
 	}
 
 	async findPendingByCheckoutSessionId(checkoutSessionId: string): Promise<Record<string, unknown> | null> {
-		const row = await this.pendingCheckoutRepo.findOne({ where: { checkout_session_id: checkoutSessionId } })
-		return row?.payload ?? null
+		const sid = checkoutSessionId?.trim()
+		if (!sid) return null
+		let row = await this.pendingCheckoutRepo.findOne({ where: { checkout_session_id: sid } })
+		if (!row && checkoutSessionId !== sid) {
+			row = await this.pendingCheckoutRepo.findOne({ where: { checkout_session_id: checkoutSessionId } })
+		}
+		const raw = row?.payload
+		if (raw == null) return null
+		if (typeof raw === 'object' && raw !== null && !Array.isArray(raw)) return raw as Record<string, unknown>
+		if (typeof raw === 'string') {
+			try {
+				const parsed = JSON.parse(raw) as unknown
+				return typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)
+					? (parsed as Record<string, unknown>)
+					: null
+			} catch {
+				return null
+			}
+		}
+		return null
 	}
 
 	async deletePendingCheckout(checkoutSessionId: string): Promise<void> {
@@ -99,24 +117,32 @@ export class OrdersService {
 	}
 
 	async findOrderByPaymentSessionId(paymentSessionId: string): Promise<Order | null> {
-		const row = await this.ordersRepo.findOne({ where: { payment_session_id: paymentSessionId } })
+		const sid = paymentSessionId?.trim()
+		if (!sid) return null
+		const row = await this.ordersRepo.findOne({ where: { payment_session_id: sid } })
 		return row ? this.mapEntity(row) : null
 	}
 
 	/**
 	 * If this checkout session has a pending payload (prepare-checkout ran but order creation failed or was skipped),
 	 * create the order now and return it. Used by by-checkout-session when no order exists yet (e.g. payment link flow).
+	 * @throws BadRequestException if pending exists but order creation fails (e.g. validation)
 	 */
 	async createOrderFromPendingCheckout(sessionId: string): Promise<Order | null> {
-		const payload = await this.findPendingByCheckoutSessionId(sessionId)
+		const sid = sessionId?.trim()
+		if (!sid) return null
+		const payload = await this.findPendingByCheckoutSessionId(sid)
 		if (!payload || typeof payload !== 'object') return null
 		try {
 			const dto = payload as unknown as CreateOrderDto
-			const order = await this.create(dto, sessionId)
-			await this.deletePendingCheckout(sessionId)
+			const order = await this.create(dto, sid)
+			await this.deletePendingCheckout(sid)
 			return order
-		} catch {
-			return null
+		} catch (err) {
+			const message = err instanceof Error ? err.message : String(err)
+			throw new BadRequestException(
+				`Order could not be created from checkout session: ${message}`,
+			)
 		}
 	}
 
@@ -141,6 +167,13 @@ export class OrdersService {
 			.from(OrderEntity)
 			.execute()
 		return result.affected ?? 0
+	}
+
+	/** Delete a single order by id. Throws NotFoundException if not found. */
+	async deleteOrder(id: string): Promise<void> {
+		const order = await this.ordersRepo.findOne({ where: { id } })
+		if (!order) throw new NotFoundException(`Order "${id}" not found`)
+		await this.ordersRepo.remove(order)
 	}
 
 	async confirmPayment(id: string, bankCode: string, paymentReference: string): Promise<Order> {

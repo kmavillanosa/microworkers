@@ -263,12 +263,16 @@ function OrderOutputPage({
   navigate,
   apiBaseUrl: baseUrl,
   apiVpsBaseUrl: vpsBaseUrl,
+  onDeleteOrder,
+  orderDeletingId,
 }: {
   orders: Order[];
   reels: ReelItem[];
   navigate: (path: string) => void;
   apiBaseUrl: string;
   apiVpsBaseUrl: string;
+  onDeleteOrder?: (orderId: string) => Promise<void>;
+  orderDeletingId?: string | null;
 }) {
   const { orderId } = useParams<{ orderId: string }>();
   const order = orders.find((o) => o.id === orderId);
@@ -296,6 +300,23 @@ function OrderOutputPage({
     );
   }
 
+  async function handleDeleteOrder() {
+    if (!orderId || !onDeleteOrder) return;
+    if (
+      !window.confirm(
+        "Permanently delete this order and all its generated videos? This cannot be undone.",
+      )
+    ) {
+      return;
+    }
+    try {
+      await onDeleteOrder(orderId);
+    } catch (e) {
+      console.error(e);
+      window.alert("Failed to delete order. See console.");
+    }
+  }
+
   return (
     <div className="outputs-page" style={{ padding: "var(--pad-md)" }}>
       <section className="panel output-panel">
@@ -307,6 +328,17 @@ function OrderOutputPage({
           >
             ← Back to orders
           </button>
+          {onDeleteOrder && (
+            <button
+              type="button"
+              className="ghost-btn small"
+              onClick={() => void handleDeleteOrder()}
+              disabled={orderDeletingId === orderId}
+              title="Delete this order and its generated videos"
+            >
+              {orderDeletingId === orderId ? "Deleting…" : "Delete order"}
+            </button>
+          )}
         </div>
         <h2>Output for order</h2>
         <p className="muted small">
@@ -871,6 +903,7 @@ function App() {
   );
   const [deleteAllOrdersInProgress, setDeleteAllOrdersInProgress] =
     useState(false);
+  const [orderDeletingId, setOrderDeletingId] = useState<string | null>(null);
   const [orderPricingEdit, setOrderPricingEdit] = useState<{
     wordsPerFrame: string;
     pricePerFramePesos: string;
@@ -1075,6 +1108,30 @@ function App() {
       window.alert("Failed to delete. See console.");
     } finally {
       setDeleteAllOrdersInProgress(false);
+    }
+  }
+
+  async function handleDeleteOrder(orderId: string) {
+    if (
+      !window.confirm(
+        "Permanently delete this order and all its generated videos? This cannot be undone.",
+      )
+    ) {
+      return;
+    }
+    setOrderDeletingId(orderId);
+    try {
+      const res = await fetch(`${apiBaseUrl}/api/orders/${encodeURIComponent(orderId)}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) throw new Error("Delete failed");
+      await Promise.all([loadOrders(), loadReels()]);
+      setSelectedOrder((prev) => (prev?.id === orderId ? null : prev));
+    } catch (e) {
+      console.error(e);
+      window.alert("Failed to delete order. See console.");
+    } finally {
+      setOrderDeletingId(null);
     }
   }
 
@@ -5609,6 +5666,21 @@ function App() {
               navigate={navigate}
               apiBaseUrl={apiBaseUrl}
               apiVpsBaseUrl={apiVpsBaseUrl}
+              onDeleteOrder={async (id) => {
+                setOrderDeletingId(id);
+                try {
+                  const res = await fetch(`${apiBaseUrl}/api/orders/${encodeURIComponent(id)}`, {
+                    method: "DELETE",
+                  });
+                  if (!res.ok) throw new Error("Delete failed");
+                  await Promise.all([loadOrders(), loadReels()]);
+                  setSelectedOrder((prev) => (prev?.id === id ? null : prev));
+                  navigate("/orders");
+                } finally {
+                  setOrderDeletingId(null);
+                }
+              }}
+              orderDeletingId={orderDeletingId}
             />
           }
         />
@@ -6094,6 +6166,15 @@ function App() {
                                     onClick={() => navigate(`/?orderId=${order.id}`)}
                                   >
                                     Open in Studio
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="ghost-btn small orders-kanban-btn orders-kanban-btn-delete"
+                                    onClick={() => void handleDeleteOrder(order.id)}
+                                    disabled={orderDeletingId === order.id}
+                                    title="Delete this order and its generated videos"
+                                  >
+                                    {orderDeletingId === order.id ? "Deleting…" : "Delete"}
                                   </button>
                                 </div>
                           </div>

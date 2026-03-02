@@ -1309,4 +1309,36 @@ export class ReelsService {
     }
     return deleted;
   }
+
+  /**
+   * Delete reel output folders and job rows for a single order.
+   * Returns the number of output folders deleted.
+   */
+  async deleteReelsByOrderId(orderId: string): Promise<number> {
+    await this.ensureDirectories();
+    const entries = await readdir(paths.outputDir, { withFileTypes: true });
+    const folders = entries.filter((e) => e.isDirectory());
+    let deleted = 0;
+    for (const folder of folders) {
+      const meta = await this.readReelMeta(folder.name);
+      if (meta.orderId !== orderId) continue;
+      const folderPath = join(paths.outputDir, folder.name);
+      try {
+        await rm(folderPath, { recursive: true, force: true });
+        deleted += 1;
+      } catch {
+        this.logger.warn(`Failed to delete order reel folder: ${folder.name}`);
+      }
+    }
+    const jobResult = await this.reelJobRepo
+      .createQueryBuilder()
+      .delete()
+      .where('order_id = :orderId', { orderId })
+      .execute();
+    const jobsRemoved = jobResult.affected ?? 0;
+    if (jobsRemoved > 0) {
+      this.logger.log(`Removed ${jobsRemoved} reel job(s) for order ${orderId}`);
+    }
+    return deleted;
+  }
 }

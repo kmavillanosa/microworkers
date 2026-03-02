@@ -2,7 +2,9 @@ import {
 	BadRequestException,
 	Body,
 	Controller,
+	Delete,
 	Get,
+	Logger,
 	NotFoundException,
 	Param,
 	Patch,
@@ -75,6 +77,8 @@ function alignScriptToSegmentTiming(
 
 @Controller('api/orders')
 export class OrdersController {
+	private readonly logger = new Logger(OrdersController.name)
+
 	constructor(
 		private readonly ordersService: OrdersService,
 		private readonly reelsService: ReelsService,
@@ -243,13 +247,40 @@ export class OrdersController {
 		}
 	}
 
+	/** Debug: check if order or pending exists for a checkout session (no side effects). */
+	@Get('debug-checkout-session/:sessionId')
+	async debugCheckoutSession(@Param('sessionId') sessionId: string) {
+		const sid = sessionId?.trim()
+		if (!sid) {
+			return { sessionId: null, orderExists: false, pendingExists: false, message: 'Empty session id' }
+		}
+		const order = await this.ordersService.findOrderByPaymentSessionId(sid)
+		const pending = await this.ordersService.findPendingByCheckoutSessionId(sid)
+		return {
+			sessionId: sid,
+			orderExists: Boolean(order?.id),
+			orderId: order?.id ?? null,
+			pendingExists: Boolean(pending && typeof pending === 'object'),
+			message: order?.id
+				? 'Order found'
+				: pending
+					? 'Pending found (order will be created when you call by-checkout-session)'
+					: 'No order and no pending for this session',
+		}
+	}
+
 	@Get('by-checkout-session/:sessionId')
 	async getByCheckoutSession(@Param('sessionId') sessionId: string) {
-		let order = await this.ordersService.findOrderByPaymentSessionId(sessionId)
+		const sid = sessionId?.trim()
+		if (!sid) {
+			throw new BadRequestException('Checkout session ID is required')
+		}
+		let order = await this.ordersService.findOrderByPaymentSessionId(sid)
 		if (!order) {
-			order = await this.ordersService.createOrderFromPendingCheckout(sessionId)
+			order = await this.ordersService.createOrderFromPendingCheckout(sid)
 		}
 		if (!order) {
+			this.logger.warn(`Order not found for checkout session: ${sid}`)
 			throw new NotFoundException(
 				'Order not found for this checkout session. If you used a payment link, please place your order from the order form and use "Continue to payment" so we can link your payment to your order.',
 			)
@@ -297,14 +328,19 @@ export class OrdersController {
 		if (!sessionId) {
 			throw new BadRequestException('PayMongo did not return a session id')
 		}
-		// Create order now with payment_session_id so by-checkout-session finds it when user returns from PayMongo
+		// Persist pending checkout first so by-checkout-session can always find or create the order
+		await this.ordersService.savePendingCheckout(sessionId, resolvedPayload)
+		this.logger.log(`Saved pending checkout for session ${sessionId}`)
+		// Create order now with payment_session_id so by-checkout-session finds it when user returns
 		try {
 			const dto = resolvedPayload as unknown as CreateOrderDto
 			await this.ordersService.create(dto, sessionId)
-		} catch {
-			// If order creation fails (e.g. validation), webhook will create from pending
+			this.logger.log(`Created order for checkout session ${sessionId}`)
+		} catch (err) {
+			this.logger.warn(
+				`Order create failed for session ${sessionId}, will create from pending on return: ${err instanceof Error ? err.message : String(err)}`,
+			)
 		}
-		await this.ordersService.savePendingCheckout(sessionId, resolvedPayload)
 		return { checkoutUrl, sessionId }
 	}
 
@@ -331,6 +367,13 @@ export class OrdersController {
 	@Get(':id')
 	get(@Param('id') id: string) {
 		return this.ordersService.getById(id)
+	}
+
+	@Delete(':id')
+	async deleteOrderAndOutput(@Param('id') id: string) {
+		const reelsDeleted = await this.reelsService.deleteReelsByOrderId(id)
+		await this.ordersService.deleteOrder(id)
+		return { orderDeleted: true, reelsDeleted }
 	}
 
 	@Patch(':id')
