@@ -103,6 +103,23 @@ export class OrdersService {
 		return row ? this.mapEntity(row) : null
 	}
 
+	/**
+	 * If this checkout session has a pending payload (prepare-checkout ran but order creation failed or was skipped),
+	 * create the order now and return it. Used by by-checkout-session when no order exists yet (e.g. payment link flow).
+	 */
+	async createOrderFromPendingCheckout(sessionId: string): Promise<Order | null> {
+		const payload = await this.findPendingByCheckoutSessionId(sessionId)
+		if (!payload || typeof payload !== 'object') return null
+		try {
+			const dto = payload as unknown as CreateOrderDto
+			const order = await this.create(dto, sessionId)
+			await this.deletePendingCheckout(sessionId)
+			return order
+		} catch {
+			return null
+		}
+	}
+
 	async list(): Promise<Order[]> {
 		const rows = await this.ordersRepo.find({
 			order: { created_at: 'DESC' },

@@ -384,6 +384,7 @@ export default function OrderPage() {
         if (data.sessionId) {
           try {
             sessionStorage.setItem('paymongo_checkout_session_id', data.sessionId)
+            localStorage.setItem('paymongo_checkout_session_id', data.sessionId)
           } catch {
             // ignore
           }

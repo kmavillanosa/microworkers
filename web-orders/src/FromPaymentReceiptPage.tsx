@@ -4,34 +4,48 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 const API = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3010'
 const POLL_INTERVAL_MS = 2000
 const POLL_TIMEOUT_MS = 120000
+const SESSION_STORAGE_KEY = 'paymongo_checkout_session_id'
 
 /**
  * Shown after PayMongo checkout success. Resolves checkout session to an order
- * (created by webhook) then redirects to the receipt. Reads session id from
- * sessionStorage (set before redirect to PayMongo) or from URL query.
+ * then redirects to the receipt. Reads session id from URL query, sessionStorage,
+ * or localStorage (set before redirect to PayMongo).
  */
 export default function FromPaymentReceiptPage() {
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
   const [message, setMessage] = useState<string>('Confirming your payment…')
   const [error, setError] = useState<string | null>(null)
+  const [manualSessionId, setManualSessionId] = useState('')
+  const [lookupError, setLookupError] = useState<string | null>(null)
   const pollCountRef = useRef(0)
   const pollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
-    const fromQuery = searchParams.get('session_id') ?? searchParams.get('checkout_session_id')
+    const fromQuery =
+      searchParams.get('session_id') ??
+      searchParams.get('checkout_session_id') ??
+      searchParams.get('id')
     let sessionId: string | null = fromQuery
+    if (!sessionId && typeof window !== 'undefined' && window.location.hash) {
+      const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ''))
+      sessionId =
+        hashParams.get('session_id') ??
+        hashParams.get('checkout_session_id') ??
+        hashParams.get('id') ??
+        null
+    }
     if (!sessionId) {
       try {
-        sessionId = sessionStorage.getItem('paymongo_checkout_session_id')
-        if (sessionId) sessionStorage.removeItem('paymongo_checkout_session_id')
+        sessionId =
+          sessionStorage.getItem(SESSION_STORAGE_KEY) ??
+          localStorage.getItem(SESSION_STORAGE_KEY)
       } catch {
         // ignore
       }
     }
-
     if (!sessionId?.trim()) {
-      setError('Missing checkout session. If you just paid, your order was created; check your email or contact support.')
+      setError('Missing checkout session. If you just paid, your order was created; you can look it up below or check your email.')
       return
     }
 
@@ -53,6 +67,12 @@ export default function FromPaymentReceiptPage() {
           const order = await res.json()
           if (order?.id) {
             window.clearTimeout(timeout)
+            try {
+              sessionStorage.removeItem(SESSION_STORAGE_KEY)
+              localStorage.removeItem(SESSION_STORAGE_KEY)
+            } catch {
+              // ignore
+            }
             navigate(`/receipt/${order.id}`, { replace: true })
             return
           }
@@ -76,13 +96,58 @@ export default function FromPaymentReceiptPage() {
     }
   }, [searchParams, navigate])
 
+  async function handleLookupBySessionId(e: React.FormEvent) {
+    e.preventDefault()
+    const sid = manualSessionId.trim()
+    if (!sid) return
+    setLookupError(null)
+    setMessage('Looking up your order…')
+    setError(null)
+    try {
+      const res = await fetch(`${API}/api/orders/by-checkout-session/${encodeURIComponent(sid)}`)
+      if (res.ok) {
+        const order = await res.json()
+        if (order?.id) {
+          navigate(`/receipt/${order.id}`, { replace: true })
+          return
+        }
+      }
+      setLookupError('Order not found for this session. Check the ID (starts with cs_) or contact support.')
+      setError('Missing checkout session. If you just paid, your order was created; you can look it up below or check your email.')
+    } catch {
+      setLookupError('Lookup failed. Please try again or contact support.')
+      setError('Missing checkout session. If you just paid, your order was created; you can look it up below or check your email.')
+    }
+  }
+
   if (error) {
     return (
       <div className="container receipt-container">
         <div className="card receipt-card">
           <p className="muted">{error}</p>
-          <p>
-            <Link to="/order" className="btn btn-primary">Return to order</Link>
+          <form onSubmit={handleLookupBySessionId} style={{ marginTop: '1rem' }}>
+            <label htmlFor="receipt-session-id" className="label">
+              Have your checkout session ID? (from payment confirmation or support)
+            </label>
+            <div className="field" style={{ marginBottom: '0.5rem' }}>
+              <input
+                id="receipt-session-id"
+                type="text"
+                placeholder="e.g. cs_xxxxxxxxxxxx"
+                value={manualSessionId}
+                onChange={(e) => setManualSessionId(e.target.value)}
+                style={{ maxWidth: '320px' }}
+              />
+            </div>
+            {lookupError && <p className="muted" style={{ marginTop: '0.25rem', color: 'var(--color-error, #dc2626)' }}>{lookupError}</p>}
+            <p>
+              <button type="submit" className="btn btn-primary" disabled={!manualSessionId.trim()}>
+                Look up my order
+              </button>
+            </p>
+          </form>
+          <p style={{ marginTop: '1rem' }}>
+            <Link to="/order" className="btn btn-secondary">Return to order</Link>
           </p>
         </div>
       </div>

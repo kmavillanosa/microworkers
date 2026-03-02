@@ -245,8 +245,15 @@ export class OrdersController {
 
 	@Get('by-checkout-session/:sessionId')
 	async getByCheckoutSession(@Param('sessionId') sessionId: string) {
-		const order = await this.ordersService.findOrderByPaymentSessionId(sessionId)
-		if (!order) throw new NotFoundException('Order not found for this checkout session')
+		let order = await this.ordersService.findOrderByPaymentSessionId(sessionId)
+		if (!order) {
+			order = await this.ordersService.createOrderFromPendingCheckout(sessionId)
+		}
+		if (!order) {
+			throw new NotFoundException(
+				'Order not found for this checkout session. If you used a payment link, please place your order from the order form and use "Continue to payment" so we can link your payment to your order.',
+			)
+		}
 		return order
 	}
 
