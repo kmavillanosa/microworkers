@@ -788,44 +788,12 @@ export default function OrderPage() {
 
                 <section className="order-form-step" aria-labelledby="order-step-style-heading">
                   <h2 id="order-step-style-heading" className="order-form-step-title">Look</h2>
-                  <p className="order-form-step-intro">Font and background clip.</p>
-                  <div className="field">
-                    <label className="label" htmlFor="order-font">Font</label>
-                    <select
-                      id="order-font"
-                      value={fontId}
-                      onChange={(e) => setFontId(e.target.value)}
-                      required
-                      style={{ fontFamily: fontFamilyFor(fontId) }}
-                      className="font-select-options"
-                    >
-                      {fonts.length === 0 && (
-                        <>
-                          <option value="">Loading…</option>
-                          <option value="default">System default</option>
-                        </>
-                      )}
-                      {fonts.map((f) => (
-                        <option key={f.id} value={f.id} style={{ fontFamily: fontFamilyFor(f.id) }}>
-                          {f.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+                  <p className="order-form-step-intro">Choose a video or captions only, then pick a font.</p>
                   <div className="field">
                     <label className="label" htmlFor="order-clip">Background video (optional)</label>
-                    <p className="field-hint field-hint-above">None = captions only. Or pick a clip / upload your own.</p>
-                    <select id="order-clip" value={clipName} onChange={handleClipSelect}>
-                      <option value="">None — caption style only</option>
-                      {uploadedClipUrl && clipName && (
-                        <option value={clipName}>Your uploaded video</option>
-                      )}
-                      {clips.map((c) => (
-                        <option key={c.name} value={c.name}>{c.displayName ?? c.name}</option>
-                      ))}
-                    </select>
+                    <p className="field-hint field-hint-above">Upload your own or choose from our clips. None = captions only.</p>
                     <div className="upload-own-video">
-                      <p className="upload-own-video-heading">Or upload your own video</p>
+                      <p className="upload-own-video-heading">Upload your own video</p>
                       <label className="upload-label">
                         <input
                           type="file"
@@ -845,6 +813,16 @@ export default function OrderPage() {
                         </button>
                       )}
                     </div>
+                    <p className="field-hint" style={{ marginTop: '0.5rem' }}>Or choose from our videos:</p>
+                    <select id="order-clip" value={clipName} onChange={handleClipSelect}>
+                      <option value="">None — caption style only</option>
+                      {uploadedClipUrl && clipName && (
+                        <option value={clipName}>Your uploaded video</option>
+                      )}
+                      {clips.map((c) => (
+                        <option key={c.name} value={c.name}>{c.displayName ?? c.name}</option>
+                      ))}
+                    </select>
                     {clipName && (
                       <p className="uploaded-video-duration" aria-live="polite">
                         {effectiveDurationSeconds != null ? (
@@ -905,6 +883,29 @@ export default function OrderPage() {
                         </label>
                       </div>
                     )}
+                  </div>
+                  <div className="field">
+                    <label className="label" htmlFor="order-font">Font</label>
+                    <select
+                      id="order-font"
+                      value={fontId}
+                      onChange={(e) => setFontId(e.target.value)}
+                      required
+                      style={{ fontFamily: fontFamilyFor(fontId) }}
+                      className="font-select-options"
+                    >
+                      {fonts.length === 0 && (
+                        <>
+                          <option value="">Loading…</option>
+                          <option value="default">System default</option>
+                        </>
+                      )}
+                      {fonts.map((f) => (
+                        <option key={f.id} value={f.id} style={{ fontFamily: fontFamilyFor(f.id) }}>
+                          {f.name}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                 </section>
                 </div>
@@ -1083,6 +1084,7 @@ export default function OrderPage() {
                     </label>
                   </div>
                 </div>
+                <div className="order-preview-frame-wrap">
                 <div className="order-preview-frame" data-preview-size={previewSize} data-script-position={scriptPosition}>
                   {clipName ? (() => {
                     const catalogClip = clips.find((c) => c.name === clipName)
@@ -1146,6 +1148,7 @@ export default function OrderPage() {
                     </button>
                   </div>
                 )}
+                </div>
               </aside>
             </div>
         </>
