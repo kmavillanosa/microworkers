@@ -51,7 +51,11 @@ jobs:
           API_CHANGED: ${{ needs.detect-changes.outputs.api }}
           WEB_ORDERS_CHANGED: ${{ needs.detect-changes.outputs.web_orders }}
         run: |
-          ssh -o StrictHostKeyChecking=no -o ServerAliveInterval=60 -o ServerAliveCountMax=30 root@88.222.245.88 "API_CHANGED=$API_CHANGED WEB_ORDERS_CHANGED=$WEB_ORDERS_CHANGED bash -s" << 'REMOTE'
+          VPS_HOST="88.222.245.88"
+          MAX_ATTEMPTS=3
+          for attempt in $(seq 1 $MAX_ATTEMPTS); do
+            echo "Attempt $attempt of $MAX_ATTEMPTS..."
+            if ssh -o StrictHostKeyChecking=no -o ServerAliveInterval=60 -o ServerAliveCountMax=30 -o ConnectTimeout=30 root@$VPS_HOST "API_CHANGED=$API_CHANGED WEB_ORDERS_CHANGED=$WEB_ORDERS_CHANGED bash -s" << 'REMOTE'
           set -e
           if [ ! -d "/microworkers/.git" ]; then
             git clone https://github.com/${{ github.repository }}.git /microworkers
@@ -119,3 +123,11 @@ jobs:
           # Ensure full stack is up (start any stopped services)
           docker compose -f docker-compose.deploy.yml up -d
           REMOTE
+            then
+              echo "Deploy completed successfully."
+              exit 0
+            fi
+            [ $attempt -lt $MAX_ATTEMPTS ] && echo "SSH failed; retrying in 15s..." && sleep 15
+          done
+          echo "All deploy attempts failed (e.g. connection timed out). Check VPS is up and reachable."
+          exit 1
