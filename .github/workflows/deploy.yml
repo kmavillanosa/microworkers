@@ -39,7 +39,7 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     needs: detect-changes
-    timeout-minutes: 45
+    timeout-minutes: 60
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -56,10 +56,21 @@ jobs:
           TRANSCRIPTION_CHANGED: ${{ needs.detect-changes.outputs.transcription }}
         run: |
           VPS_HOST="88.222.245.88"
-          MAX_ATTEMPTS=3
+          SSH_OPTS="-o StrictHostKeyChecking=no -o ConnectTimeout=90 -o ConnectionAttempts=5 -o ServerAliveInterval=15 -o ServerAliveCountMax=60 -o TCPKeepAlive=yes"
+          MAX_ATTEMPTS=5
+          echo "Waiting for stable SSH handshake..."
+          for probe in $(seq 1 10); do
+            if ssh $SSH_OPTS root@$VPS_HOST "echo ok"; then
+              echo "SSH handshake OK (probe $probe)."
+              break
+            fi
+            [ $probe -eq 10 ] && { echo "SSH handshake failed after 10 probes."; exit 1; }
+            echo "Probe $probe failed, retrying in 15s..."
+            sleep 15
+          done
           for attempt in $(seq 1 $MAX_ATTEMPTS); do
             echo "Attempt $attempt of $MAX_ATTEMPTS..."
-            if ssh -o StrictHostKeyChecking=no -o ServerAliveInterval=60 -o ServerAliveCountMax=30 -o ConnectTimeout=30 root@$VPS_HOST "API_CHANGED=$API_CHANGED WEB_ORDERS_CHANGED=$WEB_ORDERS_CHANGED TRANSCRIPTION_CHANGED=$TRANSCRIPTION_CHANGED bash -s" << 'REMOTE'
+            if ssh $SSH_OPTS root@$VPS_HOST "API_CHANGED=$API_CHANGED WEB_ORDERS_CHANGED=$WEB_ORDERS_CHANGED TRANSCRIPTION_CHANGED=$TRANSCRIPTION_CHANGED bash -s" << 'REMOTE'
           set -e
           if [ ! -d "/microworkers/.git" ]; then
             git clone https://github.com/${{ github.repository }}.git /microworkers
@@ -143,7 +154,7 @@ jobs:
               echo "Deploy completed successfully."
               exit 0
             fi
-            [ $attempt -lt $MAX_ATTEMPTS ] && echo "SSH failed; retrying in 15s..." && sleep 15
+            [ $attempt -lt $MAX_ATTEMPTS ] && echo "SSH failed; retrying in 30s..." && sleep 30
           done
-          echo "All deploy attempts failed (e.g. connection timed out). Check VPS is up and reachable."
+          echo "All deploy attempts failed (e.g. connection or handshake unstable). Check VPS is up and reachable."
           exit 1
