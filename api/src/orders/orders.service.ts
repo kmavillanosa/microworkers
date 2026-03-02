@@ -76,10 +76,11 @@ export class OrdersService {
 	}
 
 	async savePendingCheckout(checkoutSessionId: string, payload: Record<string, unknown>): Promise<void> {
-		await this.pendingCheckoutRepo.upsert(
-			{ checkout_session_id: checkoutSessionId, payload, created_at: new Date() },
-			['checkout_session_id'],
-		)
+		const row = this.pendingCheckoutRepo.create({
+			checkout_session_id: checkoutSessionId,
+			payload,
+		})
+		await this.pendingCheckoutRepo.save(row)
 	}
 
 	async findPendingByCheckoutSessionId(checkoutSessionId: string): Promise<Record<string, unknown> | null> {

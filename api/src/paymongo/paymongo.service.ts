@@ -33,7 +33,7 @@ export class PaymongoService {
 	 * Create a PayMongo Checkout Session and return the checkout URL.
 	 * Amount is in PHP pesos; PayMongo expects centavos in line_items.
 	 */
-	async createCheckoutSession(params: CreateCheckoutParams): Promise<{ checkoutUrl: string }> {
+	async createCheckoutSession(params: CreateCheckoutParams): Promise<{ checkoutUrl: string; sessionId?: string }> {
 		const secretKey = this.getSecretKey()
 		const amountCentavos = Math.round(params.amountPesos * 100)
 		if (amountCentavos < 100) {
