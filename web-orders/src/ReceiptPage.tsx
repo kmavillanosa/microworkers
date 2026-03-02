@@ -74,6 +74,29 @@ function isOrderCompleted(order: Order): boolean {
   return order.orderStatus === 'ready_for_sending' || order.orderStatus === 'closed'
 }
 
+/** Trigger a real download (fetch + blob) so the file downloads instead of opening in a new tab. */
+function triggerDownload(url: string, suggestedName: string) {
+  const fullUrl = url.startsWith('http') ? url : `${API}${url}`
+  fetch(fullUrl)
+    .then((r) => {
+      if (!r.ok) throw new Error('Download failed')
+      return r.blob()
+    })
+    .then((blob) => {
+      const objUrl = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = objUrl
+      a.download = suggestedName
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(objUrl)
+    })
+    .catch(() => {
+      window.open(fullUrl, '_blank', 'noopener,noreferrer')
+    })
+}
+
 export default function ReceiptPage() {
   const { orderId } = useParams<{ orderId: string }>()
   const [order, setOrder] = useState<Order | null>(null)
@@ -247,43 +270,35 @@ export default function ReceiptPage() {
                   <p className="receipt-download-reel-label">Reel {index + 1}</p>
                 )}
                 <div className="receipt-download-links">
-                  <a
-                    href={`${API}${reel.videoUrl}`}
-                    download
+                  <button
+                    type="button"
                     className="btn btn-secondary receipt-download-btn"
-                    target="_blank"
-                    rel="noreferrer"
+                    onClick={() => triggerDownload(reel.videoUrl, `reel${reels.length > 1 ? `-${index + 1}` : ''}.mp4`)}
                   >
                     Download video
-                  </a>
-                  <a
-                    href={`${API}${reel.txtUrl}`}
-                    download
+                  </button>
+                  <button
+                    type="button"
                     className="btn btn-secondary receipt-download-btn"
-                    target="_blank"
-                    rel="noreferrer"
+                    onClick={() => triggerDownload(reel.txtUrl, `reel${reels.length > 1 ? `-${index + 1}` : ''}.txt`)}
                   >
                     Download script
-                  </a>
-                  <a
-                    href={`${API}${reel.srtUrl}`}
-                    download
+                  </button>
+                  <button
+                    type="button"
                     className="btn btn-secondary receipt-download-btn"
-                    target="_blank"
-                    rel="noreferrer"
+                    onClick={() => triggerDownload(reel.srtUrl, `reel${reels.length > 1 ? `-${index + 1}` : ''}.srt`)}
                   >
                     Download SRT
-                  </a>
+                  </button>
                   {reel.audioUrl && (
-                    <a
-                      href={`${API}${reel.audioUrl}`}
-                      download
+                    <button
+                      type="button"
                       className="btn btn-secondary receipt-download-btn"
-                      target="_blank"
-                      rel="noreferrer"
+                      onClick={() => triggerDownload(reel.audioUrl!, `reel${reels.length > 1 ? `-${index + 1}` : ''}-audio.wav`)}
                     >
                       Download audio
-                    </a>
+                    </button>
                   )}
                 </div>
               </div>
