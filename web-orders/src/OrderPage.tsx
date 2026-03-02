@@ -719,9 +719,10 @@ export default function OrderPage() {
             `).join('')}</style>
             <div className="order-page-layout">
               <form onSubmit={(e) => e.preventDefault()} className="order-form-column">
+                <div className="order-form-row-top">
                 <section className="order-form-step" aria-labelledby="order-step-content-heading">
                   <h2 id="order-step-content-heading" className="order-form-step-title">Content</h2>
-                  <p className="order-form-step-intro">The words that will appear and be read in your reel.</p>
+                  <p className="order-form-step-intro">Script and optional title.</p>
                   <div className="field">
                     <label className="label" htmlFor="order-script">Script</label>
                     <p className="field-hint field-hint-above">Paste or type your script. If you add a video with speech below, we can transcribe it for you.</p>
@@ -741,7 +742,7 @@ export default function OrderPage() {
                       value={script}
                       onChange={(e) => setScript(e.target.value)}
                       placeholder="e.g. Welcome to our channel. Today we're talking about…"
-                      rows={5}
+                      rows={3}
                     />
                     {clipName && clipTranscript?.status && (
                       <p className="field-hint">
@@ -785,7 +786,7 @@ export default function OrderPage() {
 
                 <section className="order-form-step" aria-labelledby="order-step-style-heading">
                   <h2 id="order-step-style-heading" className="order-form-step-title">Look</h2>
-                  <p className="order-form-step-intro">Font and optional video background. Check the preview to the right.</p>
+                  <p className="order-form-step-intro">Font and background clip.</p>
                   <div className="field">
                     <label className="label" htmlFor="order-font">Font</label>
                     <select
@@ -904,10 +905,11 @@ export default function OrderPage() {
                     )}
                   </div>
                 </section>
+                </div>
 
                 <section className="order-form-step" aria-labelledby="order-step-voice-heading">
                   <h2 id="order-step-voice-heading" className="order-form-step-title">Voice</h2>
-                  <p className="order-form-step-intro">The voice that will read your script (unless you chose &quot;video sound only&quot; above).</p>
+                  <p className="order-form-step-intro">Narrator voice (or video sound only above).</p>
                   <div className="field">
                     <label className="label" htmlFor="order-voice">Narrator voice</label>
                     <select
@@ -930,26 +932,28 @@ export default function OrderPage() {
 
                 <section className="order-form-step" aria-labelledby="order-step-details-heading">
                   <h2 id="order-step-details-heading" className="order-form-step-title">Your details</h2>
-                  <p className="order-form-step-intro">Optional. If you fill these in, they will be prefilled on the payment page.</p>
-                  <div className="field">
-                    <label className="label" htmlFor="order-customer-name">Name</label>
-                    <input
-                      id="order-customer-name"
-                      type="text"
-                      value={customerName}
-                      onChange={(e) => setCustomerName(e.target.value)}
-                      placeholder="e.g. Juan Dela Cruz"
-                    />
-                  </div>
-                  <div className="field">
-                    <label className="label" htmlFor="order-customer-email">Email</label>
-                    <input
-                      id="order-customer-email"
-                      type="email"
-                      value={customerEmail}
-                      onChange={(e) => setCustomerEmail(e.target.value)}
-                      placeholder="e.g. juan@example.com"
-                    />
+                  <p className="order-form-step-intro">Optional; prefilled on payment.</p>
+                  <div className="order-details-row">
+                    <div className="field">
+                      <label className="label" htmlFor="order-customer-name">Name</label>
+                      <input
+                        id="order-customer-name"
+                        type="text"
+                        value={customerName}
+                        onChange={(e) => setCustomerName(e.target.value)}
+                        placeholder="e.g. Juan Dela Cruz"
+                      />
+                    </div>
+                    <div className="field">
+                      <label className="label" htmlFor="order-customer-email">Email</label>
+                      <input
+                        id="order-customer-email"
+                        type="email"
+                        value={customerEmail}
+                        onChange={(e) => setCustomerEmail(e.target.value)}
+                        placeholder="e.g. juan@example.com"
+                      />
+                    </div>
                   </div>
                   <div className="field">
                     <label className="label" htmlFor="order-delivery-address">Address</label>
