@@ -171,7 +171,13 @@ export class PaymongoWebhookController {
 
 		let orderIdResolved = orderId ?? orderIdFromPayload
 
-		// No existing order: create from pending (pay-first flow)
+		// Order may have been created at prepare-checkout with this payment_session_id; find it first
+		if (!orderIdResolved && sessionId) {
+			const existingOrder = await this.ordersService.findOrderByPaymentSessionId(sessionId)
+			if (existingOrder?.id) orderIdResolved = existingOrder.id
+		}
+
+		// No existing order: create from pending (pay-first flow, or prepare-checkout failed to create)
 		if (!orderIdResolved && sessionId) {
 			const payload = await this.ordersService.findPendingByCheckoutSessionId(sessionId)
 			if (payload && typeof payload === 'object') {
@@ -212,6 +218,7 @@ export class PaymongoWebhookController {
 					},
 				},
 			)
+			if (sessionId) await this.ordersService.deletePendingCheckout(sessionId)
 		} catch {
 			// Log but respond 200 so PayMongo does not retry indefinitely
 		}

@@ -290,6 +290,13 @@ export class OrdersController {
 		if (!sessionId) {
 			throw new BadRequestException('PayMongo did not return a session id')
 		}
+		// Create order now with payment_session_id so by-checkout-session finds it when user returns from PayMongo
+		try {
+			const dto = resolvedPayload as unknown as CreateOrderDto
+			await this.ordersService.create(dto, sessionId)
+		} catch {
+			// If order creation fails (e.g. validation), webhook will create from pending
+		}
 		await this.ordersService.savePendingCheckout(sessionId, resolvedPayload)
 		return { checkoutUrl, sessionId }
 	}
