@@ -52,16 +52,6 @@ export default function Landing() {
         <p className="landing-section-intro">
           From script or clip to finished reel in three steps. No editing required.
         </p>
-        <div className="landing-infographic-wrap">
-          <img
-            src="/infographic.png"
-            alt="ReelAgad how it works: Add your content (script or video), choose look and sound (font, voice, preview), get your reel (secure payment and delivery). What you get: captions, voiceover, multiple sizes, no editing. For creators, small businesses, and educators."
-            className="landing-infographic-img"
-            width={800}
-            height={1200}
-            loading="lazy"
-          />
-        </div>
         <div className="landing-how-to-use-cta">
           <Link to="/order" className="landing-cta landing-cta-primary">
             Create your reel

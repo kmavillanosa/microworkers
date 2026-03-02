@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useSearchParams } from 'react-router-dom'
+import Joyride, { type Step } from 'react-joyride'
 
 const API = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3010'
 
@@ -74,6 +75,56 @@ const PREVIEW_SIZES: { id: PreviewSize; label: string }[] = [
   { id: 'desktop', label: 'Desktop' },
 ]
 
+const ORDER_TOUR_STORAGE_KEY = 'reelagad-order-tour-done'
+
+const ORDER_FORM_STEPS: Step[] = [
+  {
+    target: '.order-page-hero',
+    content: 'Welcome! This form walks you through creating a reel: script, look, voice, and your details. Follow the steps or use "Take a tour" anytime.',
+    disableBeacon: true,
+  },
+  {
+    target: '#order-script',
+    content: 'Paste or type your script here. If you add a video with speech below, we can transcribe it for you.',
+    disableBeacon: true,
+  },
+  {
+    target: '#order-title',
+    content: 'Optional title for your reel (e.g. for file name or display).',
+    disableBeacon: true,
+  },
+  {
+    target: '#order-font',
+    content: 'Choose the font for your captions. You can pick a built-in font or use a custom one.',
+    disableBeacon: true,
+  },
+  {
+    target: '#order-clip',
+    content: 'Select a background clip or upload your own video. The clip sets the look and can provide speech for transcription.',
+    disableBeacon: true,
+  },
+  {
+    target: '#order-voice',
+    content: 'Pick the voice that will read your script. Different engines (Edge, Piper, etc.) offer different tones.',
+    disableBeacon: true,
+  },
+  {
+    target: '.order-preview-column',
+    content: 'Live preview of your reel and price. Change the device size to see how it looks on phone, tablet, or desktop.',
+    disableBeacon: true,
+  },
+  {
+    target: '#order-customer-name',
+    content: 'Your details are optional. If you fill them in, they’ll be prefilled on the payment page.',
+    disableBeacon: true,
+  },
+  {
+    target: '#order-form-submit-btn',
+    content: 'When you’re ready, click here to continue to secure payment. You’ll get your reel when it’s done.',
+    disableBeacon: true,
+  },
+]
+
 /** Classify video dimensions into preview size (phone = portrait, tablet = square/portrait, laptop = landscape, desktop = ultra-wide). */
 function previewSizeFromDimensions(width: number, height: number): PreviewSize {
   if (!width || !height) return 'phone'
@@ -132,6 +183,8 @@ export default function OrderPage() {
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [previewFrameIndex, setPreviewFrameIndex] = useState(0)
+  const [runTour, setRunTour] = useState(false)
+  const [tourStepIndex, setTourStepIndex] = useState(0)
   const [previewSize, setPreviewSize] = useState<PreviewSize>('phone')
   /** PayMongo QR Ph: after creating payment intent we show scan-to-pay page with PayMongo's QR (amount >= ₱20). */
   const [paymongoQrImageUrl, setPaymongoQrImageUrl] = useState<string | null>(null)
@@ -276,6 +329,21 @@ export default function OrderPage() {
       setError(e instanceof Error ? e.message : 'Failed to open checkout. Try again.')
     } finally {
       setSubmitting(false)
+    }
+  }
+
+  function handleJoyrideCallback(data: { action: string; index: number; status: string }) {
+    const { action, index, status } = data
+    if (status === 'finished' || status === 'skipped') {
+      setRunTour(false)
+      setTourStepIndex(0)
+      try {
+        localStorage.setItem(ORDER_TOUR_STORAGE_KEY, '1')
+      } catch {
+        // ignore
+      }
+    } else if (action === 'next' || action === 'prev') {
+      setTourStepIndex(index)
     }
   }
 
@@ -462,6 +530,24 @@ export default function OrderPage() {
 
   return (
     <div className="container order-page">
+      <Joyride
+        steps={ORDER_FORM_STEPS}
+        run={runTour}
+        stepIndex={tourStepIndex}
+        callback={handleJoyrideCallback}
+        continuous
+        showProgress
+        showSkipButton
+        scrollToFirstStep
+        scrollOffset={80}
+        spotlightPadding={8}
+        styles={{
+          options: {
+            primaryColor: 'var(--accent, #F36F21)',
+            zIndex: 10000,
+          },
+        }}
+      />
       {showOverlay && (
         <div className="order-page-overlay" role="status" aria-live="polite" aria-busy="true">
           <div className="order-page-overlay-content">
@@ -474,6 +560,16 @@ export default function OrderPage() {
         <header className="order-page-hero">
           <h1>Place your order</h1>
           <p>Pick a clip, font, and voice. If your video has speech, we can auto-generate the script.</p>
+          <button
+            type="button"
+            className="order-tour-trigger"
+            onClick={() => {
+              setTourStepIndex(0)
+              setRunTour(true)
+            }}
+          >
+            Take a tour
+          </button>
         </header>
         {error && <p style={{ color: '#dc2626', marginBottom: '1rem' }}>{error}</p>}
 
@@ -717,8 +813,8 @@ export default function OrderPage() {
                   </div>
                 </section>
 
-                <div className="order-form-submit">
-                  <button type="submit" className="btn order-form-submit-btn" disabled={submitting}>
+                <div className="order-form-submit" id="order-form-submit-wrap">
+                  <button type="submit" id="order-form-submit-btn" className="btn order-form-submit-btn" disabled={submitting}>
                     {submitting ? 'Redirecting to checkout…' : 'Continue to payment'}
                   </button>
                   <p className="order-form-submit-hint">You&apos;ll pay securely and get your reel when it&apos;s ready.</p>

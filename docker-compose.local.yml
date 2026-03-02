@@ -50,6 +50,7 @@ services:
       REPO_ROOT: /app/data
       REELS_PYTHON_EXE: /usr/bin/python3
       REELS_PYTHON_VERBOSE: "1"
+      REELS_RUN_IN_PROCESS: "false"
       REELS_MAX_CONCURRENT_JOBS: ${REELS_MAX_CONCURRENT_JOBS}
       TYPEORM_DATABASE_HOST: mysql
       TYPEORM_DATABASE_PORT: ${TYPEORM_DATABASE_PORT}
@@ -64,6 +65,12 @@ services:
     depends_on:
       mysql:
         condition: service_healthy
+    healthcheck:
+      test: ['CMD', 'node', '-e', 'require("http").get("http://localhost:3000/api/orders/pricing",r=>{r.on("data",()=>{});r.on("end",()=>process.exit(r.statusCode===200?0:1));}).on("error",()=>process.exit(1));']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
     restart: unless-stopped
 
   web:
@@ -71,9 +78,9 @@ services:
       context: ./web
       dockerfile: Dockerfile
       args:
-        VITE_API_BASE_URL: ${VITE_API_BASE_URL}
-        VITE_API_VPS_BASE_URL: ${VITE_API_VPS_BASE_URL}
-        VITE_APP_ENV: ${VITE_APP_ENV}
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:3010}
+        VITE_API_VPS_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:3010}
+        VITE_APP_ENV: ${VITE_APP_ENV:-local}
     container_name: microworkers-web
     ports:
       - "5175:80"
@@ -84,9 +91,9 @@ services:
       context: ./web-orders
       dockerfile: Dockerfile
       args:
-        VITE_API_BASE_URL: ${VITE_API_BASE_URL_WEB_ORDERS}
-        VITE_PAYMONGO_ENABLED: ${VITE_PAYMONGO_ENABLED}
-        VITE_APP_ENV: ${VITE_APP_ENV}
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL_WEB_ORDERS:-${VITE_API_BASE_URL:-http://localhost:3010}}
+        VITE_PAYMONGO_ENABLED: ${VITE_PAYMONGO_ENABLED:-true}
+        VITE_APP_ENV: ${VITE_APP_ENV:-local}
     container_name: microworkers-web-orders
     ports:
       - "5176:80"
@@ -114,20 +121,25 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
+  # Polls VPS_API_URL for queued reel jobs, runs video generation locally, uploads result to same API. Set VPS_API_URL in .env.local to your VPS (e.g. http://88.222.245.88:3010).
   reels-generator:
     build:
       context: .
       dockerfile: workers/reels-generator/Dockerfile
     container_name: microworkers-reels-generator
     environment:
-      VPS_API_URL: ${VPS_API_URL:-http://api:3000}
-      API_BASE_URL: ${VPS_API_URL:-http://api:3000}
+      VPS_API_URL: ${VPS_API_URL:-http://localhost:3010}
+      API_BASE_URL: ${VPS_API_URL:-http://localhost:3010}
       REPO_ROOT: /data
+      REELS_PYTHON_EXE: /usr/bin/python3
+      REELS_PYTHON_VERBOSE: "1"
+      WORKER_VERBOSE: "1"
       WORKER_SECRET: ${WORKER_SECRET:-}
     volumes:
       - .:/data
     depends_on:
-      - api
+      api:
+        condition: service_healthy
     restart: unless-stopped
     profiles:
       - workers

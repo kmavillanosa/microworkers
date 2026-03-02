@@ -120,6 +120,7 @@ async function main() {
         continue
       }
       const claimed = await claimRes.json()
+      console.log('Processing job', job.id, '…')
 
       try {
         const result = await processOneJob(claimed)

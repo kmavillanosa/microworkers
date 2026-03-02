@@ -3265,12 +3265,14 @@ function App() {
           </NavLink>
         </nav>
         <div className="topbar-right">
-          <span
-            className={`env-badge env-badge-${envLabel}`}
-            title={`Environment: ${envLabel}`}
-          >
-            You are running on {envLabel} environment
-          </span>
+          {envLabel !== "production" && (
+            <span
+              className={`env-badge env-badge-${envLabel}`}
+              title={`Environment: ${envLabel}`}
+            >
+              You are running on {envLabel} environment
+            </span>
+          )}
           <button
             type="button"
             className="ghost-btn"

@@ -108,13 +108,22 @@ export async function runGenerator(job, apiBaseUrl) {
 
   args.push('--font-name', job.fontName || 'default')
 
+  const verbose = process.env.REELS_PYTHON_VERBOSE === '1' || process.env.WORKER_VERBOSE === '1'
   const startedAt = Date.now()
   const outputFolderName = await new Promise((resolve, reject) => {
     const proc = spawn(pythonExe, args, { cwd: repoRoot })
     let stdout = ''
     let stderr = ''
-    proc.stdout.on('data', (chunk) => { stdout += chunk.toString() })
-    proc.stderr.on('data', (chunk) => { stderr += chunk.toString() })
+    proc.stdout.on('data', (chunk) => {
+      const s = chunk.toString()
+      stdout += s
+      if (verbose) process.stdout.write(s)
+    })
+    proc.stderr.on('data', (chunk) => {
+      const s = chunk.toString()
+      stderr += s
+      if (verbose) process.stderr.write(s)
+    })
     proc.on('error', (err) => reject(err))
     proc.on('exit', (code) => {
       const match = stdout.match(/Output folder\s*:\s*(.+)/i)
