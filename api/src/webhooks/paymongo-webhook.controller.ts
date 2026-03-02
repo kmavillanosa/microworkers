@@ -1,4 +1,5 @@
 import { Body, Controller, Post } from '@nestjs/common'
+import type { CreateOrderDto } from '../orders/dto/create-order.dto'
 import { OrdersService } from '../orders/orders.service'
 import {
 	PaymongoService,
@@ -168,7 +169,32 @@ export class PaymongoWebhookController {
 			deliveryAddress,
 		} = extractFromSession(session)
 
-		const orderIdResolved = orderId ?? orderIdFromPayload
+		let orderIdResolved = orderId ?? orderIdFromPayload
+
+		// No existing order: create from pending (pay-first flow)
+		if (!orderIdResolved && sessionId) {
+			const payload = await this.ordersService.findPendingByCheckoutSessionId(sessionId)
+			if (payload && typeof payload === 'object') {
+				try {
+					const dto = payload as unknown as CreateOrderDto
+					const order = await this.ordersService.create(dto, sessionId)
+					orderIdResolved = order.id
+					await this.ordersService.confirmPaymentByPayMongo(orderIdResolved, transactionRef, {
+						paymentDescriptor: descriptor ?? undefined,
+						payer: {
+							customerName: customerName || undefined,
+							customerEmail: customerEmail || undefined,
+							deliveryAddress: deliveryAddress || undefined,
+						},
+					})
+					await this.ordersService.deletePendingCheckout(sessionId)
+				} catch {
+					// Log but respond 200 so PayMongo does not retry indefinitely
+				}
+				return { received: true }
+			}
+		}
+
 		if (!orderIdResolved) {
 			return { received: true }
 		}

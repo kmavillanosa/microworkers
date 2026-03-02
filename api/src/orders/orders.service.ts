@@ -7,6 +7,7 @@ import type { UpdateOrderPricingDto } from './dto/update-order-pricing.dto'
 import type { UpdateOrderDto } from './dto/update-order.dto'
 import { OrderEntity } from './order.entity'
 import { OrderPricingEntity } from './order-pricing.entity'
+import { PendingCheckoutEntity } from './pending-checkout.entity'
 
 export type OrderStatus = 'pending' | 'accepted' | 'declined' | 'processing' | 'ready_for_sending' | 'closed'
 
@@ -46,9 +47,11 @@ export class OrdersService {
 		private readonly ordersRepo: Repository<OrderEntity>,
 		@InjectRepository(OrderPricingEntity)
 		private readonly pricingRepo: Repository<OrderPricingEntity>,
+		@InjectRepository(PendingCheckoutEntity)
+		private readonly pendingCheckoutRepo: Repository<PendingCheckoutEntity>,
 	) {}
 
-	async create(dto: CreateOrderDto): Promise<Order> {
+	async create(dto: CreateOrderDto, paymentSessionId?: string): Promise<Order> {
 		const id = randomUUID()
 		const entity = this.ordersRepo.create({
 			id,
@@ -66,9 +69,31 @@ export class OrdersService {
 			use_clip_audio_with_narrator: dto.useClipAudioWithNarrator ?? false,
 			payment_status: 'pending',
 			order_status: 'pending',
+			payment_session_id: paymentSessionId ?? null,
 		})
 		await this.ordersRepo.save(entity)
 		return this.mapEntity(entity)
+	}
+
+	async savePendingCheckout(checkoutSessionId: string, payload: Record<string, unknown>): Promise<void> {
+		await this.pendingCheckoutRepo.upsert(
+			{ checkout_session_id: checkoutSessionId, payload, created_at: new Date() },
+			['checkout_session_id'],
+		)
+	}
+
+	async findPendingByCheckoutSessionId(checkoutSessionId: string): Promise<Record<string, unknown> | null> {
+		const row = await this.pendingCheckoutRepo.findOne({ where: { checkout_session_id: checkoutSessionId } })
+		return row?.payload ?? null
+	}
+
+	async deletePendingCheckout(checkoutSessionId: string): Promise<void> {
+		await this.pendingCheckoutRepo.delete({ checkout_session_id: checkoutSessionId })
+	}
+
+	async findOrderByPaymentSessionId(paymentSessionId: string): Promise<Order | null> {
+		const row = await this.ordersRepo.findOne({ where: { payment_session_id: paymentSessionId } })
+		return row ? this.mapEntity(row) : null
 	}
 
 	async list(): Promise<Order[]> {

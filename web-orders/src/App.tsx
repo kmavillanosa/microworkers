@@ -2,6 +2,7 @@ import { Routes, Route, Link } from 'react-router-dom'
 import Landing from './Landing'
 import OrderPage from './OrderPage'
 import ReceiptPage from './ReceiptPage'
+import FromPaymentReceiptPage from './FromPaymentReceiptPage'
 import ShowcasePage from './ShowcasePage'
 
 function App() {
@@ -16,6 +17,7 @@ function App() {
         <Route path="/" element={<Landing />} />
         <Route path="/showcase" element={<ShowcasePage />} />
         <Route path="/order" element={<OrderPage />} />
+        <Route path="/receipt/from-payment" element={<FromPaymentReceiptPage />} />
         <Route path="/receipt/:orderId" element={<ReceiptPage />} />
       </Routes>
     </>

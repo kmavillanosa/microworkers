@@ -3,6 +3,7 @@ import {
 	Body,
 	Controller,
 	Get,
+	NotFoundException,
 	Param,
 	Patch,
 	Post,
@@ -24,6 +25,7 @@ import { ConfirmPaymentDto } from './dto/confirm-payment.dto'
 import { CreateOrderDto } from './dto/create-order.dto'
 import { PaymongoCheckoutDto } from './dto/paymongo-checkout.dto'
 import { PaymongoQrDto } from './dto/paymongo-qr.dto'
+import { PrepareCheckoutDto } from './dto/prepare-checkout.dto'
 import { PaymongoService } from '../paymongo/paymongo.service'
 import { SettingsService } from '../settings/settings.service'
 import { SetOrderStatusDto } from './dto/set-order-status.dto'
@@ -235,6 +237,57 @@ export class OrdersController {
 			progress: job.progress,
 			createdAt: job.createdAt,
 		}
+	}
+
+	@Get('by-checkout-session/:sessionId')
+	async getByCheckoutSession(@Param('sessionId') sessionId: string) {
+		const order = await this.ordersService.findOrderByPaymentSessionId(sessionId)
+		if (!order) throw new NotFoundException('Order not found for this checkout session')
+		return order
+	}
+
+	@Post('prepare-checkout')
+	async prepareCheckout(@Body() body: PrepareCheckoutDto) {
+		const payload = body.orderPayload as Record<string, unknown>
+		const script = (payload.script as string)?.trim() ?? ''
+		const clipName = (payload.clipName as string)?.trim()
+		if (!script && !clipName) {
+			throw new BadRequestException('Script is required when no clip is uploaded')
+		}
+		let resolvedPayload = { ...payload }
+		if (clipName && !script) {
+			const transcript = await this.clipsService.getTranscript('order', clipName)
+			if (transcript) {
+				resolvedPayload = { ...payload, script: transcript }
+			}
+		}
+		const amountPesos = body.amountPesos
+		const description = `Reel order · ₱${amountPesos}`
+		const paymentMethodTypes = await this.settingsService.getPaymentMethodTypes()
+		const customerName = (resolvedPayload.customerName as string)?.trim() ?? ''
+		const customerEmail = (resolvedPayload.customerEmail as string)?.trim() ?? ''
+		const deliveryAddress = (resolvedPayload.deliveryAddress as string)?.trim() ?? ''
+		const billing =
+			customerName || customerEmail || deliveryAddress
+				? {
+						...(customerName && { name: customerName }),
+						...(customerEmail && { email: customerEmail }),
+						...(deliveryAddress && { address: { line1: deliveryAddress } }),
+					}
+				: undefined
+		const { checkoutUrl, sessionId } = await this.paymongoService.createCheckoutSession({
+			amountPesos,
+			description,
+			successUrl: body.successUrl,
+			cancelUrl: body.cancelUrl,
+			billing,
+			paymentMethodTypes,
+		})
+		if (!sessionId) {
+			throw new BadRequestException('PayMongo did not return a session id')
+		}
+		await this.ordersService.savePendingCheckout(sessionId, resolvedPayload)
+		return { checkoutUrl, sessionId }
 	}
 
 	@Get()

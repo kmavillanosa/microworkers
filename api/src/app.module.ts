@@ -29,6 +29,7 @@ import { OrdersController } from './orders/orders.controller';
 import { OrdersService } from './orders/orders.service';
 import { OrderEntity } from './orders/order.entity';
 import { OrderPricingEntity } from './orders/order-pricing.entity';
+import { PendingCheckoutEntity } from './orders/pending-checkout.entity';
 import { FontEntity } from './fonts/font.entity';
 import { FontsController } from './fonts/fonts.controller';
 import { FontsService } from './fonts/fonts.service';
@@ -51,6 +52,7 @@ import { WorkerReelJobsController } from './worker/worker-reel-jobs.controller';
     TypeOrmModule.forFeature([
       OrderEntity,
       OrderPricingEntity,
+      PendingCheckoutEntity,
       SocialAccountEntity,
       NicheEntity,
       PipelineConfigEntity,

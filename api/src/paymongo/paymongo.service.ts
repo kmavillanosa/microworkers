@@ -3,7 +3,8 @@ import { Injectable } from '@nestjs/common'
 const PAYMONGO_API = 'https://api.paymongo.com/v1'
 
 export interface CreateCheckoutParams {
-	orderId: string
+	/** When provided, stored in session metadata so webhook can find the order. Omit when creating order only after payment. */
+	orderId?: string
 	amountPesos: number
 	description: string
 	successUrl: string
@@ -56,9 +57,7 @@ export class PaymongoService {
 			cancel_url: params.cancelUrl,
 			description: params.description.slice(0, 255),
 			show_line_items: true,
-			metadata: {
-				order_id: params.orderId,
-			},
+			...(params.orderId && { metadata: { order_id: params.orderId } }),
 		}
 		if (params.billing && (params.billing.name || params.billing.email || params.billing.address?.line1)) {
 			attributes.billing = {
@@ -91,13 +90,14 @@ export class PaymongoService {
 		}
 
 		const data = (await res.json()) as {
-			data?: { attributes?: { checkout_url?: string } }
+			data?: { id?: string; attributes?: { checkout_url?: string } }
 		}
 		const checkoutUrl = data?.data?.attributes?.checkout_url
+		const sessionId = data?.data?.id ?? undefined
 		if (!checkoutUrl) {
 			throw new Error('PayMongo did not return checkout_url')
 		}
-		return { checkoutUrl }
+		return { checkoutUrl, sessionId }
 	}
 
 	/**

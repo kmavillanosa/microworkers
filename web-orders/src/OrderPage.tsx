@@ -326,7 +326,27 @@ export default function OrderPage() {
     return amountPesos
   }
 
-  /** Continue to payment: redirect to PayMongo checkout (payment link). */
+  /** Build order payload for prepare-checkout (order is created only after payment succeeds). */
+  function buildOrderPayload() {
+    return {
+      script: script.trim() || clipTranscript?.text || '',
+      title: title.trim() || undefined,
+      customerName: customerName.trim(),
+      customerEmail: customerEmail.trim(),
+      deliveryAddress: deliveryAddress.trim(),
+      outputSize: previewSize,
+      fontId,
+      clipName: clipName || undefined,
+      voiceEngine,
+      voiceName,
+      ...(clipName && {
+        useClipAudio: useClipAudio || useClipAudioWithNarrator,
+        useClipAudioWithNarrator: useClipAudioWithNarrator || undefined,
+      }),
+    }
+  }
+
+  /** Continue to payment: prepare checkout (no order yet), then redirect to PayMongo. Order is created when payment completes. */
   async function handleContinueToPayment(e: React.FormEvent) {
     e.preventDefault()
     const amountPesos = validateAndGetAmount()
@@ -334,23 +354,30 @@ export default function OrderPage() {
     setSubmitting(true)
     setError('')
     try {
-      const id = await ensureOrderId()
       const origin = window.location.origin
-      const res = await fetch(`${API}/api/orders/${id}/paymongo-checkout`, {
+      const res = await fetch(`${API}/api/orders/prepare-checkout`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          orderPayload: buildOrderPayload(),
           amountPesos,
-          successUrl: `${origin}/receipt/${id}`,
-          cancelUrl: `${origin}/order?orderId=${id}`,
+          successUrl: `${origin}/receipt/from-payment`,
+          cancelUrl: `${origin}/order`,
         }),
       })
       if (!res.ok) {
         const err = await res.json().catch(() => ({}))
         throw new Error((err as { message?: string }).message || 'Checkout failed')
       }
-      const data = (await res.json()) as { checkoutUrl: string }
+      const data = (await res.json()) as { checkoutUrl: string; sessionId?: string }
       if (data.checkoutUrl) {
+        if (data.sessionId) {
+          try {
+            sessionStorage.setItem('paymongo_checkout_session_id', data.sessionId)
+          } catch {
+            // ignore
+          }
+        }
         window.location.href = data.checkoutUrl
         return
       }

@@ -70,5 +70,9 @@ export class OrderEntity {
 
   @Column({ type: 'datetime', default: () => 'CURRENT_TIMESTAMP' })
   created_at: Date
+
+  /** Set when order was created from PayMongo checkout (webhook). Used to look up order after redirect. */
+  @Column({ type: 'varchar', length: 64, nullable: true })
+  payment_session_id: string | null
 }
 
