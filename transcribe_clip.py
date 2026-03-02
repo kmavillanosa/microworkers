@@ -1,3 +1,9 @@
+"""
+Transcribe audio/video to text using faster-whisper (100% local, free, no API, no payments).
+- Runs entirely on your machine; no cloud, no API keys, no rate limits.
+- Uses CTranslate2 + Whisper models; models are downloaded once from Hugging Face (free).
+- WHISPER_MODEL env: tiny, base, small, medium, large-v2 (default: base). Larger = better quality, slower.
+"""
 import json
 import os
 import re

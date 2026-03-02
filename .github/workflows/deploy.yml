@@ -36,6 +36,7 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     needs: detect-changes
+    timeout-minutes: 45
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -50,7 +51,7 @@ jobs:
           API_CHANGED: ${{ needs.detect-changes.outputs.api }}
           WEB_ORDERS_CHANGED: ${{ needs.detect-changes.outputs.web_orders }}
         run: |
-          ssh -o StrictHostKeyChecking=no root@88.222.245.88 "API_CHANGED=$API_CHANGED WEB_ORDERS_CHANGED=$WEB_ORDERS_CHANGED bash -s" << 'REMOTE'
+          ssh -o StrictHostKeyChecking=no -o ServerAliveInterval=60 -o ServerAliveCountMax=30 root@88.222.245.88 "API_CHANGED=$API_CHANGED WEB_ORDERS_CHANGED=$WEB_ORDERS_CHANGED bash -s" << 'REMOTE'
           set -e
           if [ ! -d "/microworkers/.git" ]; then
             git clone https://github.com/${{ github.repository }}.git /microworkers

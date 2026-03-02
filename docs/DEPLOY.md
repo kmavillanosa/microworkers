@@ -100,6 +100,8 @@ On **push to `main`**, the workflow in **`.github/workflows/deploy.yml`** deploy
 
 **VPS path:** `/microworkers` (repo root). Ports on the host: MySQL **3307**, API **3010**, web-orders **8443**.
 
+**Transcription and deploy timeout (Ubuntu 22.04 + Docker):** The transcription image includes **faster_whisper** (Debian base) so clips are transcribed automatically. The first build can take several minutes. The deploy job has **timeout-minutes: 45** and SSH **ServerAliveInterval=60** so the connection stays up during the build; if you still hit timeouts, build the transcription image once on the VPS manually (`docker compose -f docker-compose.deploy.yml build transcription`) then deploy as usual.
+
 **Private repo:** The clone runs **on the VPS**. For a private repo, add the **VPS public key** as a GitHub **Deploy key** (read-only) for this repo, and change the clone URL in the workflow to SSH: `git@github.com:OWNER/microworkers.git` (and ensure the VPS has that key in `~/.ssh`). Alternatively use a **Personal Access Token** in the URL (not recommended in the workflow; use deploy key).
 
 ### Required GitHub Secrets
@@ -133,4 +135,4 @@ The workflow **exports** these on the VPS before running `docker compose -f dock
 - **Web-orders** uses **VPS API URL**; customers place orders and see receipts/reels from the VPS.
 - **Backoffice** (generate orders) uses **local API URL**; local API must use **VPS MySQL** so it sees orders and creates jobs in the same DB.
 - **Reel generation:** VPS API has **REELS_RUN_IN_PROCESS=false**. Local worker uses **VPS_API_URL** to poll for jobs and upload output; when done, output is on the VPS and **visible to the customer** on their receipt.
-- **Transcription:** Runs on VPS; API sets `RUN_TRANSCRIPTION_IN_API=false` so the transcription worker handles pending clips.
+- **Transcription:** Runs on VPS; API sets `RUN_TRANSCRIPTION_IN_API=false` so the transcription worker handles pending clips. The transcription image includes `faster_whisper`; deploy uses a 45-minute job timeout and SSH keepalive so the build can complete.

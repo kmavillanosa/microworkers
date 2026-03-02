@@ -1,6 +1,6 @@
 # Transcription worker: runs transcribe_clip.py for order clips (separate service, online).
-# Needs Python + faster_whisper; shares repo root for assets/order-clips and script.
-# Debian base: pip can use manylinux wheels for PyAV/faster_whisper; Alpine often fails to build them.
+# Debian base so pip can use manylinux wheels for PyAV/faster_whisper (avoids Alpine build failures).
+# Build can take several minutes; deploy workflow uses a longer timeout and SSH keepalive.
 FROM node:20-bookworm-slim
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -27,11 +27,10 @@ RUN npm ci --omit=dev 2>/dev/null || npm install --omit=dev
 # Copy worker script only. Repo root (transcribe_clip.py, assets/order-clips) is mounted at runtime.
 COPY workers/transcription/worker.js ./
 
-# Default: compose mounts repo at /data so assets/order-clips and transcribe_clip.py exist
 ENV REPO_ROOT=/data
 ENV REELS_PYTHON_EXE=/usr/bin/python3
 
-# Python deps for transcribe_clip.py
+# faster-whisper: local-only transcription, free, no API, no payments (CTranslate2 + Whisper)
 RUN pip3 install --break-system-packages --no-cache-dir faster_whisper
 
 CMD ["node", "worker.js"]
