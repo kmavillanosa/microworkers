@@ -242,7 +242,7 @@ button { cursor: pointer; }
   display: grid;
   grid-template-columns: 1fr minmax(260px, 380px);
   gap: 1.25rem;
-  align-items: stretch;
+  align-items: start;
   min-width: 0;
 }
 .order-page-layout > * {
@@ -402,11 +402,8 @@ button { cursor: pointer; }
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
-  min-height: 0;
 }
 .order-preview-frame-wrap {
-  flex: 1 1 auto;
-  min-height: 260px;
   display: flex;
   flex-direction: column;
   align-items: center;
