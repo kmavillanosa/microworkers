@@ -73,6 +73,36 @@ function formatDuration(seconds: number): string {
   return s < 10 ? `${m}:0${s}` : `${m}:${s}`
 }
 
+/** Same as API: max words that fit in duration at typical TTS pace. */
+const WORDS_PER_SECOND = 2.5
+function maxWordsForDuration(seconds: number): number {
+  return Math.max(0, Math.floor(seconds * WORDS_PER_SECOND))
+}
+
+/** Get video duration in seconds from a File or video URL (browser only, no server). */
+function getVideoDurationInBrowser(fileOrUrl: File | string): Promise<number | null> {
+  return new Promise((resolve) => {
+    const url = typeof fileOrUrl === 'string' ? fileOrUrl : URL.createObjectURL(fileOrUrl)
+    const video = document.createElement('video')
+    video.preload = 'metadata'
+    const onDone = () => {
+      if (typeof fileOrUrl === 'object') URL.revokeObjectURL(url)
+      video.removeEventListener('loadedmetadata', onLoaded)
+      video.removeEventListener('error', onDone)
+      video.src = ''
+    }
+    const onLoaded = () => {
+      const d = video.duration
+      if (Number.isFinite(d) && d > 0) resolve(d)
+      else resolve(null)
+      onDone()
+    }
+    video.addEventListener('loadedmetadata', onLoaded)
+    video.addEventListener('error', onDone)
+    video.src = url
+  })
+}
+
 export type PreviewSize = 'phone' | 'tablet' | 'laptop' | 'desktop'
 
 const PREVIEW_SIZES: { id: PreviewSize; label: string }[] = [
@@ -175,6 +205,9 @@ export default function OrderPage() {
   const [uploadedClipUrl, setUploadedClipUrl] = useState<string | null>(null)
   const [uploadingClip, setUploadingClip] = useState(false)
   const [clipTranscript, setClipTranscript] = useState<ClipTranscriptInfo | null>(null)
+  /** Duration and max words from the video (browser-side, no server ffprobe). Prefer over API when set. */
+  const [clipDurationSeconds, setClipDurationSeconds] = useState<number | null>(null)
+  const [clipMaxWords, setClipMaxWords] = useState<number | null>(null)
   /** Only fill script from transcript once per clip; avoid overwriting user edits when poll runs again. */
   const scriptFilledForClipRef = useRef<string | null>(null)
   const [voiceEngine, setVoiceEngine] = useState('edge')
@@ -214,6 +247,9 @@ export default function OrderPage() {
   const canPrev = safeFrameIndex > 0
   const canNext = safeFrameIndex < previewFrames.length - 1
   const reelPricePesos = previewFrames.length * pricePerFramePesos
+  /** Prefer client-side duration/words (no server); fall back to API transcript data. */
+  const effectiveDurationSeconds = clipDurationSeconds ?? clipTranscript?.durationSeconds ?? null
+  const effectiveMaxWords = clipMaxWords ?? clipTranscript?.maxWordsForNarration ?? null
 
   useEffect(() => {
     Promise.all([
@@ -271,7 +307,7 @@ export default function OrderPage() {
       )
       return null
     }
-    const maxWords = clipName && clipTranscript?.maxWordsForNarration != null ? clipTranscript.maxWordsForNarration : null
+    const maxWords = clipName && effectiveMaxWords != null ? effectiveMaxWords : null
     if (maxWords != null && script.trim().length > 0) {
       const count = wordCount(script)
       if (count > maxWords) {
@@ -378,13 +414,22 @@ export default function OrderPage() {
     setClipName(value)
     setUploadedClipUrl(null)
     setClipTranscript(null)
+    setClipDurationSeconds(null)
+    setClipMaxWords(null)
   }
 
   async function handleClipUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
-    setUploadingClip(true)
     setError('')
+    setClipDurationSeconds(null)
+    setClipMaxWords(null)
+    const durationSeconds = await getVideoDurationInBrowser(file)
+    if (durationSeconds != null) {
+      setClipDurationSeconds(durationSeconds)
+      setClipMaxWords(maxWordsForDuration(durationSeconds))
+    }
+    setUploadingClip(true)
     const formData = new FormData()
     formData.append('file', file)
     try {
@@ -397,6 +442,8 @@ export default function OrderPage() {
       setClipTranscript(null)
     } catch {
       setError('Video upload failed. Use a supported format (e.g. MP4, WebM).')
+      setClipDurationSeconds(null)
+      setClipMaxWords(null)
     } finally {
       setUploadingClip(false)
       e.target.value = ''
@@ -425,9 +472,14 @@ export default function OrderPage() {
         }
         if (order.clipName) {
           setClipName(order.clipName)
+          setClipDurationSeconds(null)
+          setClipMaxWords(null)
           if (order.clipName.startsWith('order-')) {
             setUploadedClipUrl(`${API}/media/order-clips/${encodeURIComponent(order.clipName)}`)
           }
+        } else {
+          setClipDurationSeconds(null)
+          setClipMaxWords(null)
         }
         setUseClipAudio(Boolean(order.useClipAudio))
         setUseClipAudioWithNarrator(Boolean(order.useClipAudioWithNarrator))
@@ -435,6 +487,19 @@ export default function OrderPage() {
       })
       .catch(() => {})
   }, [searchParams, setSearchParams])
+
+  // When we have an uploaded clip URL but no client duration yet (e.g. loaded from order), get duration from the video in the browser
+  useEffect(() => {
+    if (!uploadedClipUrl || clipDurationSeconds != null) return
+    let isCancelled = false
+    getVideoDurationInBrowser(uploadedClipUrl).then((d) => {
+      if (!isCancelled && d != null) {
+        setClipDurationSeconds(d)
+        setClipMaxWords(maxWordsForDuration(d))
+      }
+    })
+    return () => { isCancelled = true }
+  }, [uploadedClipUrl, clipDurationSeconds])
 
   useEffect(() => {
     if (!clipName || !clipName.startsWith('order-')) {
@@ -618,14 +683,14 @@ export default function OrderPage() {
                   <div className="field">
                     <label className="label" htmlFor="order-script">Script</label>
                     <p className="field-hint field-hint-above">Paste or type your script. If you add a video with speech below, we can transcribe it for you.</p>
-                    {clipName && clipTranscript?.maxWordsForNarration != null && (
+                    {clipName && effectiveMaxWords != null && (
                       <p
-                        className={`script-allowed-words${wordCount(script) > clipTranscript.maxWordsForNarration ? ' script-over-limit' : ''}`}
+                        className={`script-allowed-words${wordCount(script) > effectiveMaxWords ? ' script-over-limit' : ''}`}
                         aria-live="polite"
                       >
-                        Max words for this video length: <strong>{clipTranscript.maxWordsForNarration}</strong>
+                        Max words for this video length: <strong>{effectiveMaxWords}</strong>
                         {script.trim().length > 0 && (
-                          <> — {wordCount(script)} / {clipTranscript.maxWordsForNarration} words</>
+                          <> — {wordCount(script)} / {effectiveMaxWords} words</>
                         )}
                       </p>
                     )}
@@ -641,8 +706,8 @@ export default function OrderPage() {
                         {clipTranscript.status === 'empty' || clipTranscript.status === 'failed' ? (
                           <>
                             No human speech detected. You can write your own script above.
-                            {clipTranscript.maxWordsForNarration != null ? (
-                              <> Keep it to <strong>{clipTranscript.maxWordsForNarration} words</strong> or fewer so the script fits the video length.</>
+                            {effectiveMaxWords != null ? (
+                              <> Keep it to <strong>{effectiveMaxWords} words</strong> or fewer so the script fits the video length.</>
                             ) : (
                               <> Enter your script above to continue.</>
                             )}
@@ -658,9 +723,9 @@ export default function OrderPage() {
                         )}
                       </p>
                     )}
-                    {clipName && clipTranscript?.durationSeconds != null && clipTranscript?.maxWordsForNarration != null && (
+                    {clipName && effectiveDurationSeconds != null && effectiveMaxWords != null && (
                       <p className="field-hint clip-duration-hint">
-                        Video length: <strong>{formatDuration(clipTranscript.durationSeconds)}</strong>. Script must be at most <strong>{clipTranscript.maxWordsForNarration} words</strong> to fit the video.
+                        Video length: <strong>{formatDuration(effectiveDurationSeconds)}</strong>. Script must be at most <strong>{effectiveMaxWords} words</strong> to fit the video.
                       </p>
                     )}
                   </div>
@@ -737,18 +802,18 @@ export default function OrderPage() {
                     </div>
                     {clipName && (
                       <p className="uploaded-video-duration" aria-live="polite">
-                        {clipTranscript?.durationSeconds != null ? (
+                        {effectiveDurationSeconds != null ? (
                           <>
-                            Video duration: <strong>{formatDuration(clipTranscript.durationSeconds)}</strong>
-                            {clipTranscript?.maxWordsForNarration != null && (
-                              <> · Max script: <strong>{clipTranscript.maxWordsForNarration} words</strong></>
+                            Video duration: <strong>{formatDuration(effectiveDurationSeconds)}</strong>
+                            {effectiveMaxWords != null && (
+                              <> · Max script: <strong>{effectiveMaxWords} words</strong></>
                             )}
                           </>
                         ) : transcriptPending ? (
                           <>Detecting video duration…</>
-                        ) : clipTranscript != null ? (
+                        ) : (
                           <>Duration unavailable for this video.</>
-                        ) : null}
+                        )}
                       </p>
                     )}
                     {clipName && (
@@ -889,9 +954,9 @@ export default function OrderPage() {
                     ? (uploadedClipUrl ? 'Your uploaded video' : clipName)
                     : 'Caption style (no clip)'}
                 </p>
-                {clipName && clipTranscript?.durationSeconds != null && (
-                  <p className="order-preview-duration" aria-label={`Video duration ${formatDuration(clipTranscript.durationSeconds)}`}>
-                    Duration: <strong>{formatDuration(clipTranscript.durationSeconds)}</strong>
+                {clipName && effectiveDurationSeconds != null && (
+                  <p className="order-preview-duration" aria-label={`Video duration ${formatDuration(effectiveDurationSeconds)}`}>
+                    Duration: <strong>{formatDuration(effectiveDurationSeconds)}</strong>
                   </p>
                 )}
                 {previewFrames.length > 0 && (
