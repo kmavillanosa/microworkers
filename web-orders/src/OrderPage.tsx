@@ -721,77 +721,11 @@ export default function OrderPage() {
             `).join('')}</style>
             <div className="order-page-layout">
               <form onSubmit={(e) => e.preventDefault()} className="order-form-column">
-                <div className="order-form-row-top">
-                <section className="order-form-step" aria-labelledby="order-step-content-heading">
-                  <h2 id="order-step-content-heading" className="order-form-step-title">Content</h2>
-                  <p className="order-form-step-intro">Script and optional title.</p>
+                {/* 1. Upload — video only */}
+                <section className="order-form-step order-section-upload" aria-labelledby="order-step-upload-heading">
+                  <h2 id="order-step-upload-heading" className="order-form-step-title">Upload</h2>
+                  <p className="order-form-step-intro">Background video (optional). Upload your own or choose from our clips. None = captions only.</p>
                   <div className="field">
-                    <label className="label" htmlFor="order-script">Script</label>
-                    <p className="field-hint field-hint-above">Paste or type your script. If you add a video with speech below, we can transcribe it for you.</p>
-                    {clipName && effectiveMaxWords != null && (
-                      <p
-                        className={`script-allowed-words${wordCount(script) > effectiveMaxWords ? ' script-over-limit' : ''}`}
-                        aria-live="polite"
-                      >
-                        Max words for this video length: <strong>{effectiveMaxWords}</strong>
-                        {script.trim().length > 0 && (
-                          <> — {wordCount(script)} / {effectiveMaxWords} words</>
-                        )}
-                      </p>
-                    )}
-                    <textarea
-                      id="order-script"
-                      value={script}
-                      onChange={(e) => setScript(e.target.value)}
-                      placeholder="e.g. Welcome to our channel. Today we're talking about…"
-                      rows={3}
-                    />
-                    {clipName && clipTranscript?.status && (
-                      <p className="field-hint">
-                        {clipTranscript.status === 'empty' || clipTranscript.status === 'failed' ? (
-                          <>
-                            No human speech detected. You can write your own script above.
-                            {effectiveMaxWords != null ? (
-                              <> Keep it to <strong>{effectiveMaxWords} words</strong> or fewer so the script fits the video length.</>
-                            ) : (
-                              <> Enter your script above to continue.</>
-                            )}
-                          </>
-                        ) : (
-                          <>
-                            Transcript: {clipTranscript.status}
-                            {transcriptLanguage
-                              ? ` · ${transcriptLanguage}${transcriptConfidence !== null ? ` (${transcriptConfidence}%)` : ''}`
-                              : ''}
-                            {clipTranscript.error ? ` · ${clipTranscript.error}` : ''}
-                          </>
-                        )}
-                      </p>
-                    )}
-                    {clipName && effectiveDurationSeconds != null && effectiveMaxWords != null && (
-                      <p className="field-hint clip-duration-hint">
-                        Video length: <strong>{formatDuration(effectiveDurationSeconds)}</strong>. Script must be at most <strong>{effectiveMaxWords} words</strong> to fit the video.
-                      </p>
-                    )}
-                  </div>
-                  <div className="field">
-                    <label className="label" htmlFor="order-title">Title (optional)</label>
-                    <input
-                      id="order-title"
-                      type="text"
-                      value={title}
-                      onChange={(e) => setTitle(e.target.value)}
-                      placeholder="e.g. Tips for beginners"
-                    />
-                  </div>
-                </section>
-
-                <section className="order-form-step" aria-labelledby="order-step-style-heading">
-                  <h2 id="order-step-style-heading" className="order-form-step-title">Look</h2>
-                  <p className="order-form-step-intro">Choose a video or captions only, then pick a font.</p>
-                  <div className="field">
-                    <label className="label" htmlFor="order-clip">Background video (optional)</label>
-                    <p className="field-hint field-hint-above">Upload your own or choose from our clips. None = captions only.</p>
                     <div className="upload-own-video">
                       <p className="upload-own-video-heading">Upload your own video</p>
                       <label className="upload-label">
@@ -814,7 +748,7 @@ export default function OrderPage() {
                       )}
                     </div>
                     <p className="field-hint" style={{ marginTop: '0.5rem' }}>Or choose from our videos:</p>
-                    <select id="order-clip" value={clipName} onChange={handleClipSelect}>
+                    <select id="order-clip" value={clipName} onChange={handleClipSelect} aria-label="Background video">
                       <option value="">None — caption style only</option>
                       {uploadedClipUrl && clipName && (
                         <option value={clipName}>Your uploaded video</option>
@@ -884,6 +818,12 @@ export default function OrderPage() {
                       </div>
                     )}
                   </div>
+                </section>
+
+                {/* 2. Look — font, screen size, caption position, caption style */}
+                <section className="order-form-step" aria-labelledby="order-step-style-heading">
+                  <h2 id="order-step-style-heading" className="order-form-step-title">Look</h2>
+                  <p className="order-form-step-intro">Font, output size, and caption position and style.</p>
                   <div className="field">
                     <label className="label" htmlFor="order-font">Font</label>
                     <select
@@ -907,8 +847,137 @@ export default function OrderPage() {
                       ))}
                     </select>
                   </div>
+                  <div className="field">
+                    <label className="label" htmlFor="order-preview-size">Screen size (output)</label>
+                    <select
+                      id="order-preview-size"
+                      className="order-preview-size-select order-form-control"
+                      value={previewSize}
+                      onChange={(e) => setPreviewSize(e.target.value as PreviewSize)}
+                      aria-label="Video output screen size"
+                    >
+                      {PREVIEW_SIZES.map((s) => (
+                        <option key={s.id} value={s.id}>{s.label}</option>
+                      ))}
+                    </select>
+                    <p className="field-hint">
+                      Your video will be delivered in <strong>{PREVIEW_SIZES.find((s) => s.id === previewSize)?.label ?? previewSize}</strong> format.
+                    </p>
+                  </div>
+                  <div className="field order-script-position-row">
+                    <label htmlFor="order-script-position" className="order-field-label">Caption position</label>
+                    <select
+                      id="order-script-position"
+                      className="order-script-position-select order-form-control"
+                      value={scriptPosition}
+                      onChange={(e) => setScriptPosition(e.target.value as 'top' | 'center' | 'bottom')}
+                      aria-label="Where captions appear on the video"
+                    >
+                      <option value="top">Top</option>
+                      {!title.trim() && <option value="center">Center</option>}
+                      <option value="bottom">Bottom</option>
+                    </select>
+                    {title.trim() && (
+                      <p className="order-script-position-hint muted small">Center is available when no title is set.</p>
+                    )}
+                  </div>
+                  <div className="field order-script-style-row">
+                    <span className="order-field-label">Caption style</span>
+                    <div className="order-script-style-controls">
+                      <label className="order-script-style-label">
+                        Font size
+                        <select
+                          className="order-script-style-select order-form-control"
+                          value={String(scriptStyle.fontScale ?? 1)}
+                          onChange={(e) => setScriptStyle((s) => ({ ...s, fontScale: Number(e.target.value) }))}
+                          aria-label="Caption font size"
+                        >
+                          <option value="0.8">Small</option>
+                          <option value="1">Medium</option>
+                          <option value="1.2">Large</option>
+                        </select>
+                      </label>
+                      <label className="order-script-style-label">
+                        Background
+                        <select
+                          className="order-script-style-select order-form-control"
+                          value={String(scriptStyle.bgOpacity ?? 180)}
+                          onChange={(e) => setScriptStyle((s) => ({ ...s, bgOpacity: Number(e.target.value) }))}
+                          aria-label="Caption background opacity"
+                        >
+                          <option value="120">Light</option>
+                          <option value="180">Medium</option>
+                          <option value="220">Dark</option>
+                        </select>
+                      </label>
+                    </div>
+                  </div>
                 </section>
-                </div>
+
+                {/* 3. Content — script and title */}
+                <section className="order-form-step" aria-labelledby="order-step-content-heading">
+                  <h2 id="order-step-content-heading" className="order-form-step-title">Content</h2>
+                  <p className="order-form-step-intro">Script and optional title.</p>
+                  <div className="field">
+                    <label className="label" htmlFor="order-script">Script</label>
+                    <p className="field-hint field-hint-above">Paste or type your script. If you add a video above, we can transcribe it for you.</p>
+                    {clipName && effectiveMaxWords != null && (
+                      <p
+                        className={`script-allowed-words${wordCount(script) > effectiveMaxWords ? ' script-over-limit' : ''}`}
+                        aria-live="polite"
+                      >
+                        Max words for this video length: <strong>{effectiveMaxWords}</strong>
+                        {script.trim().length > 0 && (
+                          <> — {wordCount(script)} / {effectiveMaxWords} words</>
+                        )}
+                      </p>
+                    )}
+                    <textarea
+                      id="order-script"
+                      value={script}
+                      onChange={(e) => setScript(e.target.value)}
+                      placeholder="e.g. Welcome to our channel. Today we're talking about…"
+                      rows={3}
+                    />
+                    {clipName && clipTranscript?.status && (
+                      <p className="field-hint">
+                        {clipTranscript.status === 'empty' || clipTranscript.status === 'failed' ? (
+                          <>
+                            No human speech detected. You can write your own script above.
+                            {effectiveMaxWords != null ? (
+                              <> Keep it to <strong>{effectiveMaxWords} words</strong> or fewer so the script fits the video length.</>
+                            ) : (
+                              <> Enter your script above to continue.</>
+                            )}
+                          </>
+                        ) : (
+                          <>
+                            Transcript: {clipTranscript.status}
+                            {transcriptLanguage
+                              ? ` · ${transcriptLanguage}${transcriptConfidence !== null ? ` (${transcriptConfidence}%)` : ''}`
+                              : ''}
+                            {clipTranscript.error ? ` · ${clipTranscript.error}` : ''}
+                          </>
+                        )}
+                      </p>
+                    )}
+                    {clipName && effectiveDurationSeconds != null && effectiveMaxWords != null && (
+                      <p className="field-hint clip-duration-hint">
+                        Video length: <strong>{formatDuration(effectiveDurationSeconds)}</strong>. Script must be at most <strong>{effectiveMaxWords} words</strong> to fit the video.
+                      </p>
+                    )}
+                  </div>
+                  <div className="field">
+                    <label className="label" htmlFor="order-title">Title (optional)</label>
+                    <input
+                      id="order-title"
+                      type="text"
+                      value={title}
+                      onChange={(e) => setTitle(e.target.value)}
+                      placeholder="e.g. Tips for beginners"
+                    />
+                  </div>
+                </section>
 
                 <section className="order-form-step" aria-labelledby="order-step-voice-heading">
                   <h2 id="order-step-voice-heading" className="order-form-step-title">Voice</h2>
@@ -996,6 +1065,7 @@ export default function OrderPage() {
                 </div>
               </form>
 
+              {/* 4. Live preview — frame and metadata only */}
               <aside className="order-preview-column" aria-label="Live preview">
                 <h2 className="order-preview-label">Live preview</h2>
                 <p className="order-preview-clip-name">
@@ -1020,70 +1090,6 @@ export default function OrderPage() {
                       : 'Transcribing your clip to estimate price…'}
                   </p>
                 )}
-                <div className="order-preview-size-row">
-                  <label className="order-preview-size-label">Screen size (output):</label>
-                  <select
-                    className="order-preview-size-select"
-                    value={previewSize}
-                    onChange={(e) => setPreviewSize(e.target.value as PreviewSize)}
-                    aria-label="Video output screen size"
-                  >
-                    {PREVIEW_SIZES.map((s) => (
-                      <option key={s.id} value={s.id}>{s.label}</option>
-                    ))}
-                  </select>
-                </div>
-                <p className="order-preview-screen-size muted small">
-                  Your video will be delivered in <strong>{PREVIEW_SIZES.find((s) => s.id === previewSize)?.label ?? previewSize}</strong> format.
-                </p>
-                <div className="order-script-position-row">
-                  <label htmlFor="order-script-position" className="order-field-label">Caption position</label>
-                  <select
-                    id="order-script-position"
-                    className="order-script-position-select"
-                    value={scriptPosition}
-                    onChange={(e) => setScriptPosition(e.target.value as 'top' | 'center' | 'bottom')}
-                    aria-label="Where captions appear on the video"
-                  >
-                    <option value="top">Top</option>
-                    {!title.trim() && <option value="center">Center</option>}
-                    <option value="bottom">Bottom</option>
-                  </select>
-                  {title.trim() && (
-                    <p className="order-script-position-hint muted small">Center is available when no title is set.</p>
-                  )}
-                </div>
-                <div className="order-script-style-row">
-                  <span className="order-field-label">Caption style</span>
-                  <div className="order-script-style-controls">
-                    <label className="order-script-style-label">
-                      Font size
-                      <select
-                        className="order-script-style-select"
-                        value={String(scriptStyle.fontScale ?? 1)}
-                        onChange={(e) => setScriptStyle((s) => ({ ...s, fontScale: Number(e.target.value) }))}
-                        aria-label="Caption font size"
-                      >
-                        <option value="0.8">Small</option>
-                        <option value="1">Medium</option>
-                        <option value="1.2">Large</option>
-                      </select>
-                    </label>
-                    <label className="order-script-style-label">
-                      Background
-                      <select
-                        className="order-script-style-select"
-                        value={String(scriptStyle.bgOpacity ?? 180)}
-                        onChange={(e) => setScriptStyle((s) => ({ ...s, bgOpacity: Number(e.target.value) }))}
-                        aria-label="Caption background opacity"
-                      >
-                        <option value="120">Light</option>
-                        <option value="180">Medium</option>
-                        <option value="220">Dark</option>
-                      </select>
-                    </label>
-                  </div>
-                </div>
                 <div className="order-preview-frame-wrap">
                 <div className="order-preview-frame" data-preview-size={previewSize} data-script-position={scriptPosition}>
                   {clipName ? (() => {

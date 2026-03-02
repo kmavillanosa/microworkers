@@ -313,6 +313,19 @@ button { cursor: pointer; }
   margin-bottom: 0;
 }
 
+/* Look section: screen size, caption position, caption style (moved from preview column) */
+.order-form-step .order-form-control,
+.order-form-step .order-preview-size-select,
+.order-form-step .order-script-position-select,
+.order-form-step .order-script-style-select {
+  width: 100%;
+  max-width: 100%;
+  display: block;
+}
+.order-section-upload .upload-own-video {
+  margin-top: 0;
+}
+
 .field-hint-above {
   margin-bottom: 0.5rem;
   margin-top: 0;
