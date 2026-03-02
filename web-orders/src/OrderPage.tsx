@@ -186,6 +186,8 @@ interface OrderSnapshot {
   outputSize?: string | null
   useClipAudio?: boolean
   useClipAudioWithNarrator?: boolean
+  scriptPosition?: 'top' | 'center' | 'bottom'
+  scriptStyle?: { fontScale?: number; bgOpacity?: number }
 }
 
 export default function OrderPage() {
@@ -518,10 +520,10 @@ export default function OrderPage() {
         }
         setUseClipAudio(Boolean(order.useClipAudio))
         setUseClipAudioWithNarrator(Boolean(order.useClipAudioWithNarrator))
-        if (['top', 'center', 'bottom'].includes((order as { scriptPosition?: string })?.scriptPosition ?? '')) {
-          setScriptPosition((order as { scriptPosition: 'top' | 'center' | 'bottom' }).scriptPosition)
+        if (order.scriptPosition && ['top', 'center', 'bottom'].includes(order.scriptPosition)) {
+          setScriptPosition(order.scriptPosition)
         }
-        const style = (order as { scriptStyle?: { fontScale?: number; bgOpacity?: number } })?.scriptStyle
+        const style = order.scriptStyle
         if (style && (typeof style.fontScale === 'number' || typeof style.bgOpacity === 'number')) {
           setScriptStyle({ fontScale: style.fontScale ?? 1, bgOpacity: style.bgOpacity ?? 180 })
         }
