@@ -1,5 +1,5 @@
-# Deploy microworkers to VPS (same pattern as bill-tracker).
-# On push to main: SSH to VPS, clone/pull repo to /microworkers, run docker compose deploy.
+# Deploy microworkers to VPS.
+# Separate stages: API first (rebuild only if api/ or related paths changed), then web-orders (rebuild only if web-orders/ changed).
 # Required secrets: VPS_SSH_KEY, MYSQL_*, TYPEORM_*, CORS_ORIGINS, VITE_API_BASE_URL_WEB_ORDERS, etc.
 
 name: Deploy to VPS
@@ -10,8 +10,32 @@ on:
       - main
 
 jobs:
+  detect-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      api: ${{ steps.filter.outputs.api }}
+      web_orders: ${{ steps.filter.outputs.web_orders }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Detect changed paths
+        uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            api:
+              - 'api/**'
+              - 'workers/**'
+              - 'requirements.txt'
+              - 'assets/**'
+              - 'docker-compose.deploy.yml'
+            web_orders:
+              - 'web-orders/**'
+
   deploy:
     runs-on: ubuntu-latest
+    needs: detect-changes
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -21,9 +45,12 @@ jobs:
         with:
           ssh-private-key: ${{ secrets.VPS_SSH_KEY }}
 
-      - name: Deploy to VPS
+      - name: Deploy to VPS (API first, then web-orders)
+        env:
+          API_CHANGED: ${{ needs.detect-changes.outputs.api }}
+          WEB_ORDERS_CHANGED: ${{ needs.detect-changes.outputs.web_orders }}
         run: |
-          ssh -o StrictHostKeyChecking=no root@88.222.245.88 << 'REMOTE'
+          ssh -o StrictHostKeyChecking=no root@88.222.245.88 "API_CHANGED=$API_CHANGED WEB_ORDERS_CHANGED=$WEB_ORDERS_CHANGED bash -s" << 'REMOTE'
           set -e
           if [ ! -d "/microworkers/.git" ]; then
             git clone https://github.com/${{ github.repository }}.git /microworkers
@@ -57,6 +84,37 @@ jobs:
           export PAYMONGO_SECRET_KEY="${{ secrets.PAYMONGO_SECRET_KEY }}"
           export WORKER_SECRET="${{ secrets.WORKER_SECRET }}"
 
-          docker compose -f docker-compose.deploy.yml down || true
-          docker compose -f docker-compose.deploy.yml up -d --build
+          # Force build if image does not exist (e.g. first deploy)
+          BUILD_API=false
+          BUILD_WEB_ORDERS=false
+          if [ "$API_CHANGED" = "true" ] || ! docker image inspect microworkers-deploy-api 2>/dev/null; then
+            BUILD_API=true
+          fi
+          if [ "$WEB_ORDERS_CHANGED" = "true" ] || ! docker image inspect microworkers-deploy-web-orders 2>/dev/null; then
+            BUILD_WEB_ORDERS=true
+          fi
+
+          # Stage 1: API (and deps). Rebuild only if API changed or missing.
+          if [ "$BUILD_API" = "true" ]; then
+            echo "--- Building and deploying API ---"
+            docker compose -f docker-compose.deploy.yml build api
+            docker compose -f docker-compose.deploy.yml up -d mysql
+            docker compose -f docker-compose.deploy.yml up -d api
+            docker compose -f docker-compose.deploy.yml build transcription
+            docker compose -f docker-compose.deploy.yml up -d transcription
+          else
+            echo "--- Skipping API (no changes) ---"
+          fi
+
+          # Stage 2: Web-orders. Rebuild only if web-orders changed or missing.
+          if [ "$BUILD_WEB_ORDERS" = "true" ]; then
+            echo "--- Building and deploying web-orders ---"
+            docker compose -f docker-compose.deploy.yml build web-orders
+            docker compose -f docker-compose.deploy.yml up -d web-orders
+          else
+            echo "--- Skipping web-orders (no changes) ---"
+          fi
+
+          # Ensure full stack is up (start any stopped services)
+          docker compose -f docker-compose.deploy.yml up -d
           REMOTE

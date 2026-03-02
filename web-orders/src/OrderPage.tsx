@@ -332,15 +332,19 @@ export default function OrderPage() {
     }
   }
 
-  function handleJoyrideCallback(data: { action: string; index: number; status: string }) {
-    const { action, index, status } = data
-    if (status === 'finished' || status === 'skipped') {
+  function handleJoyrideCallback(data: { action?: string; index?: number; status?: string; type?: string }) {
+    const action = data.action ?? ''
+    const index = typeof data.index === 'number' ? data.index : 0
+    const status = data.status ?? ''
+    if (status === 'finished' || status === 'skipped' || status === 'error' || data.type === 'error:target_not_found') {
       setRunTour(false)
       setTourStepIndex(0)
-      try {
-        localStorage.setItem(ORDER_TOUR_STORAGE_KEY, '1')
-      } catch {
-        // ignore
+      if (status === 'finished' || status === 'skipped') {
+        try {
+          localStorage.setItem(ORDER_TOUR_STORAGE_KEY, '1')
+        } catch {
+          // ignore
+        }
       }
     } else if (action === 'next' || action === 'prev') {
       setTourStepIndex(index)
@@ -530,24 +534,29 @@ export default function OrderPage() {
 
   return (
     <div className="container order-page">
-      <Joyride
-        steps={ORDER_FORM_STEPS}
-        run={runTour}
-        stepIndex={tourStepIndex}
-        callback={handleJoyrideCallback}
-        continuous
-        showProgress
-        showSkipButton
-        scrollToFirstStep
-        scrollOffset={80}
-        spotlightPadding={8}
-        styles={{
-          options: {
-            primaryColor: 'var(--accent, #F36F21)',
-            zIndex: 10000,
-          },
-        }}
-      />
+      {!paymongoQrImageUrl && (
+        <Joyride
+          key={runTour ? 'tour-active' : 'tour-idle'}
+          steps={ORDER_FORM_STEPS}
+          run={runTour}
+          stepIndex={tourStepIndex}
+          callback={handleJoyrideCallback}
+          continuous
+          showProgress
+          showSkipButton
+          scrollToFirstStep
+          scrollOffset={80}
+          spotlightPadding={8}
+          disableOverlayClose={false}
+          floaterProps={{ disableAnimation: true }}
+          styles={{
+            options: {
+              primaryColor: 'var(--accent, #F36F21)',
+              zIndex: 10000,
+            },
+          }}
+        />
+      )}
       {showOverlay && (
         <div className="order-page-overlay" role="status" aria-live="polite" aria-busy="true">
           <div className="order-page-overlay-content">
@@ -567,8 +576,9 @@ export default function OrderPage() {
               setTourStepIndex(0)
               setRunTour(true)
             }}
+            aria-label="Start a short guided tour of the order form"
           >
-            Take a tour
+            <span aria-hidden>▶</span> Take a tour
           </button>
         </header>
         {error && <p style={{ color: '#dc2626', marginBottom: '1rem' }}>{error}</p>}

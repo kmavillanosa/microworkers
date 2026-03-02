@@ -47,21 +47,6 @@ export default function Landing() {
         </div>
       </header>
 
-      <section className="landing-section landing-how-to-use" aria-labelledby="landing-how-to-use-title">
-        <h2 id="landing-how-to-use-title" className="landing-section-title">How to use ReelAgad</h2>
-        <p className="landing-section-intro">
-          From script or clip to finished reel in three steps. No editing required.
-        </p>
-        <div className="landing-how-to-use-cta">
-          <Link to="/order" className="landing-cta landing-cta-primary">
-            Create your reel
-          </Link>
-          <Link to="/showcase" className="landing-cta landing-cta-secondary">
-            View samples
-          </Link>
-        </div>
-      </section>
-
       {!showcaseLoading && displaySamples.length > 0 && (
         <section className="landing-section landing-showcase" aria-labelledby="landing-showcase-title">
           <h2 id="landing-showcase-title" className="landing-section-title">Sample reels</h2>
