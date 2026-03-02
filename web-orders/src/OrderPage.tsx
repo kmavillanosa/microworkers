@@ -332,11 +332,9 @@ export default function OrderPage() {
     }
   }
 
-  function handleJoyrideCallback(data: { action?: string; index?: number; status?: string; type?: string }) {
+  function handleJoyrideCallback(data: { action?: string; status?: string }) {
     const action = data.action ?? ''
-    const index = typeof data.index === 'number' ? data.index : 0
     const status = data.status ?? ''
-    const type = data.type ?? ''
     // Only end the tour on explicit finish or skip; ignore error/target_not_found so one missing target doesn't kill the tour
     if (status === 'finished' || status === 'skipped') {
       setRunTour(false)
