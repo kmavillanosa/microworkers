@@ -119,8 +119,8 @@ const ORDER_FORM_STEPS: Step[] = [
     disableBeacon: true,
   },
   {
-    target: '#order-form-submit-btn',
-    content: 'When you’re ready, click here to continue to secure payment. You’ll get your reel when it’s done.',
+    target: '#order-form-submit-wrap',
+    content: 'Choose "Continue to payment" to open the checkout page, or "Pay with QR" to scan with GCash, Maya, or your bank app (min ₱20). You’ll get your reel when it’s done.',
     disableBeacon: true,
   },
 ]
@@ -246,14 +246,14 @@ export default function OrderPage() {
     }).catch(() => setError('Could not load options. Is the API running?'))
   }, [])
 
-  async function handleSubmitOrder(e: React.FormEvent) {
-    e.preventDefault()
+  /** Shared validation; returns amountPesos or sets error and returns null. */
+  function validateAndGetAmount(): number | null {
     setError('')
     const hasClip = Boolean(clipName)
     const transcriptReady = clipTranscript?.status === 'completed' && Boolean(clipTranscript.text)
     if ((!script.trim() && !hasClip) || !fontId || !voiceName) {
       setError('Please fill in font and voice. Script is required if no clip is uploaded.')
-      return
+      return null
     }
     if (!script.trim() && hasClip && !transcriptReady) {
       const noSpeech = clipTranscript?.status === 'empty' || clipTranscript?.status === 'failed'
@@ -262,7 +262,7 @@ export default function OrderPage() {
           ? 'No speech was detected in your clip. Enter a script above to continue.'
           : 'Transcript not ready yet. Please wait or enter a script.'
       )
-      return
+      return null
     }
     const maxWords = useClipAudioWithNarrator ? clipTranscript?.maxWordsForNarration : null
     if (maxWords != null && script.trim().length > 0) {
@@ -271,40 +271,28 @@ export default function OrderPage() {
         setError(
           `Your script has ${count} words. When you choose "My video's sound plus a voice reads my words", use at most ${maxWords} words so the voice fits the video. Shorten your script.`
         )
-        return
+        return null
       }
     }
     const paymentFrames = scriptToFrames(effectiveScript, wordsPerFrame)
     const amountPesos = paymentFrames.length * pricePerFramePesos
     if (amountPesos < 1) {
       setError('Amount must be at least ₱1.')
-      return
+      return null
     }
+    return amountPesos
+  }
+
+  /** Continue to payment: redirect to PayMongo checkout (payment link). */
+  async function handleContinueToPayment(e: React.FormEvent) {
+    e.preventDefault()
+    const amountPesos = validateAndGetAmount()
+    if (amountPesos == null) return
     setSubmitting(true)
     setError('')
     try {
       const id = await ensureOrderId()
       const origin = window.location.origin
-
-      if (amountPesos >= 20) {
-        const res = await fetch(`${API}/api/orders/${id}/paymongo-qr`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ amountPesos }),
-        })
-        if (!res.ok) {
-          const err = await res.json().catch(() => ({}))
-          throw new Error((err as { message?: string }).message || 'QR payment failed')
-        }
-        const data = (await res.json()) as { qrImageUrl: string; amountPesos: number }
-        if (data.qrImageUrl) {
-          setPaymongoQrImageUrl(data.qrImageUrl)
-          setPaymongoAmountPesos(data.amountPesos)
-          return
-        }
-        throw new Error('No QR image returned')
-      }
-
       const res = await fetch(`${API}/api/orders/${id}/paymongo-checkout`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -326,6 +314,42 @@ export default function OrderPage() {
       throw new Error('No checkout URL returned')
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to open checkout. Try again.')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  /** Pay with QR: show QR on this page (requires at least ₱20). */
+  async function handlePayWithQr(e: React.FormEvent) {
+    e.preventDefault()
+    const amountPesos = validateAndGetAmount()
+    if (amountPesos == null) return
+    if (amountPesos < 20) {
+      setError('QR payment requires at least ₱20. Use "Continue to payment" for smaller amounts.')
+      return
+    }
+    setSubmitting(true)
+    setError('')
+    try {
+      const id = await ensureOrderId()
+      const res = await fetch(`${API}/api/orders/${id}/paymongo-qr`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ amountPesos }),
+      })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        throw new Error((err as { message?: string }).message || 'QR payment failed')
+      }
+      const data = (await res.json()) as { qrImageUrl: string; amountPesos: number }
+      if (data.qrImageUrl) {
+        setPaymongoQrImageUrl(data.qrImageUrl)
+        setPaymongoAmountPesos(data.amountPesos)
+        return
+      }
+      throw new Error('No QR image returned')
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'QR payment failed. Try again.')
     } finally {
       setSubmitting(false)
     }
@@ -488,10 +512,15 @@ export default function OrderPage() {
       ? 'Transcribing your clip…'
       : 'Redirecting to checkout…'
 
+  const isTestMode = (import.meta.env.VITE_APP_ENV ?? '') !== 'production'
+
   if (paymongoQrImageUrl && paymongoAmountPesos != null) {
     return (
       <div className="container order-page">
         <div className="card payment-qr-card">
+          {isTestMode && (
+            <p className="payment-qr-test-badge" role="status">Test mode — no real charge when you scan.</p>
+          )}
           <h1 className="payment-qr-title">Scan to pay</h1>
           <p className="payment-qr-amount" aria-label={`Amount: ${paymongoAmountPesos} pesos`}>
             Amount: <strong>₱{paymongoAmountPesos.toLocaleString()}</strong>
@@ -575,7 +604,7 @@ export default function OrderPage() {
               }
             `).join('')}</style>
             <div className="order-page-layout">
-              <form onSubmit={handleSubmitOrder} className="order-form-column">
+              <form onSubmit={(e) => e.preventDefault()} className="order-form-column">
                 <section className="order-form-step" aria-labelledby="order-step-content-heading">
                   <h2 id="order-step-content-heading" className="order-form-step-title">Content</h2>
                   <p className="order-form-step-intro">The words that will appear and be read in your reel.</p>
@@ -808,10 +837,28 @@ export default function OrderPage() {
                 </section>
 
                 <div className="order-form-submit" id="order-form-submit-wrap">
-                  <button type="submit" id="order-form-submit-btn" className="btn order-form-submit-btn" disabled={submitting}>
-                    {submitting ? 'Redirecting to checkout…' : 'Continue to payment'}
-                  </button>
-                  <p className="order-form-submit-hint">You&apos;ll pay securely and get your reel when it&apos;s ready.</p>
+                  <div className="order-form-payment-buttons">
+                    <button
+                      type="button"
+                      id="order-form-submit-btn"
+                      className="btn order-form-submit-btn"
+                      disabled={submitting}
+                      onClick={handleContinueToPayment}
+                    >
+                      {submitting ? 'Redirecting…' : 'Continue to payment'}
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-secondary order-form-submit-btn"
+                      disabled={submitting}
+                      onClick={handlePayWithQr}
+                    >
+                      Pay with QR
+                    </button>
+                  </div>
+                  <p className="order-form-submit-hint">
+                    Continue to payment opens the secure checkout page. Pay with QR shows a code to scan (GCash, Maya, bank app; min ₱20).
+                  </p>
                 </div>
               </form>
 
