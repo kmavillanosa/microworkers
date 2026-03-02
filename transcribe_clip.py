@@ -3,8 +3,11 @@ import os
 import re
 import shutil
 import sys
+import time
 from pathlib import Path
 from typing import Optional
+
+VERBOSE = os.environ.get('TRANSCRIBE_VERBOSE', '').strip().lower() in ('1', 'true', 'yes')
 
 try:
 	import imageio_ffmpeg
@@ -120,6 +123,9 @@ def ensure_ffmpeg () -> None:
 			raise RuntimeError('FFmpeg not found. Install ffmpeg or set FFMPEG_BINARY, or install imageio_ffmpeg.')
 	os.environ['FFMPEG_BINARY'] = str(ffmpeg_exe)
 	os.environ['PATH'] = f'{Path(ffmpeg_exe).parent}{os.pathsep}{os.environ.get("PATH", "")}'
+	if VERBOSE:
+		sys.stderr.write(f'[verbose] FFMPEG_BINARY={ffmpeg_exe}\n')
+		sys.stderr.flush()
 
 
 def _run_transcribe (
@@ -151,7 +157,14 @@ def _run_transcribe (
 
 def transcribe (input_path: Path, model_name: str) -> dict:
 	ensure_ffmpeg()
+	if VERBOSE:
+		sys.stderr.write(f'[verbose] Loading model {model_name!r} (device=cpu, compute_type=int8)...\n')
+		sys.stderr.flush()
+		t0 = time.perf_counter()
 	model = WhisperModel(model_name, device='cpu', compute_type='int8')
+	if VERBOSE:
+		sys.stderr.write(f'[verbose] Model loaded in {time.perf_counter() - t0:.2f}s\n')
+		sys.stderr.flush()
 	vad_enabled = os.environ.get('TRANSCRIBE_VAD', '1').strip() in ('1', 'true', 'yes')
 	no_speech_threshold = 0.65
 	vad_params = {
@@ -161,15 +174,25 @@ def transcribe (input_path: Path, model_name: str) -> dict:
 		'speech_pad_ms': 150,
 	} if vad_enabled else None
 
+	if VERBOSE:
+		sys.stderr.write(f'[verbose] Transcribing {input_path} (VAD={vad_enabled})\n')
+		sys.stderr.flush()
+		t1 = time.perf_counter()
 	segment_list, info = _run_transcribe(
 		model, input_path, vad_filter=vad_enabled, vad_params=vad_params,
 		no_speech_threshold=no_speech_threshold,
 	)
+	if VERBOSE:
+		sys.stderr.write(f'[verbose] First pass: {len(segment_list)} segments in {time.perf_counter() - t1:.2f}s\n')
+		sys.stderr.flush()
 	text = ' '.join(seg['text'] for seg in segment_list).strip()
 	text = _clean_transcript(text)
 
 	# If VAD found no speech, retry without VAD so we still get a transcript (quiet voice, accent, etc.)
 	if vad_enabled and not text:
+		if VERBOSE:
+			sys.stderr.write('[verbose] No speech with VAD, retrying without VAD\n')
+			sys.stderr.flush()
 		segment_list, info = _run_transcribe(
 			model, input_path, vad_filter=False, vad_params=None,
 			no_speech_threshold=no_speech_threshold,
@@ -177,6 +200,11 @@ def transcribe (input_path: Path, model_name: str) -> dict:
 		text = ' '.join(seg['text'] for seg in segment_list).strip()
 		text = _clean_transcript(text)
 
+	if VERBOSE:
+		lang = getattr(info, 'language', None)
+		prob = getattr(info, 'language_probability', None)
+		sys.stderr.write(f'[verbose] Done: language={lang!r} prob={prob}, segments={len(segment_list)}, text_len={len(text)}\n')
+		sys.stderr.flush()
 	return {
 		'text': text,
 		'segments': segment_list,
@@ -196,6 +224,9 @@ def main () -> int:
 		return 3
 
 	model_name = os.environ.get('WHISPER_MODEL', 'base').strip() or 'base'
+	if VERBOSE:
+		sys.stderr.write(f'[verbose] Input={input_path!s} model={model_name!r}\n')
+		sys.stderr.flush()
 	try:
 		result = transcribe(input_path, model_name=model_name)
 		print(json.dumps(result))

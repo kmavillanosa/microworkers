@@ -11,6 +11,7 @@ import { join } from 'node:path'
 import { access } from 'node:fs/promises'
 
 const POLL_MS = 5000
+const VERBOSE = /^1|true|yes$/i.test(process.env.TRANSCRIPTION_VERBOSE || '')
 const REPO_ROOT = process.env.REPO_ROOT || join(process.cwd(), '..')
 const PYTHON_EXE = process.env.REELS_PYTHON_EXE || (process.platform === 'win32'
   ? join(REPO_ROOT, '.reels-venv', 'Scripts', 'python.exe')
@@ -82,7 +83,7 @@ async function main() {
     process.exit(1)
   }
 
-  console.log('Transcription worker started. Polling for pending clips...')
+  console.log('Transcription worker started. Polling for pending clips...' + (VERBOSE ? ' (verbose)' : ''))
   const conn = await createConnection(dbConfig)
 
   while (true) {
@@ -93,12 +94,14 @@ async function main() {
          LIMIT 1`
       )
       if (rows.length === 0) {
+        if (VERBOSE) console.log('[verbose] No pending clips, sleeping', POLL_MS, 'ms')
         await new Promise((r) => setTimeout(r, POLL_MS))
         continue
       }
       const row = rows[0]
       const { type, id: filename, filename: storedFilename } = row
       const inputPath = join(ORDER_CLIPS_DIR, storedFilename || filename)
+      if (VERBOSE) console.log('[verbose] Picked clip:', { type, filename, inputPath })
       if (!(await fileExists(inputPath))) {
         await conn.execute(
           `UPDATE clips SET transcript_status = 'failed', transcript_error = ?, transcript_updated_at = ?
@@ -116,10 +119,14 @@ async function main() {
 
       let parsed
       try {
+        if (VERBOSE) console.log('[verbose] Running transcribe:', PYTHON_EXE, TRANSCRIBE_SCRIPT, inputPath)
+        const t0 = Date.now()
         const stdout = await runTranscribe(inputPath)
+        if (VERBOSE) console.log('[verbose] Transcribe finished in', Date.now() - t0, 'ms')
         parsed = JSON.parse(stdout)
       } catch (err) {
         const errMsg = (err.message || String(err)).slice(0, 500)
+        if (VERBOSE) console.error('[verbose] Transcribe stderr/stdout:', err.message || String(err))
         try {
           await conn.execute(
             `UPDATE clips SET transcript_status = 'failed', transcript_error = ?, transcript_updated_at = ?
@@ -158,13 +165,15 @@ async function main() {
       )
 
       if (text) {
-        await conn.execute(
+        const [orderResult] = await conn.execute(
           `UPDATE orders SET script = ?
            WHERE clip_name = ? AND order_status NOT IN ('declined', 'closed')
            AND (script IS NULL OR TRIM(script) = '')`,
           [text, filename]
         )
+        if (VERBOSE) console.log('[verbose] Orders updated:', orderResult?.affectedRows ?? 0)
       }
+      if (VERBOSE) console.log('[verbose] Result:', { language: parsed?.language, segments: parsed?.segments?.length ?? 0, textLen: text?.length ?? 0 })
       console.log(`Transcribed ${filename} -> ${text ? 'completed' : 'empty'}`)
     } catch (err) {
       console.error('Worker loop error:', err)
