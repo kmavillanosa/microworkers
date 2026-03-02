@@ -315,6 +315,16 @@
   align-items: center;
   gap: 0.5rem;
 }
+.studio-caption-options-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-top: 0.25rem;
+}
+.studio-caption-options-row .studio-preview-size-label {
+  margin-right: 0.15rem;
+}
 .studio-preview-size-label {
   font-size: 0.8rem;
   font-weight: 600;

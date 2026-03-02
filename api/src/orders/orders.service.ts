@@ -38,6 +38,10 @@ export interface Order {
 	paymentStatus: 'pending' | 'confirmed'
 	orderStatus: OrderStatus
 	createdAt: string
+	/** Script position: top, center, bottom. */
+	scriptPosition?: string | null
+	/** Script style: { fontScale?, bgOpacity? }. */
+	scriptStyle?: Record<string, unknown> | null
 }
 
 @Injectable()
@@ -70,6 +74,8 @@ export class OrdersService {
 			payment_status: 'pending',
 			order_status: 'pending',
 			payment_session_id: paymentSessionId ?? null,
+			script_position: ['top', 'center', 'bottom'].includes(dto.scriptPosition ?? '') ? dto.scriptPosition! : 'bottom',
+			script_style: dto.scriptStyle ?? null,
 		})
 		await this.ordersRepo.save(entity)
 		return this.mapEntity(entity)
@@ -181,6 +187,10 @@ export class OrdersService {
 		if (dto.outputSize !== undefined) entity.output_size = dto.outputSize
 		if (dto.useClipAudio !== undefined) entity.use_clip_audio = dto.useClipAudio
 		if (dto.useClipAudioWithNarrator !== undefined) entity.use_clip_audio_with_narrator = dto.useClipAudioWithNarrator
+		if (dto.scriptPosition !== undefined) {
+			entity.script_position = ['top', 'center', 'bottom'].includes(dto.scriptPosition) ? dto.scriptPosition : 'bottom'
+		}
+		if (dto.scriptStyle !== undefined) entity.script_style = dto.scriptStyle
 		await this.ordersRepo.save(entity)
 		return this.mapEntity(entity)
 	}
@@ -281,6 +291,8 @@ export class OrdersService {
 			paymentStatus: row.payment_status,
 			orderStatus: (row.order_status ?? 'pending') as OrderStatus,
 			createdAt: row.created_at instanceof Date ? row.created_at.toISOString() : String(row.created_at),
+			scriptPosition: row.script_position ?? 'bottom',
+			scriptStyle: row.script_style ?? null,
 		}
 	}
 }

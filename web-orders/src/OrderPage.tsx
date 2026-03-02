@@ -228,6 +228,10 @@ export default function OrderPage() {
   /** PayMongo QR Ph: after creating payment intent we show scan-to-pay page with PayMongo's QR (amount >= ₱20). */
   const [paymongoQrImageUrl, setPaymongoQrImageUrl] = useState<string | null>(null)
   const [paymongoAmountPesos, setPaymongoAmountPesos] = useState<number | null>(null)
+  /** Script/caption position on video: top, center, bottom. Center only when no title. */
+  const [scriptPosition, setScriptPosition] = useState<'top' | 'center' | 'bottom'>('bottom')
+  /** Script/caption style for output video. */
+  const [scriptStyle, setScriptStyle] = useState<{ fontScale?: number; bgOpacity?: number }>({ fontScale: 1, bgOpacity: 180 })
 
   /** From API GET /api/orders/pricing; safe fallbacks only when API has not responded yet. */
   const wordsPerFrame = pricing?.wordsPerFrame ?? 1
@@ -328,6 +332,8 @@ export default function OrderPage() {
 
   /** Build order payload for prepare-checkout (order is created only after payment succeeds). */
   function buildOrderPayload() {
+    const hasTitle = Boolean(title.trim())
+    const position = hasTitle && scriptPosition === 'center' ? 'bottom' : scriptPosition
     return {
       script: script.trim() || clipTranscript?.text || '',
       title: title.trim() || undefined,
@@ -339,6 +345,8 @@ export default function OrderPage() {
       clipName: clipName || undefined,
       voiceEngine,
       voiceName,
+      scriptPosition: position,
+      scriptStyle: scriptStyle.fontScale !== 1 || scriptStyle.bgOpacity !== 180 ? scriptStyle : undefined,
       ...(clipName && {
         useClipAudio: useClipAudio || useClipAudioWithNarrator,
         useClipAudioWithNarrator: useClipAudioWithNarrator || undefined,
@@ -510,6 +518,13 @@ export default function OrderPage() {
         }
         setUseClipAudio(Boolean(order.useClipAudio))
         setUseClipAudioWithNarrator(Boolean(order.useClipAudioWithNarrator))
+        if (['top', 'center', 'bottom'].includes((order as { scriptPosition?: string })?.scriptPosition ?? '')) {
+          setScriptPosition((order as { scriptPosition: 'top' | 'center' | 'bottom' }).scriptPosition)
+        }
+        const style = (order as { scriptStyle?: { fontScale?: number; bgOpacity?: number } })?.scriptStyle
+        if (style && (typeof style.fontScale === 'number' || typeof style.bgOpacity === 'number')) {
+          setScriptStyle({ fontScale: style.fontScale ?? 1, bgOpacity: style.bgOpacity ?? 180 })
+        }
         setSearchParams({}, { replace: true })
       })
       .catch(() => {})
@@ -1014,7 +1029,55 @@ export default function OrderPage() {
                 <p className="order-preview-screen-size muted small">
                   Your video will be delivered in <strong>{PREVIEW_SIZES.find((s) => s.id === previewSize)?.label ?? previewSize}</strong> format.
                 </p>
-                <div className="order-preview-frame" data-preview-size={previewSize}>
+                <div className="order-script-position-row">
+                  <label htmlFor="order-script-position" className="order-field-label">Caption position</label>
+                  <select
+                    id="order-script-position"
+                    className="order-script-position-select"
+                    value={scriptPosition}
+                    onChange={(e) => setScriptPosition(e.target.value as 'top' | 'center' | 'bottom')}
+                    aria-label="Where captions appear on the video"
+                  >
+                    <option value="top">Top</option>
+                    {!title.trim() && <option value="center">Center</option>}
+                    <option value="bottom">Bottom</option>
+                  </select>
+                  {title.trim() && (
+                    <p className="order-script-position-hint muted small">Center is available when no title is set.</p>
+                  )}
+                </div>
+                <div className="order-script-style-row">
+                  <span className="order-field-label">Caption style</span>
+                  <div className="order-script-style-controls">
+                    <label className="order-script-style-label">
+                      Font size
+                      <select
+                        className="order-script-style-select"
+                        value={String(scriptStyle.fontScale ?? 1)}
+                        onChange={(e) => setScriptStyle((s) => ({ ...s, fontScale: Number(e.target.value) }))}
+                        aria-label="Caption font size"
+                      >
+                        <option value="0.8">Small</option>
+                        <option value="1">Medium</option>
+                        <option value="1.2">Large</option>
+                      </select>
+                    </label>
+                    <label className="order-script-style-label">
+                      Background
+                      <select
+                        className="order-script-style-select"
+                        value={String(scriptStyle.bgOpacity ?? 180)}
+                        onChange={(e) => setScriptStyle((s) => ({ ...s, bgOpacity: Number(e.target.value) }))}
+                        aria-label="Caption background opacity"
+                      >
+                        <option value="120">Light</option>
+                        <option value="180">Medium</option>
+                        <option value="220">Dark</option>
+                      </select>
+                    </label>
+                  </div>
+                </div>
+                <div className="order-preview-frame" data-preview-size={previewSize} data-script-position={scriptPosition}>
                   {clipName ? (() => {
                     const catalogClip = clips.find((c) => c.name === clipName)
                     const src = uploadedClipUrl ?? (catalogClip?.url ? `${API}${catalogClip.url}` : null)
@@ -1038,8 +1101,11 @@ export default function OrderPage() {
                     <div className="preview-caption-bg" />
                   )}
                   <div
-                    className="order-preview-overlay"
-                    style={{ fontFamily: fontFamilyFor(fontId) }}
+                    className={`order-preview-overlay order-preview-caption-${scriptPosition}`}
+                    style={{
+                      fontFamily: fontFamilyFor(fontId),
+                      ['--caption-font-scale' as string]: String(scriptStyle.fontScale ?? 1),
+                    }}
                   >
                     <div className="order-preview-title">
                       {title.trim() || 'Your title'}

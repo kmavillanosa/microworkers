@@ -108,6 +108,12 @@ export async function runGenerator(job, apiBaseUrl) {
 
   args.push('--font-name', job.fontName || 'default')
 
+  const captionPosition = ['top', 'center', 'bottom'].includes(job.scriptPosition) ? job.scriptPosition : 'bottom'
+  args.push('--caption-position', captionPosition)
+  const style = job.scriptStyle || {}
+  if (style.fontScale != null) args.push('--caption-font-scale', String(Number(style.fontScale)))
+  if (style.bgOpacity != null) args.push('--caption-bg-opacity', String(Math.max(0, Math.min(255, Number(style.bgOpacity)))))
+
   const verbose = process.env.REELS_PYTHON_VERBOSE === '1' || process.env.WORKER_VERBOSE === '1'
   const startedAt = Date.now()
   const outputFolderName = await new Promise((resolve, reject) => {

@@ -35,4 +35,12 @@ export class UpdateOrderDto {
 	@IsBoolean()
 	@IsOptional()
 	useClipAudioWithNarrator?: boolean
+
+	@IsString()
+	@IsOptional()
+	@IsIn(['top', 'center', 'bottom'])
+	scriptPosition?: string
+
+	@IsOptional()
+	scriptStyle?: Record<string, unknown>
 }

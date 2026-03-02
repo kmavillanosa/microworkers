@@ -72,6 +72,14 @@ export class ReelJobEntity {
 	@Column({ type: 'json', nullable: true })
 	transcript_segments: Array<{ start: number; end: number; text: string }> | null
 
+	/** Script/caption position: top, center, bottom. */
+	@Column({ type: 'varchar', length: 16, nullable: true })
+	script_position: string | null
+
+	/** Script/caption style: { fontScale?, bgOpacity? }. */
+	@Column({ type: 'json', nullable: true })
+	script_style: Record<string, unknown> | null
+
 	@Column({ type: 'varchar', length: 120, nullable: true })
 	niche_id: string | null
 

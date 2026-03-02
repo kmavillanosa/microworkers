@@ -497,13 +497,16 @@ def create_caption_image (
 	font_name: str,
 	highlight_words: Optional[int] = None,
 	font_size: Optional[int] = None,
+	caption_position: str = 'bottom',
+	bg_opacity: int = 180,
+	font_scale: float = 1.0,
 ) -> tuple[np.ndarray, tuple[int, int]]:
 	from PIL import Image
 	from PIL import ImageDraw
 
 	# Scale font size to ~5.5% of video width so it fits any resolution.
-	if font_size is None:
-		font_size = max(24, int(width * 0.055))
+	base_font_size = max(24, int(width * 0.055)) if font_size is None else font_size
+	font_size = max(14, int(base_font_size * max(0.5, min(2.0, float(font_scale)))))
 
 	font = load_preferred_font(
 		font_size=font_size,
@@ -551,7 +554,15 @@ def create_caption_image (
 	box_w = max(1, int(round(text_w + padding_x * 2)))
 	box_h = max(1, int(round(text_h + padding_y * 2)))
 	box_x = int((width - box_w) // 2)
-	box_y = int(int(height * 0.72) - (box_h // 2))
+	pos = (caption_position or 'bottom').strip().lower()
+	if pos == 'top':
+		box_y = max(0, int(height * 0.08))
+	elif pos == 'center':
+		box_y = max(0, (height - box_h) // 2)
+	else:
+		box_y = int(int(height * 0.72) - (box_h // 2))
+
+	opacity = max(0, min(255, int(bg_opacity)))
 
 	img = Image.new('RGBA', (box_w, box_h), (0, 0, 0, 0))
 	draw = ImageDraw.Draw(img)
@@ -559,7 +570,7 @@ def create_caption_image (
 	draw.rounded_rectangle(
 		[0, 0, box_w, box_h],
 		radius=radius,
-		fill=(0, 0, 0, 180),
+		fill=(0, 0, 0, opacity),
 	)
 
 	total_words = len(words)
@@ -1067,6 +1078,9 @@ def build_reel (
 	transcript_data: Optional[dict] = None,
 	use_clip_audio: bool = False,
 	use_clip_audio_plus_narrator: bool = False,
+	caption_position: str = 'bottom',
+	caption_font_scale: float = 1.0,
+	caption_bg_opacity: int = 180,
 ) -> tuple[Path, Path]:
 	temp_dir = output_path.parent / '.tmp'
 	temp_dir.mkdir(parents=True, exist_ok=True)
@@ -1174,7 +1188,7 @@ def build_reel (
 			background_clip = create_background_clip(duration=duration, size=size)
 
 	layers = [background_clip]
-	caption_cache: dict[tuple[str, int], tuple[np.ndarray, tuple[int, int]]] = {}
+	caption_cache: dict[tuple, tuple[np.ndarray, tuple[int, int]]] = {}
 
 	for chunk, (start, end) in zip(chunks, timings):
 		word_timings = compute_word_timings_for_chunk(
@@ -1185,7 +1199,7 @@ def build_reel (
 		if not word_timings:
 			continue
 		for highlight_count, (word_start, word_end) in enumerate(word_timings, start=1):
-			cache_key = (chunk, highlight_count)
+			cache_key = (chunk, highlight_count, caption_position, caption_font_scale, caption_bg_opacity)
 			if cache_key not in caption_cache:
 				caption_cache[cache_key] = create_caption_image(
 					text=chunk,
@@ -1193,6 +1207,9 @@ def build_reel (
 					height=size[1],
 					font_name=font_name,
 					highlight_words=highlight_count,
+					caption_position=caption_position,
+					bg_opacity=caption_bg_opacity,
+					font_scale=caption_font_scale,
 				)
 			image, position = caption_cache[cache_key]
 			caption_clip = (
@@ -1410,6 +1427,25 @@ def create_arg_parser () -> argparse.ArgumentParser:
 			'No video clip required. Ignores --bg-dir and --bg-clip.'
 		),
 	)
+	parser.add_argument(
+		'--caption-position',
+		type=str,
+		default='bottom',
+		choices=['top', 'center', 'bottom'],
+		help='Vertical position of script/caption: top, center, or bottom.',
+	)
+	parser.add_argument(
+		'--caption-font-scale',
+		type=float,
+		default=1.0,
+		help='Scale factor for caption font size (e.g. 0.8 = smaller, 1.2 = larger).',
+	)
+	parser.add_argument(
+		'--caption-bg-opacity',
+		type=int,
+		default=180,
+		help='Caption background opacity 0-255 (default 180).',
+	)
 	return parser
 
 
@@ -1474,6 +1510,9 @@ def main () -> None:
 		transcript_data=transcript_data,
 		use_clip_audio=args.use_clip_audio,
 		use_clip_audio_plus_narrator=args.use_clip_audio_plus_narrator,
+		caption_position=getattr(args, 'caption_position', 'bottom'),
+		caption_font_scale=getattr(args, 'caption_font_scale', 1.0),
+		caption_bg_opacity=getattr(args, 'caption_bg_opacity', 180),
 	)
 	print(f'\nOutput folder : {output_path.parent}')
 	print(f'  reel        : {output_path.name}')

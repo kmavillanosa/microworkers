@@ -43,6 +43,10 @@ export interface ReelJob {
   useClipAudioWithNarrator?: boolean;
   /** Optional transcript segments for timing captions to audio. */
   transcriptSegments?: Array<{ start: number; end: number; text: string }>;
+  /** Script/caption position: top, center, bottom. */
+  scriptPosition?: 'top' | 'center' | 'bottom';
+  /** Script/caption style: { fontScale?, bgOpacity? }. */
+  scriptStyle?: Record<string, unknown>;
 }
 
 export interface ReelItem {

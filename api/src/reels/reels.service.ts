@@ -247,6 +247,8 @@ export class ReelsService {
       ...(dto.nicheLabel && { nicheLabel: dto.nicheLabel }),
       ...(dto.orderId && { orderId: dto.orderId }),
       ...(dto.outputSize && { outputSize: dto.outputSize }),
+      ...(dto.scriptPosition && { scriptPosition: dto.scriptPosition }),
+      ...(dto.scriptStyle && { scriptStyle: dto.scriptStyle }),
     };
 
     this.jobs.set(id, job);
@@ -640,6 +642,17 @@ export class ReelsService {
     }
 
     args.push('--font-name', job.fontName || 'default');
+    const captionPosition = ['top', 'center', 'bottom'].includes(job.scriptPosition ?? '')
+      ? job.scriptPosition
+      : 'bottom';
+    args.push('--caption-position', captionPosition ?? 'bottom');
+    const style = job.scriptStyle as { fontScale?: number; bgOpacity?: number } | undefined;
+    if (style?.fontScale != null) {
+      args.push('--caption-font-scale', String(Number(style.fontScale)));
+    }
+    if (style?.bgOpacity != null) {
+      args.push('--caption-bg-opacity', String(Math.max(0, Math.min(255, Number(style.bgOpacity)))));
+    }
     this.logger.debug(`Running generator for job ${job.id}: ${args.join(' ')}`);
     if (this.pythonVerbose) {
       this.logger.debug(
@@ -1121,6 +1134,8 @@ export class ReelsService {
     e.use_clip_audio = job.useClipAudio ?? false;
     e.use_clip_audio_with_narrator = job.useClipAudioWithNarrator ?? false;
     e.transcript_segments = job.transcriptSegments ?? null;
+    e.script_position = job.scriptPosition ?? null;
+    e.script_style = job.scriptStyle ?? null;
     e.niche_id = job.nicheId ?? null;
     e.niche_label = job.nicheLabel ?? null;
     return e;
@@ -1149,6 +1164,8 @@ export class ReelsService {
       useClipAudio: entity.use_clip_audio ?? undefined,
       useClipAudioWithNarrator: entity.use_clip_audio_with_narrator ?? undefined,
       transcriptSegments: entity.transcript_segments ?? undefined,
+      scriptPosition: (entity.script_position as ReelJob['scriptPosition']) ?? undefined,
+      scriptStyle: entity.script_style ?? undefined,
       nicheId: entity.niche_id ?? undefined,
       nicheLabel: entity.niche_label ?? undefined,
     };

@@ -116,4 +116,14 @@ export class CreateReelDto {
   @IsOptional()
   @IsIn(['phone', 'tablet', 'laptop', 'desktop'])
   outputSize?: 'phone' | 'tablet' | 'laptop' | 'desktop';
+
+  /** Script/caption position on video: top, center, bottom. Default bottom. */
+  @IsString()
+  @IsOptional()
+  @IsIn(['top', 'center', 'bottom'])
+  scriptPosition?: 'top' | 'center' | 'bottom';
+
+  /** Script/caption style: { fontScale?: number, bgOpacity?: number }. */
+  @IsOptional()
+  scriptStyle?: Record<string, unknown>;
 }

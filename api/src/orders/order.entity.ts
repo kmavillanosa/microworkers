@@ -74,5 +74,13 @@ export class OrderEntity {
   /** Set when order was created from PayMongo checkout (webhook). Used to look up order after redirect. */
   @Column({ type: 'varchar', length: 64, nullable: true })
   payment_session_id: string | null
+
+  /** Script/caption position on video: top, center, bottom. Default bottom. */
+  @Column({ type: 'varchar', length: 16, nullable: true, default: 'bottom' })
+  script_position: string | null
+
+  /** Script/caption style: { fontScale?, bgOpacity? }. Optional. */
+  @Column({ type: 'json', nullable: true })
+  script_style: Record<string, unknown> | null
 }
 

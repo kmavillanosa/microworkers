@@ -52,4 +52,14 @@ export class CreateOrderDto {
 	@IsBoolean()
 	@IsOptional()
 	useClipAudioWithNarrator?: boolean
+
+	/** Script/caption position: top, center, bottom. Center allowed only when no title. */
+	@IsString()
+	@IsOptional()
+	@IsIn(['top', 'center', 'bottom'])
+	scriptPosition?: string
+
+	/** Script/caption style: { fontScale?: number, bgOpacity?: number }. */
+	@IsOptional()
+	scriptStyle?: Record<string, unknown>
 }

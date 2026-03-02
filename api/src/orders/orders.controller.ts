@@ -230,6 +230,10 @@ export class OrdersController {
 			outputSize: ['phone', 'tablet', 'laptop', 'desktop'].includes(order.outputSize ?? '')
 				? (order.outputSize as 'phone' | 'tablet' | 'laptop' | 'desktop')
 				: 'phone',
+			scriptPosition: ['top', 'center', 'bottom'].includes(order.scriptPosition ?? '')
+				? (order.scriptPosition as 'top' | 'center' | 'bottom')
+				: undefined,
+			scriptStyle: order.scriptStyle ?? undefined,
 		})
 		return {
 			jobId: job.id,

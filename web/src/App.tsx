@@ -139,6 +139,8 @@ type Order = {
   paymentStatus: "pending" | "confirmed";
   orderStatus: OrderStatus;
   createdAt: string;
+  scriptPosition?: string | null;
+  scriptStyle?: { fontScale?: number; bgOpacity?: number } | null;
 };
 
 type ClipTranscriptInfo = {
@@ -727,6 +729,13 @@ function App() {
   const [studioPreviewSize, setStudioPreviewSize] =
     useState<StudioPreviewSize>("phone");
   const [studioPreviewMuted, setStudioPreviewMuted] = useState(true);
+  const [studioScriptPosition, setStudioScriptPosition] = useState<
+    "top" | "center" | "bottom"
+  >("bottom");
+  const [studioScriptStyle, setStudioScriptStyle] = useState<{
+    fontScale?: number;
+    bgOpacity?: number;
+  }>({ fontScale: 1, bgOpacity: 180 });
 
   // Social accounts (from DB)
   const [allAccounts, setAllAccounts] = useState<SocialAccount[]>([]);
@@ -3003,6 +3012,19 @@ function App() {
             )
               ? selectedOrder.outputSize
               : "phone",
+            scriptPosition:
+              selectedOrder.scriptPosition &&
+              ["top", "center", "bottom"].includes(selectedOrder.scriptPosition)
+                ? selectedOrder.scriptPosition
+                : undefined,
+            scriptStyle: selectedOrder.scriptStyle ?? undefined,
+          }),
+          ...(!selectedOrder && {
+            scriptPosition: studioScriptPosition,
+            scriptStyle:
+              studioScriptStyle.fontScale !== 1 || studioScriptStyle.bgOpacity !== 180
+                ? studioScriptStyle
+                : undefined,
           }),
         }),
       });
@@ -3758,6 +3780,66 @@ function App() {
                       </label>
                     )}
                   </div>
+                  {(selectedOrder || true) && (
+                    <div className="studio-caption-options-row">
+                      <label className="studio-preview-size-label">Caption position</label>
+                      {selectedOrder ? (
+                        <span className="muted small">
+                          {selectedOrder.scriptPosition ?? "bottom"}
+                        </span>
+                      ) : (
+                        <select
+                          className="studio-preview-size-select"
+                          value={studioScriptPosition}
+                          onChange={(e) =>
+                            setStudioScriptPosition(
+                              e.target.value as "top" | "center" | "bottom",
+                            )
+                          }
+                          aria-label="Caption position"
+                        >
+                          <option value="top">Top</option>
+                          <option value="center">Center</option>
+                          <option value="bottom">Bottom</option>
+                        </select>
+                      )}
+                      {!selectedOrder && (
+                        <>
+                          <label className="studio-preview-size-label">Caption style</label>
+                          <select
+                            className="studio-preview-size-select"
+                            value={String(studioScriptStyle.fontScale ?? 1)}
+                            onChange={(e) =>
+                              setStudioScriptStyle((s) => ({
+                                ...s,
+                                fontScale: Number(e.target.value),
+                              }))
+                            }
+                            aria-label="Caption font size"
+                          >
+                            <option value="0.8">Small</option>
+                            <option value="1">Medium</option>
+                            <option value="1.2">Large</option>
+                          </select>
+                          <select
+                            className="studio-preview-size-select"
+                            value={String(studioScriptStyle.bgOpacity ?? 180)}
+                            onChange={(e) =>
+                              setStudioScriptStyle((s) => ({
+                                ...s,
+                                bgOpacity: Number(e.target.value),
+                              }))
+                            }
+                            aria-label="Caption background"
+                          >
+                            <option value="120">Light</option>
+                            <option value="180">Medium</option>
+                            <option value="220">Dark</option>
+                          </select>
+                        </>
+                      )}
+                    </div>
+                  )}
                   <div
                     className="studio-preview-monitor"
                     data-preview-size={studioPreviewSize}
