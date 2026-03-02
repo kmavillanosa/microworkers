@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import Joyride, { type Step } from 'react-joyride'
+import Joyride, { STATUS, type Step } from 'react-joyride'
 
 const API = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3010'
 
@@ -184,7 +184,6 @@ export default function OrderPage() {
   const [submitting, setSubmitting] = useState(false)
   const [previewFrameIndex, setPreviewFrameIndex] = useState(0)
   const [runTour, setRunTour] = useState(false)
-  const [tourStepIndex, setTourStepIndex] = useState(0)
   const [previewSize, setPreviewSize] = useState<PreviewSize>('phone')
   /** PayMongo QR Ph: after creating payment intent we show scan-to-pay page with PayMongo's QR (amount >= ₱20). */
   const [paymongoQrImageUrl, setPaymongoQrImageUrl] = useState<string | null>(null)
@@ -332,25 +331,14 @@ export default function OrderPage() {
     }
   }
 
-  function handleJoyrideCallback(data: { action?: string; status?: string }) {
-    const action = data.action ?? ''
-    const status = data.status ?? ''
-    // Only end the tour on explicit finish or skip; ignore error/target_not_found so one missing target doesn't kill the tour
-    if (status === 'finished' || status === 'skipped') {
+  function handleJoyrideCallback(data: { status?: string }) {
+    if (data.status === STATUS.FINISHED || data.status === STATUS.SKIPPED) {
       setRunTour(false)
-      setTourStepIndex(0)
       try {
         localStorage.setItem(ORDER_TOUR_STORAGE_KEY, '1')
       } catch {
         // ignore
       }
-      return
-    }
-    // Controlled mode: advance step on Next/Prev. Use previous state so we don't depend on callback index semantics.
-    if (action === 'next') {
-      setTourStepIndex((prev) => Math.min(prev + 1, ORDER_FORM_STEPS.length - 1))
-    } else if (action === 'prev') {
-      setTourStepIndex((prev) => Math.max(prev - 1, 0))
     }
   }
 
@@ -539,10 +527,8 @@ export default function OrderPage() {
     <div className="container order-page">
       {!paymongoQrImageUrl && (
         <Joyride
-          key={runTour ? 'tour-active' : 'tour-idle'}
           steps={ORDER_FORM_STEPS}
           run={runTour}
-          stepIndex={tourStepIndex}
           callback={handleJoyrideCallback}
           continuous
           showProgress
@@ -550,8 +536,6 @@ export default function OrderPage() {
           scrollToFirstStep
           scrollOffset={80}
           spotlightPadding={8}
-          disableOverlayClose={false}
-          floaterProps={{ disableAnimation: true }}
           styles={{
             options: {
               primaryColor: 'var(--accent, #F36F21)',
@@ -575,10 +559,7 @@ export default function OrderPage() {
           <button
             type="button"
             className="order-tour-trigger"
-            onClick={() => {
-              setTourStepIndex(0)
-              setRunTour(true)
-            }}
+            onClick={() => setRunTour(true)}
             aria-label="Start a short guided tour of the order form"
           >
             <span aria-hidden>▶</span> Take a tour
