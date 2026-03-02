@@ -22,9 +22,6 @@ There are **two API instances** in this setup:
 | **MySQL**         | |
 | **Transcription** (separate Docker service) | |
 
-- **Before you push:** Run the same build locally to catch TypeScript/build errors and save CI time:
-  - **web-orders:** `cd web-orders && npm run build`
-  - **api** (if you changed it): `cd api && npm run build`
 - **CI/CD:** Use **`docker-compose.deploy.yml`** in your pipeline. It defines `mysql`, `api`, `web-orders`, and **`transcription`** (no `web` backoffice, no `reels-generator`).
 - The API runs with **`RUN_TRANSCRIPTION_IN_API=false`** so it does not run `transcribe_clip.py` in-process; the **transcription** service picks up pending clips from the DB and runs transcription.
 - The API runs with **`REELS_RUN_IN_PROCESS=false`** so it does **not** run the reel generator in-process; it only persists jobs to the DB. Your **local** reels-generator worker polls the VPS API, runs `reels_generator.py` on your machine, and uploads the output back to the VPS.
@@ -92,7 +89,7 @@ When a video is generated and the worker uploads it to the VPS, the output is st
 
 ## GitHub Actions deploy (VPS)
 
-On **push to `main`**, the workflow in **`.github/workflows/deploy.yml`** deploys to the VPS (same pattern as bill-tracker):
+On **push to `main`**, the workflow in **`.github/workflows/deploy.yml`** deploys to the VPS:
 
 1. Checkout repo on the runner.
 2. Install **SSH key** (`webfactory/ssh-agent`) using `VPS_SSH_KEY`.
