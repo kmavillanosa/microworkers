@@ -66,6 +66,13 @@ function wordCount(text: string): number {
   return text.trim().split(/\s+/).filter(Boolean).length
 }
 
+/** Format duration in seconds as M:SS for display. */
+function formatDuration(seconds: number): string {
+  const m = Math.floor(seconds / 60)
+  const s = Math.floor(seconds % 60)
+  return s < 10 ? `${m}:0${s}` : `${m}:${s}`
+}
+
 export type PreviewSize = 'phone' | 'tablet' | 'laptop' | 'desktop'
 
 const PREVIEW_SIZES: { id: PreviewSize; label: string }[] = [
@@ -264,12 +271,12 @@ export default function OrderPage() {
       )
       return null
     }
-    const maxWords = useClipAudioWithNarrator ? clipTranscript?.maxWordsForNarration : null
+    const maxWords = clipName && clipTranscript?.maxWordsForNarration != null ? clipTranscript.maxWordsForNarration : null
     if (maxWords != null && script.trim().length > 0) {
       const count = wordCount(script)
       if (count > maxWords) {
         setError(
-          `Your script has ${count} words. When you choose "My video's sound plus a voice reads my words", use at most ${maxWords} words so the voice fits the video. Shorten your script.`
+          `Your script has ${count} words. The video length allows at most ${maxWords} words. Shorten your script to fit.`
         )
         return null
       }
@@ -611,14 +618,14 @@ export default function OrderPage() {
                   <div className="field">
                     <label className="label" htmlFor="order-script">Script</label>
                     <p className="field-hint field-hint-above">Paste or type your script. If you add a video with speech below, we can transcribe it for you.</p>
-                    {clipName && useClipAudioWithNarrator && clipTranscript?.maxWordsForNarration != null && (
+                    {clipName && clipTranscript?.maxWordsForNarration != null && (
                       <p
                         className={`script-allowed-words${wordCount(script) > clipTranscript.maxWordsForNarration ? ' script-over-limit' : ''}`}
                         aria-live="polite"
                       >
-                        Allowed words: <strong>{clipTranscript.maxWordsForNarration}</strong>
+                        Max words for this video length: <strong>{clipTranscript.maxWordsForNarration}</strong>
                         {script.trim().length > 0 && (
-                          <> — Words: {wordCount(script)} / {clipTranscript.maxWordsForNarration}</>
+                          <> — {wordCount(script)} / {clipTranscript.maxWordsForNarration} words</>
                         )}
                       </p>
                     )}
@@ -634,8 +641,8 @@ export default function OrderPage() {
                         {clipTranscript.status === 'empty' || clipTranscript.status === 'failed' ? (
                           <>
                             No human speech detected. You can write your own script above.
-                            {useClipAudioWithNarrator && clipTranscript.maxWordsForNarration != null ? (
-                              <> For &quot;video sound + voice&quot;, use at most <strong>{clipTranscript.maxWordsForNarration} words</strong>.</>
+                            {clipTranscript.maxWordsForNarration != null ? (
+                              <> Keep it to <strong>{clipTranscript.maxWordsForNarration} words</strong> or fewer so the script fits the video length.</>
                             ) : (
                               <> Enter your script above to continue.</>
                             )}
@@ -651,12 +658,9 @@ export default function OrderPage() {
                         )}
                       </p>
                     )}
-                    {clipName && useClipAudioWithNarrator && clipTranscript?.durationSeconds != null && clipTranscript?.maxWordsForNarration != null && (
+                    {clipName && clipTranscript?.durationSeconds != null && clipTranscript?.maxWordsForNarration != null && (
                       <p className="field-hint clip-duration-hint">
-                        Video is {Math.round(clipTranscript.durationSeconds)}s. Use up to <strong>{clipTranscript.maxWordsForNarration} words</strong> so the voice fits.
-                        {script.trim().length > 0 && (
-                          <> — {wordCount(script)} / {clipTranscript.maxWordsForNarration}</>
-                        )}
+                        Video length: <strong>{formatDuration(clipTranscript.durationSeconds)}</strong>. Script must be at most <strong>{clipTranscript.maxWordsForNarration} words</strong> to fit the video.
                       </p>
                     )}
                   </div>
@@ -869,6 +873,11 @@ export default function OrderPage() {
                     ? (uploadedClipUrl ? 'Your uploaded video' : clipName)
                     : 'Caption style (no clip)'}
                 </p>
+                {clipName && clipTranscript?.durationSeconds != null && (
+                  <p className="order-preview-duration" aria-label={`Video duration ${formatDuration(clipTranscript.durationSeconds)}`}>
+                    Duration: <strong>{formatDuration(clipTranscript.durationSeconds)}</strong>
+                  </p>
+                )}
                 {previewFrames.length > 0 && (
                   <p className="order-preview-price">
                     {previewFrames.length} frame{previewFrames.length !== 1 ? 's' : ''} × ₱{pricePerFramePesos} = <strong>₱{reelPricePesos}</strong>
