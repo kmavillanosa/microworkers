@@ -336,7 +336,8 @@ export default function OrderPage() {
     const action = data.action ?? ''
     const index = typeof data.index === 'number' ? data.index : 0
     const status = data.status ?? ''
-    if (status === 'finished' || status === 'skipped' || status === 'error' || data.type === 'error:target_not_found') {
+    const type = data.type ?? ''
+    if (status === 'finished' || status === 'skipped' || status === 'error' || type === 'error:target_not_found') {
       setRunTour(false)
       setTourStepIndex(0)
       if (status === 'finished' || status === 'skipped') {
@@ -346,8 +347,13 @@ export default function OrderPage() {
           // ignore
         }
       }
-    } else if (action === 'next' || action === 'prev') {
-      setTourStepIndex(index)
+      return
+    }
+    // Controlled mode: callback index is the step we're leaving; set stepIndex to the step we're moving to
+    if (action === 'next') {
+      setTourStepIndex(index + 1)
+    } else if (action === 'prev') {
+      setTourStepIndex(index - 1)
     }
   }
 
