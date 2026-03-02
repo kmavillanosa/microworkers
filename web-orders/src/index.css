@@ -617,6 +617,14 @@ button { cursor: pointer; }
   border-color: var(--color-dark);
 }
 .upload-label input[type="file"] { display: none; }
+.uploaded-video-duration {
+  margin: 0.5rem 0 0;
+  font-size: 0.9rem;
+  color: var(--color-dark);
+}
+.uploaded-video-duration strong {
+  color: var(--color-primary);
+}
 .upload-own-video .link-style {
   background: none;
   border: none;

@@ -736,6 +736,22 @@ export default function OrderPage() {
                       )}
                     </div>
                     {clipName && (
+                      <p className="uploaded-video-duration" aria-live="polite">
+                        {clipTranscript?.durationSeconds != null ? (
+                          <>
+                            Video duration: <strong>{formatDuration(clipTranscript.durationSeconds)}</strong>
+                            {clipTranscript?.maxWordsForNarration != null && (
+                              <> · Max script: <strong>{clipTranscript.maxWordsForNarration} words</strong></>
+                            )}
+                          </>
+                        ) : transcriptPending ? (
+                          <>Detecting video duration…</>
+                        ) : clipTranscript != null ? (
+                          <>Duration unavailable for this video.</>
+                        ) : null}
+                      </p>
+                    )}
+                    {clipName && (
                       <div className="field clip-audio-options" role="group" aria-label="How should your video sound?">
                         <span className="label">How should your video sound?</span>
                         <label className="clip-audio-option">
