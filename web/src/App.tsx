@@ -331,6 +331,7 @@ function OrderOutputPage({
                   style={{
                     maxWidth: "100%",
                     maxHeight: "70vh",
+                    objectFit: "contain",
                     borderRadius: "8px",
                     background: "#000",
                   }}

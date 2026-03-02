@@ -1371,7 +1371,7 @@ button { cursor: pointer; }
 .landing-showcase-card-video {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
   display: block;
 }
 
@@ -1457,7 +1457,7 @@ button { cursor: pointer; }
 .showcase-card-video {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
   display: block;
 }
 .showcase-card-title {
@@ -1504,7 +1504,7 @@ button { cursor: pointer; }
     gap: 1.25rem;
     margin-bottom: 1.25rem;
   }
-  .landing-showcase-card-video-wrap { max-width: 200px; margin-left: auto; margin-right: auto; }
+  .landing-showcase-card-video-wrap { max-width: min(280px, 100%); margin-left: auto; margin-right: auto; }
   .landing-footer-cta { padding: 1.5rem 1rem; border-radius: 16px; }
   .landing-steps li { padding-left: 2.75rem; }
   .landing-step-num { width: 1.5rem; height: 1.5rem; font-size: 0.8rem; }
@@ -1519,7 +1519,7 @@ button { cursor: pointer; }
     grid-template-columns: 1fr;
     gap: 1.25rem;
   }
-  .showcase-card-video-wrap { max-width: 200px; margin-left: auto; margin-right: auto; }
+  .showcase-card-video-wrap { max-width: min(280px, 100%); margin-left: auto; margin-right: auto; }
 }
 
 /* Phones to large phones (481–600px) */
