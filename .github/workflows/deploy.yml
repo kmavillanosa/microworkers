@@ -119,9 +119,10 @@ jobs:
           fi
 
           # Stage 1: API. Rebuild only if API changed or missing.
+          # --progress=plain streams full build output (npm, tsc, nest) for verbose logging
           if [ "$BUILD_API" = "true" ]; then
             echo "--- Building and deploying API ---"
-            docker compose -f docker-compose.deploy.yml build api
+            docker compose -f docker-compose.deploy.yml build --progress=plain api
             docker compose -f docker-compose.deploy.yml up -d mysql
             docker compose -f docker-compose.deploy.yml up -d api
           else
@@ -131,7 +132,7 @@ jobs:
           # Transcription: rebuild only when transcription files changed or image missing (avoids long pip install on every deploy)
           if [ "$BUILD_TRANSCRIPTION" = "true" ]; then
             echo "--- Building and deploying transcription ---"
-            docker compose -f docker-compose.deploy.yml build transcription
+            docker compose -f docker-compose.deploy.yml build --progress=plain transcription
             docker compose -f docker-compose.deploy.yml up -d transcription
           else
             echo "--- Skipping transcription (no changes, reusing existing image) ---"
@@ -141,7 +142,7 @@ jobs:
           # Stage 2: Web-orders. Rebuild only if web-orders changed or missing.
           if [ "$BUILD_WEB_ORDERS" = "true" ]; then
             echo "--- Building and deploying web-orders ---"
-            docker compose -f docker-compose.deploy.yml build web-orders
+            docker compose -f docker-compose.deploy.yml build --progress=plain web-orders
             docker compose -f docker-compose.deploy.yml up -d web-orders
           else
             echo "--- Skipping web-orders (no changes) ---"

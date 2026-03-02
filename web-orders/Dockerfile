@@ -16,7 +16,8 @@ RUN --mount=type=cache,target=/root/.npm \
   npm ci --legacy-peer-deps
 
 COPY . .
-RUN npm run build
+# Verbose build: tsc -b --verbose and vite build with log level for CI
+RUN npx tsc -b --verbose && npx vite build --logLevel info
 
 FROM nginx:alpine
 
