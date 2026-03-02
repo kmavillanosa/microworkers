@@ -47,6 +47,20 @@ export default function Landing() {
         </div>
       </header>
 
+      {showcaseLoading && (
+        <section className="landing-section landing-showcase" aria-busy="true">
+          <h2 className="landing-section-title">Sample reels</h2>
+          <div className="landing-showcase-grid landing-showcase-skeleton">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="landing-showcase-card landing-showcase-card-skeleton" aria-hidden>
+                <div className="landing-showcase-card-video-wrap" />
+                <div className="landing-showcase-card-title-skeleton" />
+                <div className="landing-showcase-card-desc-skeleton" />
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
       {!showcaseLoading && displaySamples.length > 0 && (
         <section className="landing-section landing-showcase" aria-labelledby="landing-showcase-title">
           <h2 id="landing-showcase-title" className="landing-section-title">Sample reels</h2>
@@ -65,16 +79,18 @@ export default function Landing() {
                     className="landing-showcase-card-video"
                   />
                 </div>
-                <h3 className="landing-showcase-card-title">{item.title}</h3>
-                {item.description ? (
-                  <p className="landing-showcase-card-desc">{item.description}</p>
-                ) : null}
+                <div className="landing-showcase-card-body">
+                  <h3 className="landing-showcase-card-title">{item.title}</h3>
+                  {item.description ? (
+                    <p className="landing-showcase-card-desc">{item.description}</p>
+                  ) : null}
+                </div>
               </article>
             ))}
           </div>
           {(showcaseItems.length > LANDING_SHOWCASE_MAX || (showcaseItems.length > 0 && showcaseItems.length <= LANDING_SHOWCASE_MAX)) && (
             <p className="landing-showcase-more">
-              <Link to="/showcase">
+              <Link to="/showcase" className="landing-showcase-more-link">
                 {showcaseItems.length > LANDING_SHOWCASE_MAX ? `See all ${showcaseItems.length} samples` : 'View all samples'}
                 <span className="landing-arrow" aria-hidden>→</span>
               </Link>
