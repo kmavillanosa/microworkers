@@ -17,7 +17,7 @@ COPY workers/transcription/worker.js ./
 ENV REPO_ROOT=/data
 ENV REELS_PYTHON_EXE=/usr/bin/python3
 
-# Python deps for transcribe_clip.py (faster_whisper, imageio_ffmpeg)
-RUN pip3 install --break-system-packages faster_whisper imageio_ffmpeg 2>/dev/null || true
+# Python deps for transcribe_clip.py. imageio_ffmpeg is optional; script falls back to system ffmpeg.
+RUN pip3 install --break-system-packages --no-cache-dir faster_whisper
 
 CMD ["node", "worker.js"]

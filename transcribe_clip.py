@@ -1,11 +1,16 @@
 import json
 import os
 import re
+import shutil
 import sys
 from pathlib import Path
 from typing import Optional
 
-import imageio_ffmpeg
+try:
+	import imageio_ffmpeg
+except ImportError:
+	imageio_ffmpeg = None  # type: ignore[assignment]
+
 from faster_whisper import WhisperModel
 
 
@@ -102,8 +107,14 @@ def _clean_transcript (text: str) -> str:
 
 
 def ensure_ffmpeg () -> None:
-	ffmpeg_exe = imageio_ffmpeg.get_ffmpeg_exe()
-	os.environ['FFMPEG_BINARY'] = ffmpeg_exe
+	"""Set FFMPEG_BINARY for faster_whisper. Prefer imageio_ffmpeg; fall back to system ffmpeg (e.g. in Docker)."""
+	if imageio_ffmpeg is not None:
+		ffmpeg_exe = imageio_ffmpeg.get_ffmpeg_exe()
+	else:
+		ffmpeg_exe = os.environ.get('FFMPEG_BINARY') or shutil.which('ffmpeg') or '/usr/bin/ffmpeg'
+		if not ffmpeg_exe:
+			raise RuntimeError('FFmpeg not found. Install ffmpeg or set FFMPEG_BINARY, or install imageio_ffmpeg.')
+	os.environ['FFMPEG_BINARY'] = str(ffmpeg_exe)
 	os.environ['PATH'] = f'{Path(ffmpeg_exe).parent}{os.pathsep}{os.environ.get("PATH", "")}'
 
 
