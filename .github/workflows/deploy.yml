@@ -15,6 +15,7 @@ jobs:
     outputs:
       api: ${{ steps.filter.outputs.api }}
       web_orders: ${{ steps.filter.outputs.web_orders }}
+      transcription: ${{ steps.filter.outputs.transcription }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -26,12 +27,14 @@ jobs:
           filters: |
             api:
               - 'api/**'
-              - 'workers/**'
               - 'requirements.txt'
               - 'assets/**'
               - 'docker-compose.deploy.yml'
             web_orders:
               - 'web-orders/**'
+            transcription:
+              - 'workers/transcription/**'
+              - 'transcribe_clip.py'
 
   deploy:
     runs-on: ubuntu-latest
@@ -50,12 +53,13 @@ jobs:
         env:
           API_CHANGED: ${{ needs.detect-changes.outputs.api }}
           WEB_ORDERS_CHANGED: ${{ needs.detect-changes.outputs.web_orders }}
+          TRANSCRIPTION_CHANGED: ${{ needs.detect-changes.outputs.transcription }}
         run: |
           VPS_HOST="88.222.245.88"
           MAX_ATTEMPTS=3
           for attempt in $(seq 1 $MAX_ATTEMPTS); do
             echo "Attempt $attempt of $MAX_ATTEMPTS..."
-            if ssh -o StrictHostKeyChecking=no -o ServerAliveInterval=60 -o ServerAliveCountMax=30 -o ConnectTimeout=30 root@$VPS_HOST "API_CHANGED=$API_CHANGED WEB_ORDERS_CHANGED=$WEB_ORDERS_CHANGED bash -s" << 'REMOTE'
+            if ssh -o StrictHostKeyChecking=no -o ServerAliveInterval=60 -o ServerAliveCountMax=30 -o ConnectTimeout=30 root@$VPS_HOST "API_CHANGED=$API_CHANGED WEB_ORDERS_CHANGED=$WEB_ORDERS_CHANGED TRANSCRIPTION_CHANGED=$TRANSCRIPTION_CHANGED bash -s" << 'REMOTE'
           set -e
           if [ ! -d "/microworkers/.git" ]; then
             git clone https://github.com/${{ github.repository }}.git /microworkers
@@ -89,26 +93,38 @@ jobs:
           export PAYMONGO_SECRET_KEY="${{ secrets.PAYMONGO_SECRET_KEY }}"
           export WORKER_SECRET="${{ secrets.WORKER_SECRET }}"
 
-          # Force build if image does not exist (e.g. first deploy)
+          # Build only what changed or is missing (transcription image is slow; rebuild only when transcription files change)
           BUILD_API=false
           BUILD_WEB_ORDERS=false
+          BUILD_TRANSCRIPTION=false
           if [ "$API_CHANGED" = "true" ] || ! docker image inspect microworkers-deploy-api 2>/dev/null; then
             BUILD_API=true
           fi
           if [ "$WEB_ORDERS_CHANGED" = "true" ] || ! docker image inspect microworkers-deploy-web-orders 2>/dev/null; then
             BUILD_WEB_ORDERS=true
           fi
+          if [ "$TRANSCRIPTION_CHANGED" = "true" ] || ! docker image inspect microworkers-deploy-transcription 2>/dev/null; then
+            BUILD_TRANSCRIPTION=true
+          fi
 
-          # Stage 1: API (and deps). Rebuild only if API changed or missing.
+          # Stage 1: API. Rebuild only if API changed or missing.
           if [ "$BUILD_API" = "true" ]; then
             echo "--- Building and deploying API ---"
             docker compose -f docker-compose.deploy.yml build api
             docker compose -f docker-compose.deploy.yml up -d mysql
             docker compose -f docker-compose.deploy.yml up -d api
+          else
+            echo "--- Skipping API (no changes) ---"
+          fi
+
+          # Transcription: rebuild only when transcription files changed or image missing (avoids long pip install on every deploy)
+          if [ "$BUILD_TRANSCRIPTION" = "true" ]; then
+            echo "--- Building and deploying transcription ---"
             docker compose -f docker-compose.deploy.yml build transcription
             docker compose -f docker-compose.deploy.yml up -d transcription
           else
-            echo "--- Skipping API (no changes) ---"
+            echo "--- Skipping transcription (no changes, reusing existing image) ---"
+            docker compose -f docker-compose.deploy.yml up -d transcription
           fi
 
           # Stage 2: Web-orders. Rebuild only if web-orders changed or missing.
