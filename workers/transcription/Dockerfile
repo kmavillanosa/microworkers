@@ -1,8 +1,22 @@
 # Transcription worker: runs transcribe_clip.py for order clips (separate service, online).
 # Needs Python + faster_whisper; shares repo root for assets/order-clips and script.
-FROM node:20-alpine
+# Debian base: pip can use manylinux wheels for PyAV/faster_whisper; Alpine often fails to build them.
+FROM node:20-bookworm-slim
 
-RUN apk add --no-cache python3 py3-pip ffmpeg
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3 \
+    python3-pip \
+    python3-venv \
+    python3-dev \
+    ffmpeg \
+    pkg-config \
+    libavformat-dev \
+    libavcodec-dev \
+    libavdevice-dev \
+    libavutil-dev \
+    libswscale-dev \
+    libswresample-dev \
+    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
@@ -17,7 +31,7 @@ COPY workers/transcription/worker.js ./
 ENV REPO_ROOT=/data
 ENV REELS_PYTHON_EXE=/usr/bin/python3
 
-# No faster_whisper install here: PyAV/faster_whisper often fail to build on Alpine.
-# transcribe_clip.py will exit with a clear JSON error; worker marks clip failed and user can enter script manually.
+# Python deps for transcribe_clip.py
+RUN pip3 install --break-system-packages --no-cache-dir faster_whisper
 
 CMD ["node", "worker.js"]
