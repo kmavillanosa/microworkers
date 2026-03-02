@@ -40,8 +40,19 @@ async function runTranscribe(inputPath) {
     proc.stderr.on('data', (chunk) => { stderr += chunk.toString() })
     proc.on('error', (err) => reject(err))
     proc.on('exit', (code) => {
-      if (code !== 0) reject(new Error(stderr.trim() || stdout.trim() || `Exit ${code}`))
-      else resolve(stdout.trim())
+      if (code !== 0) {
+        const raw = (stderr.trim() || stdout.trim()) || `Exit ${code}`
+        try {
+          const parsed = JSON.parse(raw)
+          if (parsed && typeof parsed.error === 'string') {
+            reject(new Error(parsed.error))
+            return
+          }
+        } catch {
+          // not JSON, use raw (may be traceback)
+        }
+        reject(new Error(raw.slice(0, 500)))
+      } else resolve(stdout.trim())
     })
   })
 }
@@ -108,12 +119,16 @@ async function main() {
         const stdout = await runTranscribe(inputPath)
         parsed = JSON.parse(stdout)
       } catch (err) {
-        const errMsg = (err.message || String(err)).slice(0, 2000)
-        await conn.execute(
-          `UPDATE clips SET transcript_status = 'failed', transcript_error = ?, transcript_updated_at = ?
-           WHERE type = ? AND id = ?`,
-          [errMsg, new Date().toISOString(), type, filename]
-        )
+        const errMsg = (err.message || String(err)).slice(0, 500)
+        try {
+          await conn.execute(
+            `UPDATE clips SET transcript_status = 'failed', transcript_error = ?, transcript_updated_at = ?
+             WHERE type = ? AND id = ?`,
+            [errMsg, new Date().toISOString(), type, filename]
+          )
+        } catch (updateErr) {
+          console.error('Failed to update clip status:', updateErr.message)
+        }
         console.error(`Transcribe failed for ${filename}:`, errMsg)
         continue
       }

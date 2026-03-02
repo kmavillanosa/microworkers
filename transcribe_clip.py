@@ -11,7 +11,11 @@ try:
 except ImportError:
 	imageio_ffmpeg = None  # type: ignore[assignment]
 
-from faster_whisper import WhisperModel
+try:
+	from faster_whisper import WhisperModel
+except ImportError as e:
+	print(json.dumps({'error': f'Transcription unavailable (missing dependency). You can enter your script manually. ({e!s})'}), flush=True)
+	raise SystemExit(1)
 
 
 def _normalize_phrase (words: list[str]) -> str:
