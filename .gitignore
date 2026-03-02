@@ -75,5 +75,6 @@ assets/voices/piper/
 
 # Large media — add locally or use LFS
 assets/game-clips/
-# assets/order-clips/
+# Customer uploads on VPS; must not be committed or pull overwrites them
+assets/order-clips/
 # assets/cache/

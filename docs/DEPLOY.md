@@ -98,7 +98,7 @@ On **push to `main`**, the workflow in **`.github/workflows/deploy.yml`** deploy
    - Export all required env vars from **GitHub Secrets** (see below).
    - Run: `docker compose -f docker-compose.deploy.yml down || true` then `docker compose -f docker-compose.deploy.yml up -d --build`.
 
-**VPS path:** `/microworkers` (repo root). Ports on the host: MySQL **3307**, API **3010**, web-orders **8443**.
+**VPS path:** `/microworkers` (repo root). Ports on the host: MySQL **3307**, API **3010**, web-orders **8443**. `assets/order-clips/` is gitignored so customer uploads on the VPS are never committed and `git pull` does not overwrite them.
 
 **Transcription and deploy timeout (Ubuntu 22.04 + Docker):** The transcription image includes **faster_whisper** (Debian base) so clips are transcribed automatically. The first build can take several minutes. The deploy job has **timeout-minutes: 45** and SSH **ServerAliveInterval=60** so the connection stays up during the build; if you still hit timeouts, build the transcription image once on the VPS manually (`docker compose -f docker-compose.deploy.yml build transcription`) then deploy as usual.
 
