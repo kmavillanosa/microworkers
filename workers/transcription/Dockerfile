@@ -17,9 +17,7 @@ COPY workers/transcription/worker.js ./
 ENV REPO_ROOT=/data
 ENV REELS_PYTHON_EXE=/usr/bin/python3
 
-# Python deps: add minimal build deps so PyAV can compile, then remove them to keep image small.
-RUN apk add --no-cache pkgconfig build-base python3-dev ffmpeg-dev \
-    && pip3 install --break-system-packages --no-cache-dir faster_whisper \
-    && apk del pkgconfig build-base python3-dev ffmpeg-dev
+# No faster_whisper install here: PyAV/faster_whisper often fail to build on Alpine.
+# transcribe_clip.py will exit with a clear JSON error; worker marks clip failed and user can enter script manually.
 
 CMD ["node", "worker.js"]
