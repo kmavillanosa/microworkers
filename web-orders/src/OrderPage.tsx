@@ -337,23 +337,22 @@ export default function OrderPage() {
     const index = typeof data.index === 'number' ? data.index : 0
     const status = data.status ?? ''
     const type = data.type ?? ''
-    if (status === 'finished' || status === 'skipped' || status === 'error' || type === 'error:target_not_found') {
+    // Only end the tour on explicit finish or skip; ignore error/target_not_found so one missing target doesn't kill the tour
+    if (status === 'finished' || status === 'skipped') {
       setRunTour(false)
       setTourStepIndex(0)
-      if (status === 'finished' || status === 'skipped') {
-        try {
-          localStorage.setItem(ORDER_TOUR_STORAGE_KEY, '1')
-        } catch {
-          // ignore
-        }
+      try {
+        localStorage.setItem(ORDER_TOUR_STORAGE_KEY, '1')
+      } catch {
+        // ignore
       }
       return
     }
-    // Controlled mode: callback index is the step we're leaving; set stepIndex to the step we're moving to
+    // Controlled mode: advance step on Next/Prev. Use previous state so we don't depend on callback index semantics.
     if (action === 'next') {
-      setTourStepIndex(index + 1)
+      setTourStepIndex((prev) => Math.min(prev + 1, ORDER_FORM_STEPS.length - 1))
     } else if (action === 'prev') {
-      setTourStepIndex(index - 1)
+      setTourStepIndex((prev) => Math.max(prev - 1, 0))
     }
   }
 
