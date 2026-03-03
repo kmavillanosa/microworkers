@@ -7,7 +7,15 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { randomUUID } from 'node:crypto';
 import { spawn } from 'node:child_process';
-import { access, mkdir, readdir, readFile, rm, stat, writeFile } from 'node:fs/promises';
+import {
+  access,
+  mkdir,
+  readdir,
+  readFile,
+  rm,
+  stat,
+  writeFile,
+} from 'node:fs/promises';
 import { extname, join } from 'node:path';
 import { In, Repository } from 'typeorm';
 import { paths } from '../paths';
@@ -15,7 +23,14 @@ import { FontEntity } from '../fonts/font.entity';
 import { OrdersService } from '../orders/orders.service';
 import { CreateReelDto } from './dto/create-reel.dto';
 import { piperVoiceCatalog } from './piper-catalog';
-import { BgMode, ReelItem, ReelJob, UploadPlatform, UploadRecord, VoiceEngine } from './reels.types';
+import {
+  BgMode,
+  ReelItem,
+  ReelJob,
+  UploadPlatform,
+  UploadRecord,
+  VoiceEngine,
+} from './reels.types';
 import { ReelJobEntity } from './reel-job.entity';
 
 interface LocalVoice {
@@ -48,49 +63,81 @@ export interface FontItem {
 }
 
 const edgeNarratorPresets = [
+  // en-US
+  { id: 'en-US-AnaNeural', name: 'American (Ana Neural)', locale: 'en-US' },
   {
-    id: 'en-US-GuyNeural',
-    name: 'American Narrator (Guy Neural)',
+    id: 'en-US-AndrewMultilingualNeural',
+    name: 'American (Andrew Multilingual)',
     locale: 'en-US',
   },
   {
-    id: 'en-US-AriaNeural',
-    name: 'American Narrator (Aria Neural)',
+    id: 'en-US-AndrewNeural',
+    name: 'American (Andrew Neural)',
     locale: 'en-US',
   },
+  { id: 'en-US-AriaNeural', name: 'American (Aria Neural)', locale: 'en-US' },
   {
-    id: 'en-US-JennyNeural',
-    name: 'American Narrator (Jenny Neural)',
+    id: 'en-US-AvaMultilingualNeural',
+    name: 'American (Ava Multilingual)',
     locale: 'en-US',
   },
+  { id: 'en-US-AvaNeural', name: 'American (Ava Neural)', locale: 'en-US' },
   {
-    id: 'en-US-DavisNeural',
-    name: 'American Narrator (Davis Neural)',
+    id: 'en-US-BrianMultilingualNeural',
+    name: 'American (Brian Multilingual)',
     locale: 'en-US',
   },
+  { id: 'en-US-BrianNeural', name: 'American (Brian Neural)', locale: 'en-US' },
   {
-    id: 'en-US-TonyNeural',
-    name: 'American Narrator (Tony Neural)',
+    id: 'en-US-ChristopherNeural',
+    name: 'American (Christopher Neural)',
     locale: 'en-US',
   },
+  { id: 'en-US-DavisNeural', name: 'American (Davis Neural)', locale: 'en-US' },
   {
-    id: 'en-GB-RyanNeural',
-    name: 'British Narrator (Ryan Neural)',
-    locale: 'en-GB',
+    id: 'en-US-EmmaMultilingualNeural',
+    name: 'American (Emma Multilingual)',
+    locale: 'en-US',
+  },
+  { id: 'en-US-EmmaNeural', name: 'American (Emma Neural)', locale: 'en-US' },
+  { id: 'en-US-EricNeural', name: 'American (Eric Neural)', locale: 'en-US' },
+  { id: 'en-US-GuyNeural', name: 'American (Guy Neural)', locale: 'en-US' },
+  { id: 'en-US-JennyNeural', name: 'American (Jenny Neural)', locale: 'en-US' },
+  {
+    id: 'en-US-MichelleNeural',
+    name: 'American (Michelle Neural)',
+    locale: 'en-US',
+  },
+  { id: 'en-US-RogerNeural', name: 'American (Roger Neural)', locale: 'en-US' },
+  {
+    id: 'en-US-SteffanNeural',
+    name: 'American (Steffan Neural)',
+    locale: 'en-US',
+  },
+  { id: 'en-US-TonyNeural', name: 'American (Tony Neural)', locale: 'en-US' },
+  // en-GB
+  { id: 'en-GB-RyanNeural', name: 'British (Ryan Neural)', locale: 'en-GB' },
+  { id: 'en-GB-SoniaNeural', name: 'British (Sonia Neural)', locale: 'en-GB' },
+  // en-PH (Philippines English)
+  {
+    id: 'en-PH-JamesNeural',
+    name: 'Philippines English (James Neural)',
+    locale: 'en-PH',
   },
   {
-    id: 'en-GB-SoniaNeural',
-    name: 'British Narrator (Sonia Neural)',
-    locale: 'en-GB',
+    id: 'en-PH-RosaNeural',
+    name: 'Philippines English (Rosa Neural)',
+    locale: 'en-PH',
   },
+  // fil-PH (Filipino)
   {
     id: 'fil-PH-BlessicaNeural',
-    name: 'Filipino Narrator (Blessica Neural)',
+    name: 'Filipino (Blessica Neural)',
     locale: 'fil-PH',
   },
   {
     id: 'fil-PH-AngeloNeural',
-    name: 'Filipino Narrator (Angelo Neural)',
+    name: 'Filipino (Angelo Neural)',
     locale: 'fil-PH',
   },
 ] as const;
@@ -149,7 +196,9 @@ export class ReelsService {
     );
     const fontFiles = files
       .filter((entry) => entry.isFile())
-      .filter((entry) => ['.ttf', '.otf'].includes(extname(entry.name).toLowerCase()));
+      .filter((entry) =>
+        ['.ttf', '.otf'].includes(extname(entry.name).toLowerCase()),
+      );
 
     const now = new Date().toISOString();
     const existingIds = new Set(
@@ -223,7 +272,9 @@ export class ReelsService {
     const voiceEngine: VoiceEngine = useClipOnly
       ? 'none'
       : (dto.voiceEngine ?? 'piper');
-    const voiceName = useClipOnly ? undefined : dto.voiceName?.trim() || undefined;
+    const voiceName = useClipOnly
+      ? undefined
+      : dto.voiceName?.trim() || undefined;
     const bgMode: BgMode = dto.bgMode ?? (dto.clipName ? 'clip' : 'auto');
     const job: ReelJob = {
       id,
@@ -320,7 +371,9 @@ export class ReelsService {
         ...(meta.nicheLabel && { nicheLabel: meta.nicheLabel }),
         ...(meta.orderId && { orderId: meta.orderId }),
         ...(meta.showcase && { showcase: true }),
-        ...(meta.showcaseTitle != null && { showcaseTitle: meta.showcaseTitle }),
+        ...(meta.showcaseTitle != null && {
+          showcaseTitle: meta.showcaseTitle,
+        }),
         ...(meta.showcaseDescription != null && {
           showcaseDescription: meta.showcaseDescription,
         }),
@@ -340,7 +393,13 @@ export class ReelsService {
 
   /** Reels marked for showcase (public list for web-orders landing). */
   async listShowcaseReels(): Promise<
-    Array<{ id: string; videoUrl: string; title: string; description: string; outputSize?: string }>
+    Array<{
+      id: string;
+      videoUrl: string;
+      title: string;
+      description: string;
+      outputSize?: string;
+    }>
   > {
     const all = await this.listReels();
     return all
@@ -357,7 +416,11 @@ export class ReelsService {
   /** Update showcase flag and optional title/description for a reel. */
   async updateShowcase(
     reelId: string,
-    payload: { showcase: boolean; showcaseTitle?: string; showcaseDescription?: string },
+    payload: {
+      showcase: boolean;
+      showcaseTitle?: string;
+      showcaseDescription?: string;
+    },
   ): Promise<void> {
     const all = await this.listReels();
     if (!all.some((r) => r.id === reelId)) {
@@ -410,7 +473,10 @@ export class ReelsService {
     const log = meta.uploadLog ?? [];
     // Upsert — replace existing record for same platform+account+page if present
     const idx = log.findIndex(
-      (r) => r.platform === platform && r.accountId === accountId && r.pageId === pageId,
+      (r) =>
+        r.platform === platform &&
+        r.accountId === accountId &&
+        r.pageId === pageId,
     );
     const record: UploadRecord = {
       platform,
@@ -449,7 +515,7 @@ export class ReelsService {
 
     const previousMeta = await this.readReelMeta(reelId);
     const uploadedAt = options.uploaded
-      ? previousMeta.uploadedAt ?? new Date().toISOString()
+      ? (previousMeta.uploadedAt ?? new Date().toISOString())
       : undefined;
     const nextMeta: ReelMeta = {
       ...previousMeta,
@@ -497,7 +563,10 @@ export class ReelsService {
    * When a job finishes it automatically picks up the next queued job.
    */
   private processQueue(): void {
-    while (this.runningCount < this.maxConcurrentJobs && this.queue.length > 0) {
+    while (
+      this.runningCount < this.maxConcurrentJobs &&
+      this.queue.length > 0
+    ) {
       const jobId = this.queue.shift();
       if (!jobId) continue;
 
@@ -563,7 +632,9 @@ export class ReelsService {
     const sizeKey = job.outputSize ?? 'phone';
     const outputSize = this.getOutputDimensions(sizeKey, isLongScript);
     const outputFps = isLongScript ? 20 : 24;
-    const voiceRate = isLongScript ? Math.max(job.voiceRate, 210) : job.voiceRate;
+    const voiceRate = isLongScript
+      ? Math.max(job.voiceRate, 210)
+      : job.voiceRate;
     const maxWordsPerChunk = isLongScript ? 14 : 8;
     if (isLongScript) {
       this.logger.verbose(
@@ -617,7 +688,8 @@ export class ReelsService {
         });
         return;
       }
-      const clipDir = clipPath === orderClipPath ? paths.orderClipsDir : paths.clipsDir;
+      const clipDir =
+        clipPath === orderClipPath ? paths.orderClipsDir : paths.clipsDir;
       args.push('--bg-dir', clipDir, '--bg-clip', clipPath);
     } else {
       // 'auto' — random clip from directory (or gradient if directory is empty)
@@ -646,16 +718,23 @@ export class ReelsService {
     }
 
     args.push('--font-name', job.fontName || 'default');
-    const captionPosition = ['top', 'center', 'bottom'].includes(job.scriptPosition ?? '')
+    const captionPosition = ['top', 'center', 'bottom'].includes(
+      job.scriptPosition ?? '',
+    )
       ? job.scriptPosition
       : 'bottom';
     args.push('--caption-position', captionPosition ?? 'bottom');
-    const style = job.scriptStyle as { fontScale?: number; bgOpacity?: number } | undefined;
+    const style = job.scriptStyle as
+      | { fontScale?: number; bgOpacity?: number }
+      | undefined;
     if (style?.fontScale != null) {
       args.push('--caption-font-scale', String(Number(style.fontScale)));
     }
     if (style?.bgOpacity != null) {
-      args.push('--caption-bg-opacity', String(Math.max(0, Math.min(255, Number(style.bgOpacity)))));
+      args.push(
+        '--caption-bg-opacity',
+        String(Math.max(0, Math.min(255, Number(style.bgOpacity)))),
+      );
     }
     this.logger.debug(`Running generator for job ${job.id}: ${args.join(' ')}`);
     if (this.pythonVerbose) {
@@ -678,57 +757,58 @@ export class ReelsService {
 
     let stdout = '';
     let stderr = '';
-    const result = await new Promise<{ code: number | null; timedOut: boolean }>(
-      (resolve) => {
-        const proc = spawn(paths.pythonExe, args, {
-          cwd: paths.repoRoot,
-          windowsHide: true,
-        });
-        let resolved = false;
-        const timer = setTimeout(() => {
-          if (resolved) {
-            return;
-          }
-          resolved = true;
-          proc.kill();
-          resolve({ code: null, timedOut: true });
-        }, this.jobTimeoutMs);
+    const result = await new Promise<{
+      code: number | null;
+      timedOut: boolean;
+    }>((resolve) => {
+      const proc = spawn(paths.pythonExe, args, {
+        cwd: paths.repoRoot,
+        windowsHide: true,
+      });
+      let resolved = false;
+      const timer = setTimeout(() => {
+        if (resolved) {
+          return;
+        }
+        resolved = true;
+        proc.kill();
+        resolve({ code: null, timedOut: true });
+      }, this.jobTimeoutMs);
 
-        proc.on('error', (err) => {
-          if (resolved) {
-            return;
-          }
-          resolved = true;
-          clearTimeout(timer);
-          stderr += String(err);
-          resolve({ code: 1, timedOut: false });
-        });
-        proc.stdout.on('data', (chunk) => {
-          const text = chunk.toString();
-          stdout += text;
-          this.updateProgressFromOutput(job.id, text);
-          if (this.pythonVerbose) {
-            this.logger.debug(`[python stdout] ${text.trim()}`);
-          }
-        });
-        proc.stderr.on('data', (chunk) => {
-          const text = chunk.toString();
-          stderr += text;
-          this.updateProgressFromOutput(job.id, text);
-          if (this.pythonVerbose) {
-            this.logger.warn(`[python stderr] ${text.trim()}`);
-          }
-        });
-        proc.on('exit', (code) => {
-          if (resolved) {
-            return;
-          }
-          resolved = true;
-          clearTimeout(timer);
-          resolve({ code, timedOut: false });
-        });
-      },
-    );
+      proc.on('error', (err) => {
+        if (resolved) {
+          return;
+        }
+        resolved = true;
+        clearTimeout(timer);
+        stderr += String(err);
+        resolve({ code: 1, timedOut: false });
+      });
+      proc.stdout.on('data', (chunk) => {
+        const text = chunk.toString();
+        stdout += text;
+        this.updateProgressFromOutput(job.id, text);
+        if (this.pythonVerbose) {
+          this.logger.debug(`[python stdout] ${text.trim()}`);
+        }
+      });
+      proc.stderr.on('data', (chunk) => {
+        const text = chunk.toString();
+        stderr += text;
+        this.updateProgressFromOutput(job.id, text);
+        if (this.pythonVerbose) {
+          this.logger.warn(`[python stderr] ${text.trim()}`);
+        }
+      });
+      proc.on('exit', (code) => {
+        if (resolved) {
+          return;
+        }
+        resolved = true;
+        clearTimeout(timer);
+        resolve({ code, timedOut: false });
+      });
+    });
 
     if (result.timedOut) {
       this.updateJob(job.id, {
@@ -785,13 +865,11 @@ export class ReelsService {
     }
     // When video generation is complete, move order to ready_for_sending so processing is false
     if (job.orderId && hasVideoOutput) {
-      await this.ordersService
-        .markReadyForSending(job.orderId)
-        .catch((err) => {
-          this.logger.warn(
-            `Failed to update order ${job.orderId} to ready_for_sending: ${String(err)}`,
-          );
-        });
+      await this.ordersService.markReadyForSending(job.orderId).catch((err) => {
+        this.logger.warn(
+          `Failed to update order ${job.orderId} to ready_for_sending: ${String(err)}`,
+        );
+      });
     }
     this.logger.log(
       `Job ${job.id} completed (${outputFolder ?? 'unknown output folder'})`,
@@ -818,7 +896,12 @@ export class ReelsService {
     }
 
     if (job.voiceEngine === 'pyttsx3') {
-      const args = ['--voice-engine', 'pyttsx3', '--voice-rate', String(voiceRate)];
+      const args = [
+        '--voice-engine',
+        'pyttsx3',
+        '--voice-rate',
+        String(voiceRate),
+      ];
       if (job.voiceName) {
         args.push('--voice-name', job.voiceName);
       }
@@ -833,9 +916,12 @@ export class ReelsService {
         `Voice "${job.voiceName}" looks like an Edge TTS voice but engine is set to piper — falling back to edge.`,
       );
       return [
-        '--voice-engine', 'edge',
-        '--voice-name', job.voiceName,
-        '--edge-rate', '-5',
+        '--voice-engine',
+        'edge',
+        '--voice-name',
+        job.voiceName,
+        '--edge-rate',
+        '-5',
       ];
     }
 
@@ -907,7 +993,11 @@ export class ReelsService {
     await mkdir(paths.piperVoicesDir, { recursive: true });
     const installed = [];
     for (const voice of piperVoiceCatalog) {
-      const modelPath = join(paths.piperVoicesDir, voice.id, `${voice.id}.onnx`);
+      const modelPath = join(
+        paths.piperVoicesDir,
+        voice.id,
+        `${voice.id}.onnx`,
+      );
       if (await this.fileExists(modelPath)) {
         installed.push({
           id: voice.id,
@@ -1029,7 +1119,9 @@ export class ReelsService {
     return absolute.replace(/\\/g, '/').split('/').pop() ?? null;
   }
 
-  private async findNewestOutputFolder(startedAt: number): Promise<string | null> {
+  private async findNewestOutputFolder(
+    startedAt: number,
+  ): Promise<string | null> {
     const entries = await readdir(paths.outputDir, { withFileTypes: true });
     const folders = entries.filter((entry) => entry.isDirectory());
     const candidates: { name: string; created: number }[] = [];
@@ -1050,7 +1142,9 @@ export class ReelsService {
     return candidates[0]?.name ?? null;
   }
 
-  private async hasExpectedOutputs(outputFolder: string | null): Promise<boolean> {
+  private async hasExpectedOutputs(
+    outputFolder: string | null,
+  ): Promise<boolean> {
     if (!outputFolder) {
       return false;
     }
@@ -1167,9 +1261,11 @@ export class ReelsService {
       orderId: entity.order_id ?? undefined,
       outputSize: (entity.output_size as ReelJob['outputSize']) ?? undefined,
       useClipAudio: entity.use_clip_audio ?? undefined,
-      useClipAudioWithNarrator: entity.use_clip_audio_with_narrator ?? undefined,
+      useClipAudioWithNarrator:
+        entity.use_clip_audio_with_narrator ?? undefined,
       transcriptSegments: entity.transcript_segments ?? undefined,
-      scriptPosition: (entity.script_position as ReelJob['scriptPosition']) ?? undefined,
+      scriptPosition:
+        (entity.script_position as ReelJob['scriptPosition']) ?? undefined,
       scriptStyle: entity.script_style ?? undefined,
       nicheId: entity.niche_id ?? undefined,
       nicheLabel: entity.niche_label ?? undefined,
@@ -1221,7 +1317,9 @@ export class ReelsService {
     const entity = await this.reelJobRepo.findOne({ where: { id: jobId } });
     if (!entity) throw new NotFoundException('Job not found');
     if (entity.status !== 'queued') {
-      throw new BadRequestException(`Job ${jobId} is not queued (status=${entity.status})`);
+      throw new BadRequestException(
+        `Job ${jobId} is not queued (status=${entity.status})`,
+      );
     }
     entity.status = 'processing';
     entity.updated_at = new Date();
@@ -1244,7 +1342,8 @@ export class ReelsService {
   ): Promise<ReelJob> {
     const entity = await this.reelJobRepo.findOne({ where: { id: jobId } });
     if (!entity) throw new NotFoundException('Job not found');
-    if (patch.status != null) entity.status = patch.status as ReelJobEntity['status'];
+    if (patch.status != null)
+      entity.status = patch.status as ReelJobEntity['status'];
     if (patch.progress != null) entity.progress = patch.progress;
     if (patch.stage != null) entity.stage = patch.stage;
     if (patch.outputFolder != null) entity.output_folder = patch.outputFolder;
@@ -1285,7 +1384,9 @@ export class ReelsService {
       orderId: entity.order_id ?? undefined,
       nicheId: entity.niche_id ?? undefined,
       nicheLabel: entity.niche_label ?? undefined,
-      outputSize: ['phone', 'tablet', 'laptop', 'desktop'].includes(entity.output_size ?? '')
+      outputSize: ['phone', 'tablet', 'laptop', 'desktop'].includes(
+        entity.output_size ?? '',
+      )
         ? (entity.output_size as ReelMeta['outputSize'])
         : undefined,
     };
@@ -1300,9 +1401,13 @@ export class ReelsService {
     const job = this.entityToJob(entity);
     this.jobs.set(jobId, job);
     if (entity.order_id) {
-      await this.ordersService.markReadyForSending(entity.order_id).catch((err) => {
-        this.logger.warn(`Failed to mark order ${entity.order_id} ready_for_sending: ${String(err)}`);
-      });
+      await this.ordersService
+        .markReadyForSending(entity.order_id)
+        .catch((err) => {
+          this.logger.warn(
+            `Failed to mark order ${entity.order_id} ready_for_sending: ${String(err)}`,
+          );
+        });
     }
     const reels = await this.listReels();
     const item = reels.find((r) => r.id === outputFolderName);
@@ -1360,7 +1465,9 @@ export class ReelsService {
       .execute();
     const jobsRemoved = jobResult.affected ?? 0;
     if (jobsRemoved > 0) {
-      this.logger.log(`Removed ${jobsRemoved} reel job(s) for order ${orderId}`);
+      this.logger.log(
+        `Removed ${jobsRemoved} reel job(s) for order ${orderId}`,
+      );
     }
     return deleted;
   }
