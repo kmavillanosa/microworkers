@@ -1,0 +1,29 @@
+# Host nginx: proxy reelagad.com (port 80) to your app on port 8443.
+# Copy this to your server and enable it — see README below.
+#
+# On the server (e.g. 88.222.245.88):
+#   1. sudo cp nginx-reelagad.conf.example /etc/nginx/sites-available/reelagad.com
+#   2. sudo ln -s /etc/nginx/sites-available/reelagad.com /etc/nginx/sites-enabled/
+#   3. Remove or rename the default site if it takes precedence:
+#      sudo rm /etc/nginx/sites-enabled/default   # or mv default default.bak
+#   4. sudo nginx -t && sudo systemctl reload nginx
+#
+# Ensure DNS: reelagad.com and www.reelagad.com A records → your server IP (88.222.245.88).
+
+server {
+	listen 80;
+	listen [::]:80;
+	server_name reelagad.com www.reelagad.com;
+
+	location / {
+		proxy_pass http://127.0.0.1:8443;
+		proxy_http_version 1.1;
+		proxy_set_header Host $host;
+		proxy_set_header X-Real-IP $remote_addr;
+		proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+		proxy_set_header X-Forwarded-Proto $scheme;
+		proxy_read_timeout 60s;
+		proxy_connect_timeout 60s;
+		proxy_send_timeout 60s;
+	}
+}
