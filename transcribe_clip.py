@@ -2,7 +2,7 @@
 Transcribe audio/video to text using faster-whisper (100% local, free, no API, no payments).
 - Runs entirely on your machine; no cloud, no API keys, no rate limits.
 - Uses CTranslate2 + Whisper models; models are downloaded once from Hugging Face (free).
-- WHISPER_MODEL env: tiny, base, small, medium, large-v2 (default: base). Larger = better quality, slower.
+- WHISPER_MODEL env: tiny, base, small, medium, large-v2, large-v3 (default: large-v3). Larger = better quality, slower.
 """
 import json
 import os
@@ -229,7 +229,7 @@ def main () -> int:
 		print(json.dumps({'error': f'File not found: {input_path}'}))
 		return 3
 
-	model_name = os.environ.get('WHISPER_MODEL', 'base').strip() or 'base'
+	model_name = os.environ.get('WHISPER_MODEL', 'large-v3').strip() or 'large-v3'
 	if VERBOSE:
 		sys.stderr.write(f'[verbose] Input={input_path!s} model={model_name!r}\n')
 		sys.stderr.flush()
