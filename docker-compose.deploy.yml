@@ -67,10 +67,6 @@ services:
     container_name: microworkers-deploy-web-orders
     ports:
       - "8443:80"
-      - "443:443"
-    # Optional: mount real certs for production (e.g. Let's Encrypt)
-    # volumes:
-    #   - /etc/letsencrypt/live/reelagad.com:/etc/nginx/ssl:ro
     depends_on:
       - api
     restart: always
