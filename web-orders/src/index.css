@@ -86,6 +86,16 @@ body::after {
 }
 #root { position: relative; z-index: 1; }
 
+.app-wrap {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+}
+
+.app-main {
+  flex: 1 1 auto;
+}
+
 /* App header / nav */
 .app-nav {
   display: flex;
@@ -93,7 +103,7 @@ body::after {
   gap: 1.25rem;
   padding: 1rem 1.5rem;
   border-bottom: 1px solid var(--color-border);
-  background: var(--color-card);
+  background:transparent;
   flex-wrap: wrap;
 }
 .app-nav-brand {
@@ -135,6 +145,72 @@ body::after {
 .app-nav-cta:hover {
   text-decoration: none;
   background: var(--accent-muted);
+}
+
+/* App footer */
+.app-footer {
+  margin-top: auto;
+  padding: 2rem 1.5rem;
+  border-top: 1px solid var(--color-border);
+  background: rgba(255, 255, 255, 0.6);
+}
+
+.app-footer-inner {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.25rem;
+}
+
+.app-footer-brand {
+  display: inline-flex;
+  text-decoration: none;
+}
+
+.app-footer-brand:hover {
+  opacity: 0.9;
+}
+
+.app-footer-logo {
+  height: 28px;
+  width: auto;
+  display: block;
+}
+
+.app-footer-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.app-footer-links a {
+  color: var(--color-text-secondary);
+  text-decoration: none;
+  font-size: 0.9rem;
+}
+
+.app-footer-links a:hover {
+  color: var(--accent);
+}
+
+.app-footer-copy {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--color-muted);
+  line-height: 1.5;
+  width: 100%;
+  text-align: center;
+}
+
+@media (min-width: 640px) {
+  .app-footer-copy {
+    width: auto;
+    text-align: right;
+    max-width: 280px;
+  }
 }
 
 .env-badge {
@@ -1269,6 +1345,15 @@ button { cursor: pointer; }
 }
 
 /* Landing page — full width, system font (Mac/iOS), ivory & cream palette */
+/* Landing banner font (Comico) */
+@font-face {
+  font-family: 'Comico';
+  src: url('/fonts/Comico-Regular.otf') format('opentype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
 .landing-page {
   width: 100%;
   padding: 0 1.5rem 4rem;
@@ -1287,13 +1372,14 @@ button { cursor: pointer; }
   border: 1px solid rgba(0, 0, 0, 0.08);
   position: relative;
   overflow: hidden;
+  font-family: 'Comico', var(--landing-font);
 }
 
 .landing-hero-badge {
   display: inline-block;
   margin-bottom: 1.25rem;
   padding: 0.5rem 1.1rem;
-  font-family: var(--landing-font);
+  font-family: 'Comico', var(--landing-font);
   font-size: 0.78rem;
   font-weight: 600;
   text-transform: uppercase;
@@ -1307,7 +1393,7 @@ button { cursor: pointer; }
 
 .landing-hero-title {
   margin: 0 0 1.25rem;
-  font-family: var(--landing-font);
+  font-family: 'Comico', var(--landing-font);
   font-size: clamp(1.85rem, 5.2vw, 2.65rem);
   font-weight: 700;
   line-height: 1.2;
@@ -1321,6 +1407,7 @@ button { cursor: pointer; }
 
 .landing-hero-sub {
   margin: 0 0 2rem;
+  font-family: 'Comico', var(--landing-font);
   font-size: 1.08rem;
   color: rgba(255, 255, 255, 0.92);
   line-height: 1.7;
@@ -1870,7 +1957,7 @@ button { cursor: pointer; }
   .landing-hero {
     margin: 0 -1rem 2rem;
     padding: 2rem 1rem 2.5rem;
-    border-radius: 0 0 20px 20px;
+    border-radius: 0 0 50px 50px;
   }
   .landing-hero-title { font-size: 1.5rem; }
   .landing-hero-sub { font-size: 0.95rem; }

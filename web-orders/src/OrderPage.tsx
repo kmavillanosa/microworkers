@@ -113,6 +113,27 @@ const PREVIEW_SIZES: { id: PreviewSize; label: string }[] = [
 ]
 
 const ORDER_TOUR_STORAGE_KEY = 'reelagad-order-tour-done'
+const ORDER_FORM_DRAFT_KEY = 'reelagad_order_form_draft'
+
+/** Persisted form state when user goes to PayMongo so we can restore on back. */
+interface OrderFormDraft {
+  script: string
+  title: string
+  fontId: string
+  clipName: string
+  voiceEngine: string
+  voiceName: string
+  useClipAudio: boolean
+  useClipAudioWithNarrator: boolean
+  scriptPosition: 'top' | 'center' | 'bottom'
+  scriptStyle: { fontScale?: number; bgOpacity?: number }
+  previewSize: PreviewSize
+  customerName: string
+  customerEmail: string
+  deliveryAddress: string
+  /** Server URL of uploaded clip (not blob) so we can show video again. */
+  uploadedClipUrl?: string | null
+}
 
 const ORDER_FORM_STEPS: Step[] = [
   {
@@ -416,6 +437,31 @@ export default function OrderPage() {
             // ignore
           }
         }
+        try {
+          const draft: OrderFormDraft = {
+            script,
+            title,
+            fontId,
+            clipName,
+            voiceEngine,
+            voiceName,
+            useClipAudio,
+            useClipAudioWithNarrator,
+            scriptPosition,
+            scriptStyle,
+            previewSize,
+            customerName,
+            customerEmail,
+            deliveryAddress,
+            uploadedClipUrl:
+              uploadedClipUrl && !uploadedClipUrl.startsWith('blob:')
+                ? uploadedClipUrl
+                : null,
+          }
+          sessionStorage.setItem(ORDER_FORM_DRAFT_KEY, JSON.stringify(draft))
+        } catch {
+          // ignore
+        }
         window.location.href = data.checkoutUrl
         return
       }
@@ -514,6 +560,57 @@ export default function OrderPage() {
       e.target.value = ''
     }
   }
+
+  // Restore form when returning from PayMongo (back/cancel): no orderId in URL, use saved draft
+  useEffect(() => {
+    if (searchParams.get('orderId')) return
+    let raw: string | null = null
+    try {
+      raw = sessionStorage.getItem(ORDER_FORM_DRAFT_KEY)
+    } catch {
+      return
+    }
+    if (!raw) return
+    try {
+      const draft = JSON.parse(raw) as OrderFormDraft
+      setScript(draft.script ?? '')
+      setTitle(draft.title ?? '')
+      setFontId(draft.fontId ?? '')
+      setClipName(draft.clipName ?? '')
+      setVoiceEngine(draft.voiceEngine ?? 'edge')
+      setVoiceName(draft.voiceName ?? '')
+      setUseClipAudio(Boolean(draft.useClipAudio))
+      setUseClipAudioWithNarrator(Boolean(draft.useClipAudioWithNarrator))
+      if (draft.scriptPosition && ['top', 'center', 'bottom'].includes(draft.scriptPosition)) {
+        setScriptPosition(draft.scriptPosition)
+      }
+      if (draft.scriptStyle && (typeof draft.scriptStyle.fontScale === 'number' || typeof draft.scriptStyle.bgOpacity === 'number')) {
+        setScriptStyle({
+          fontScale: draft.scriptStyle.fontScale ?? 1,
+          bgOpacity: draft.scriptStyle.bgOpacity ?? 180,
+        })
+      }
+      if (draft.previewSize && ['phone', 'tablet', 'laptop', 'desktop'].includes(draft.previewSize)) {
+        setPreviewSize(draft.previewSize)
+      }
+      setCustomerName(draft.customerName ?? '')
+      setCustomerEmail(draft.customerEmail ?? '')
+      setDeliveryAddress(draft.deliveryAddress ?? '')
+      if (draft.uploadedClipUrl) {
+        setUploadedClipUrl(draft.uploadedClipUrl)
+      }
+      if (draft.clipName) {
+        scriptFilledForClipRef.current = draft.clipName
+      }
+      sessionStorage.removeItem(ORDER_FORM_DRAFT_KEY)
+    } catch {
+      try {
+        sessionStorage.removeItem(ORDER_FORM_DRAFT_KEY)
+      } catch {
+        // ignore
+      }
+    }
+  }, [searchParams])
 
   // Restore form when returning from PayMongo (cancel) with ?orderId=xxx
   useEffect(() => {

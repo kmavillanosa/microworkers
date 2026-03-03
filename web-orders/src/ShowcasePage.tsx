@@ -27,7 +27,7 @@ export default function ShowcasePage() {
       <div className="showcase-page">
         <div className="showcase-page-inner">
           <header className="showcase-page-header">
-            <h1 className="showcase-page-title">Sample reels</h1>
+            <h1 className="showcase-page-title">Sample videos we generated</h1>
             <p className="showcase-page-intro">Loading samples…</p>
           </header>
           <div className="showcase-grid showcase-grid-skeleton">
@@ -63,7 +63,7 @@ export default function ShowcasePage() {
     <div className="showcase-page">
       <div className="showcase-page-inner">
         <header className="showcase-page-header">
-          <h1 className="showcase-page-title">Sample reels</h1>
+          <h1 className="showcase-page-title">Sample videos we generated</h1>
           <p className="showcase-page-intro">
             See what we can do. Each sample was made with our generator—script, voice, and style in minutes.
           </p>

@@ -26,7 +26,7 @@ export default function Landing() {
       <header className="landing-hero">
         <span className="landing-hero-badge">Captions & voiceover on demand</span>
         <h1 className="landing-hero-title">
-          Turn your script—or your raw clip—into a polished reel in minutes.
+        One script. One click. One powerful reel.
         </h1>
         <p className="landing-hero-sub">
           Pick your style, voice, and format. We add captions, narration, and delivery in the size you need. No editing skills required.
@@ -43,7 +43,7 @@ export default function Landing() {
 
       {showcaseLoading && (
         <section className="landing-section landing-showcase" aria-busy="true">
-          <h2 className="landing-section-title">Sample reels</h2>
+          <h2 className="landing-section-title">Sample videos we generated</h2>
           <div className="landing-showcase-grid landing-showcase-skeleton">
             {[1, 2, 3].map((i) => (
               <div key={i} className="landing-showcase-card landing-showcase-card-skeleton" aria-hidden>
@@ -57,7 +57,7 @@ export default function Landing() {
       )}
       {!showcaseLoading && displaySamples.length > 0 && (
         <section className="landing-section landing-showcase" aria-labelledby="landing-showcase-title">
-          <h2 id="landing-showcase-title" className="landing-section-title">Sample reels</h2>
+          <h2 id="landing-showcase-title" className="landing-section-title">Sample videos we generated</h2>
           <p className="landing-section-intro">
             See what we can do. Each sample was made with our generator.
           </p>
