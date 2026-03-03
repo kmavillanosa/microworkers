@@ -23,8 +23,15 @@ FROM nginx:alpine
 
 RUN rm -rf /usr/share/nginx/html/*
 
+# Default self-signed cert so HTTPS works out of the box (override by mounting real certs at /etc/nginx/ssl)
+RUN mkdir -p /etc/nginx/ssl && \
+  openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+    -keyout /etc/nginx/ssl/privkey.pem \
+    -out /etc/nginx/ssl/fullchain.pem \
+    -subj "/CN=localhost" 2>/dev/null
+
 COPY --from=builder /app/dist /usr/share/nginx/html
 COPY docker/nginx.conf /etc/nginx/conf.d/default.conf
 
-EXPOSE 80
+EXPOSE 80 443
 CMD ["nginx", "-g", "daemon off;"]

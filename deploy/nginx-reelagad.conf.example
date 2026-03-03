@@ -1,4 +1,4 @@
-# Host nginx: proxy reelagad.com (port 80) to your app on port 8443.
+# Host nginx: proxy reelagad.com (HTTP and HTTPS) to your app on port 8443.
 # Copy this to your server and enable it — see README below.
 #
 # On the server (e.g. 88.222.245.88):
@@ -6,9 +6,19 @@
 #   2. sudo ln -s /etc/nginx/sites-available/reelagad.com /etc/nginx/sites-enabled/
 #   3. Remove or rename the default site if it takes precedence:
 #      sudo rm /etc/nginx/sites-enabled/default   # or mv default default.bak
-#   4. sudo nginx -t && sudo systemctl reload nginx
+#   4. For HTTPS: obtain certs (e.g. certbot --nginx -d reelagad.com -d www.reelagad.com)
+#      then uncomment the 443 server block and the 80→443 redirect below.
+#   5. sudo nginx -t && sudo systemctl reload nginx
 #
 # Ensure DNS: reelagad.com and www.reelagad.com A records → your server IP (88.222.245.88).
+
+# Optional: redirect HTTP to HTTPS (uncomment when using the 443 block)
+# server {
+# 	listen 80;
+# 	listen [::]:80;
+# 	server_name reelagad.com www.reelagad.com;
+# 	return 301 https://$server_name$request_uri;
+# }
 
 server {
 	listen 80;
@@ -27,3 +37,27 @@ server {
 		proxy_send_timeout 60s;
 	}
 }
+
+# HTTPS — uncomment and set ssl_certificate paths (e.g. Let's Encrypt)
+# server {
+# 	listen 443 ssl;
+# 	listen [::]:443 ssl;
+# 	server_name reelagad.com www.reelagad.com;
+#
+# 	ssl_certificate     /etc/letsencrypt/live/reelagad.com/fullchain.pem;
+# 	ssl_certificate_key /etc/letsencrypt/live/reelagad.com/privkey.pem;
+# 	ssl_protocols       TLSv1.2 TLSv1.3;
+# 	ssl_prefer_server_ciphers on;
+#
+# 	location / {
+# 		proxy_pass http://127.0.0.1:8443;
+# 		proxy_http_version 1.1;
+# 		proxy_set_header Host $host;
+# 		proxy_set_header X-Real-IP $remote_addr;
+# 		proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+# 		proxy_set_header X-Forwarded-Proto $scheme;
+# 		proxy_read_timeout 60s;
+# 		proxy_connect_timeout 60s;
+# 		proxy_send_timeout 60s;
+# 	}
+# }
