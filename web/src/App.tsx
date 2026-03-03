@@ -718,7 +718,7 @@ function App() {
 
   const navigate = useNavigate();
   const [settingsTab, setSettingsTab] = useState<
-    "accounts" | "niches" | "pipelines" | "fonts" | "clips" | "payment" | "danger"
+    "accounts" | "niches" | "pipelines" | "fonts" | "clips" | "payment" | "pricing" | "danger"
   >("accounts");
   const [paymentMethodOptions, setPaymentMethodOptions] = useState<
     Array<{ id: string; label: string }>
@@ -912,7 +912,9 @@ function App() {
   const [orderPricingEdit, setOrderPricingEdit] = useState<{
     wordsPerFrame: string;
     pricePerFramePesos: string;
-  }>({ wordsPerFrame: "5", pricePerFramePesos: "5" });
+    clipOnly: string;
+    clipAndNarrator: string;
+  }>({ wordsPerFrame: "5", pricePerFramePesos: "3", clipOnly: "5", clipAndNarrator: "7" });
   const [orderPricingSaving, setOrderPricingSaving] = useState(false);
   const [processingOrders, setProcessingOrders] = useState<
     Record<string, boolean>
@@ -1263,17 +1265,24 @@ function App() {
 
   useEffect(() => {
     if (orderPricing == null) return;
+    const tiers = orderPricing.pricePerFramePesosByTier;
     setOrderPricingEdit({
       wordsPerFrame: String(orderPricing.wordsPerFrame),
       pricePerFramePesos: String(orderPricing.pricePerFramePesos),
+      clipOnly: tiers ? String(tiers.clipOnly) : "5",
+      clipAndNarrator: tiers ? String(tiers.clipAndNarrator) : "7",
     });
-  }, [orderPricing?.wordsPerFrame, orderPricing?.pricePerFramePesos]);
+  }, [orderPricing?.wordsPerFrame, orderPricing?.pricePerFramePesos, orderPricing?.pricePerFramePesosByTier]);
 
   async function handleSaveOrderPricing() {
     const wpf = parseInt(orderPricingEdit.wordsPerFrame, 10);
     const pfp = parseFloat(orderPricingEdit.pricePerFramePesos);
+    const clipOnly = parseFloat(orderPricingEdit.clipOnly);
+    const clipAndNarrator = parseFloat(orderPricingEdit.clipAndNarrator);
     if (Number.isNaN(wpf) || wpf < 1 || wpf > 100) return;
     if (Number.isNaN(pfp) || pfp < 0) return;
+    if (Number.isNaN(clipOnly) || clipOnly < 0) return;
+    if (Number.isNaN(clipAndNarrator) || clipAndNarrator < 0) return;
     setOrderPricingSaving(true);
     try {
       const res = await fetch(`${apiBaseUrl}/api/orders/pricing`, {
@@ -1282,12 +1291,15 @@ function App() {
         body: JSON.stringify({
           wordsPerFrame: wpf,
           pricePerFramePesos: pfp,
+          clipOnly,
+          clipAndNarrator,
         }),
       });
       if (res.ok) {
         const p = (await res.json()) as {
           wordsPerFrame: number;
           pricePerFramePesos: number;
+          pricePerFramePesosByTier?: { ttsOnly: number; clipOnly: number; clipAndNarrator: number };
         };
         setOrderPricing(p);
       }
@@ -4786,6 +4798,13 @@ function App() {
                 </button>
                 <button
                   type="button"
+                  className={settingsTab === "pricing" ? "active" : ""}
+                  onClick={() => setSettingsTab("pricing")}
+                >
+                  Order pricing
+                </button>
+                <button
+                  type="button"
                   className={settingsTab === "danger" ? "active" : ""}
                   onClick={() => setSettingsTab("danger")}
                 >
@@ -5669,6 +5688,99 @@ function App() {
                   </section>
                 )}
 
+                {settingsTab === "pricing" && (
+                  <section className="panel output-panel">
+                    <h2>Order pricing</h2>
+                    <p className="muted small">
+                      Price per frame (₱) for each sound option. Used by the web-orders app and for order totals.
+                    </p>
+                    <div
+                      className="panel compact"
+                      style={{
+                        marginTop: "var(--pad-sm)",
+                        padding: "var(--pad-md)",
+                        display: "flex",
+                        flexWrap: "wrap",
+                        alignItems: "center",
+                        gap: "var(--gap-md)",
+                      }}
+                    >
+                      <label className="small" style={{ display: "flex", alignItems: "center", gap: "0.35rem" }}>
+                        Words per frame
+                        <input
+                          type="number"
+                          min={1}
+                          max={100}
+                          value={orderPricingEdit.wordsPerFrame}
+                          onChange={(e) =>
+                            setOrderPricingEdit((prev) => ({
+                              ...prev,
+                              wordsPerFrame: e.target.value,
+                            }))
+                          }
+                          style={{ width: "4rem", padding: "0.35rem 0.5rem", fontSize: "0.85rem" }}
+                        />
+                      </label>
+                      <label className="small" style={{ display: "flex", alignItems: "center", gap: "0.35rem" }} title="Only a voice (no sound from my video)">
+                        Default (TTS only) ₱
+                        <input
+                          type="number"
+                          min={0}
+                          step={0.5}
+                          value={orderPricingEdit.pricePerFramePesos}
+                          onChange={(e) =>
+                            setOrderPricingEdit((prev) => ({
+                              ...prev,
+                              pricePerFramePesos: e.target.value,
+                            }))
+                          }
+                          style={{ width: "4rem", padding: "0.35rem 0.5rem", fontSize: "0.85rem" }}
+                        />
+                      </label>
+                      <label className="small" style={{ display: "flex", alignItems: "center", gap: "0.35rem" }} title="Only my video's sound (no extra voice)">
+                        Clip only ₱
+                        <input
+                          type="number"
+                          min={0}
+                          step={0.5}
+                          value={orderPricingEdit.clipOnly}
+                          onChange={(e) =>
+                            setOrderPricingEdit((prev) => ({
+                              ...prev,
+                              clipOnly: e.target.value,
+                            }))
+                          }
+                          style={{ width: "4rem", padding: "0.35rem 0.5rem", fontSize: "0.85rem" }}
+                        />
+                      </label>
+                      <label className="small" style={{ display: "flex", alignItems: "center", gap: "0.35rem" }} title="My video's sound + a voice reading my words">
+                        Clip + narrator ₱
+                        <input
+                          type="number"
+                          min={0}
+                          step={0.5}
+                          value={orderPricingEdit.clipAndNarrator}
+                          onChange={(e) =>
+                            setOrderPricingEdit((prev) => ({
+                              ...prev,
+                              clipAndNarrator: e.target.value,
+                            }))
+                          }
+                          style={{ width: "4rem", padding: "0.35rem 0.5rem", fontSize: "0.85rem" }}
+                        />
+                      </label>
+                      <button
+                        type="button"
+                        className="btn-secondary small"
+                        disabled={orderPricingSaving}
+                        onClick={handleSaveOrderPricing}
+                      >
+                        {orderPricingSaving ? "Saving…" : "Save"}
+                      </button>
+                    </div>
+                  </section>
+                )}
+
                 {settingsTab === "danger" && (
                   <section
                     className="panel output-panel"
@@ -5749,61 +5861,6 @@ function App() {
                   Customer orders from the order site. Click &quot;Open in
                   Studio&quot; to load an order into the Control Room.
                 </p>
-                <div
-                  className="panel compact"
-                  style={{
-                    marginBottom: "var(--pad-md)",
-                    padding: "var(--pad-sm)",
-                    display: "flex",
-                    flexWrap: "wrap",
-                    alignItems: "center",
-                    gap: "var(--gap-sm)",
-                  }}
-                >
-                  <span className="small" style={{ fontWeight: 600 }}>
-                    Order pricing
-                  </span>
-                  <label className="small" style={{ display: "flex", alignItems: "center", gap: "0.35rem" }}>
-                    Words per frame
-                    <input
-                      type="number"
-                      min={1}
-                      max={100}
-                      value={orderPricingEdit.wordsPerFrame}
-                      onChange={(e) =>
-                        setOrderPricingEdit((prev) => ({
-                          ...prev,
-                          wordsPerFrame: e.target.value,
-                        }))
-                      }
-                      style={{ width: "4rem", padding: "0.35rem 0.5rem", fontSize: "0.85rem" }}
-                    />
-                  </label>
-                  <label className="small" style={{ display: "flex", alignItems: "center", gap: "0.35rem" }}>
-                    Price per frame (₱)
-                    <input
-                      type="number"
-                      min={0}
-                      step={0.5}
-                      value={orderPricingEdit.pricePerFramePesos}
-                      onChange={(e) =>
-                        setOrderPricingEdit((prev) => ({
-                          ...prev,
-                          pricePerFramePesos: e.target.value,
-                        }))
-                      }
-                      style={{ width: "4rem", padding: "0.35rem 0.5rem", fontSize: "0.85rem" }}
-                    />
-                  </label>
-                  <button
-                    type="button"
-                    className="btn-secondary small"
-                    disabled={orderPricingSaving}
-                    onClick={handleSaveOrderPricing}
-                  >
-                    {orderPricingSaving ? "Saving…" : "Save"}
-                  </button>
-                </div>
                 <div
                   className="orders-filters"
                   style={{

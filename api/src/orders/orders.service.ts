@@ -286,9 +286,9 @@ export class OrdersService {
 	}
 
 	private static readonly PRICING_TIER_DEFAULTS: Record<PricingTierId, number> = {
-		tts_only: 5,
-		clip_only: 3,
-		clip_and_narrator: 4,
+		tts_only: 3,
+		clip_only: 5,
+		clip_and_narrator: 7,
 	}
 
 	async getPricing(): Promise<OrderPricing> {
@@ -303,9 +303,29 @@ export class OrdersService {
 			this.pricingRepo.findOne({ where: { id: 'clip_only' } }),
 			this.pricingRepo.findOne({ where: { id: 'clip_and_narrator' } }),
 		])
-		const ttsOnly = tts?.price_per_frame_pesos ?? OrdersService.PRICING_TIER_DEFAULTS.tts_only
-		const clipOnly = clip?.price_per_frame_pesos ?? OrdersService.PRICING_TIER_DEFAULTS.clip_only
-		const clipAndNarrator = clipNarr?.price_per_frame_pesos ?? OrdersService.PRICING_TIER_DEFAULTS.clip_and_narrator
+		let ttsOnly = tts?.price_per_frame_pesos ?? OrdersService.PRICING_TIER_DEFAULTS.tts_only
+		let clipOnly = clip?.price_per_frame_pesos ?? OrdersService.PRICING_TIER_DEFAULTS.clip_only
+		let clipAndNarrator = clipNarr?.price_per_frame_pesos ?? OrdersService.PRICING_TIER_DEFAULTS.clip_and_narrator
+		// One-time migration: if DB has old defaults (5, 3, 4), update to new defaults (3, 5, 7)
+		const oldDefaults = { tts_only: 5, clip_only: 3, clip_and_narrator: 4 }
+		if (ttsOnly === oldDefaults.tts_only && clipOnly === oldDefaults.clip_only && clipAndNarrator === oldDefaults.clip_and_narrator) {
+			const newDefaults = OrdersService.PRICING_TIER_DEFAULTS
+			if (tts) {
+				tts.price_per_frame_pesos = newDefaults.tts_only
+				await this.pricingRepo.save(tts)
+			}
+			if (clip) {
+				clip.price_per_frame_pesos = newDefaults.clip_only
+				await this.pricingRepo.save(clip)
+			}
+			if (clipNarr) {
+				clipNarr.price_per_frame_pesos = newDefaults.clip_and_narrator
+				await this.pricingRepo.save(clipNarr)
+			}
+			ttsOnly = newDefaults.tts_only
+			clipOnly = newDefaults.clip_only
+			clipAndNarrator = newDefaults.clip_and_narrator
+		}
 		return {
 			wordsPerFrame,
 			pricePerFramePesos: ttsOnly,

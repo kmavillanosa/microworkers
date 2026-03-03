@@ -242,9 +242,9 @@ export default function OrderPage() {
   /** From API GET /api/orders/pricing; safe fallbacks only when API has not responded yet. */
   const wordsPerFrame = pricing?.wordsPerFrame ?? 1
   const tiers = pricing?.pricePerFramePesosByTier ?? {
-    ttsOnly: 5,
-    clipOnly: 3,
-    clipAndNarrator: 4,
+    ttsOnly: 3,
+    clipOnly: 5,
+    clipAndNarrator: 7,
   }
   const pricePerFramePesos =
     !useClipAudio && !useClipAudioWithNarrator
@@ -296,8 +296,8 @@ export default function OrderPage() {
           pricePerFramePesos,
           pricePerFramePesosByTier: byTier ?? {
             ttsOnly: pricePerFramePesos,
-            clipOnly: 3,
-            clipAndNarrator: 4,
+            clipOnly: 5,
+            clipAndNarrator: 7,
           },
         })
       }
