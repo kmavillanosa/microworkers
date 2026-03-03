@@ -22,9 +22,17 @@ EXPOSE 3000
 
 COPY requirements.txt /app/requirements.txt
 RUN apt-get update \
-  && apt-get install -y --no-install-recommends python3 python3-pip \
+  && apt-get install -y --no-install-recommends python3 python3-pip openssl \
   && pip3 install --no-cache-dir -r /app/requirements.txt \
   && rm -rf /var/lib/apt/lists/*
+
+# Default self-signed cert so API can serve HTTPS (override by mounting real certs at /app/ssl)
+RUN mkdir -p /app/ssl \
+  && openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+    -keyout /app/ssl/privkey.pem \
+    -out /app/ssl/fullchain.pem \
+    -subj "/CN=localhost" \
+  && chown -R node:node /app/ssl
 
 COPY api/package.json api/package-lock.json* ./
 RUN --mount=type=cache,target=/root/.npm \
@@ -42,6 +50,9 @@ COPY assets/fonts/ /app/data/assets/fonts/
 RUN chown -R node:node /app/data/assets/fonts
 
 ENV REPO_ROOT=/app/data
+# Serve HTTPS by default (self-signed cert above). Override with mount + SSL_CERT_PATH/SSL_KEY_PATH for real certs.
+ENV SSL_CERT_PATH=/app/ssl/fullchain.pem
+ENV SSL_KEY_PATH=/app/ssl/privkey.pem
 
 USER node
 CMD ["node", "dist/main.js"]

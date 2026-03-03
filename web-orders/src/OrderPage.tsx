@@ -2,7 +2,8 @@ import { useState, useEffect, useRef } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import Joyride, { STATUS, type Step } from 'react-joyride'
 
-const API = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3010'
+/** API base (no trailing slash). Empty = same origin (works with http and https when served from same host). */
+const API = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '')
 
 interface FontItem {
   id: string

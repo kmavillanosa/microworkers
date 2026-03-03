@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 
-const API = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3010'
+/** API base (no trailing slash). Empty = same origin (works with http and https when served from same host). */
+const API = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '')
 const POLL_INTERVAL_MS = 2000
 const POLL_TIMEOUT_MS = 120000
 const SESSION_STORAGE_KEY = 'paymongo_checkout_session_id'

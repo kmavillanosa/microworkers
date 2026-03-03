@@ -4,7 +4,8 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-ARG VITE_API_BASE_URL=http://localhost:3010
+# Empty = same origin (API over http or https from same host). Set e.g. https://reelagad.com if API is on another origin.
+ARG VITE_API_BASE_URL=
 ARG VITE_PAYMONGO_ENABLED=true
 ARG VITE_APP_ENV=local
 ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
