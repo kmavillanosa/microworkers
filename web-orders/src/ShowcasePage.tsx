@@ -4,11 +4,14 @@ import { Link } from 'react-router-dom'
 /** Base URL for API and media (no trailing slash). Empty = same origin (use proxy in dev). */
 const API_BASE = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '')
 
+type OutputSize = 'phone' | 'tablet' | 'laptop' | 'desktop'
+
 interface ShowcaseItem {
   id: string
   videoUrl: string
   title: string
   description: string
+  outputSize?: OutputSize
 }
 
 export default function ShowcasePage() {
@@ -85,7 +88,10 @@ export default function ShowcasePage() {
           <div className="showcase-grid">
             {items.map((item) => (
               <article key={item.id} className="showcase-card">
-                <div className="showcase-card-video-wrap">
+                <div
+                  className="showcase-card-video-wrap"
+                  data-output-size={item.outputSize || 'phone'}
+                >
                   <video
                     src={item.videoUrl.startsWith('http') ? item.videoUrl : `${API_BASE}${item.videoUrl}`}
                     controls

@@ -71,4 +71,6 @@ export interface ReelItem {
   showcase?: boolean;
   showcaseTitle?: string;
   showcaseDescription?: string;
+  /** Output size: phone, tablet, laptop, desktop. For aspect-ratio on showcase. */
+  outputSize?: 'phone' | 'tablet' | 'laptop' | 'desktop';
 }

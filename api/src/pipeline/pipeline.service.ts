@@ -314,6 +314,8 @@ export class PipelineService {
         bgMode,
         nicheId: config.nicheId,
         nicheLabel: nicheRow.label,
+        scriptPosition: 'bottom',
+        outputSize: 'phone',
       })
 
       // 4 + 5. Wait for render AND generate caption concurrently.

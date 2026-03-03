@@ -444,6 +444,84 @@
   font-weight: 700;
 }
 
+/* Studio preview: mobile and narrow viewports */
+@media (max-width: 768px) {
+  .studio-viewport-wrap {
+    padding: 4px var(--pad-xs, 6px);
+    min-height: 200px;
+    justify-content: flex-start;
+  }
+  .studio-preview-size-row {
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    width: 100%;
+  }
+  .studio-preview-size-label,
+  .studio-preview-audio-toggle {
+    margin-left: 0;
+  }
+  .studio-preview-monitor {
+    max-width: 100%;
+    max-height: min(55vh, 320px);
+    width: 100%;
+  }
+  .studio-preview-monitor[data-preview-size="phone"] {
+    max-width: min(220px, 100%);
+    max-height: min(55vh, 400px);
+  }
+  .studio-preview-monitor[data-preview-size="tablet"] {
+    max-width: min(280px, 100%);
+    max-height: min(55vh, 320px);
+  }
+  .studio-preview-monitor[data-preview-size="laptop"] {
+    max-width: min(320px, 100%);
+    max-height: min(55vh, 280px);
+  }
+  .studio-preview-monitor[data-preview-size="desktop"] {
+    max-width: min(360px, 100%);
+    max-height: min(55vh, 240px);
+  }
+  .studio-caption-options-row {
+    margin-top: 0.15rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .studio-viewport-wrap {
+    padding: 4px var(--pad-xs, 6px);
+    min-height: 180px;
+  }
+  .studio-preview-size-row {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .studio-preview-monitor {
+    max-height: min(50vh, 280px);
+  }
+  .studio-preview-monitor[data-preview-size="phone"] {
+    max-width: min(180px, 100%);
+    max-height: min(50vh, 340px);
+  }
+  .studio-preview-monitor[data-preview-size="tablet"] {
+    max-width: min(240px, 100%);
+    max-height: min(50vh, 280px);
+  }
+  .studio-preview-monitor[data-preview-size="laptop"] {
+    max-width: min(260px, 100%);
+    max-height: min(50vh, 240px);
+  }
+  .studio-preview-monitor[data-preview-size="desktop"] {
+    max-width: min(300px, 100%);
+    max-height: min(50vh, 200px);
+  }
+  .studio-preview-inner .render-preview-title,
+  .studio-preview-inner .render-preview-caption {
+    font-size: 9px;
+    left: 4px;
+    right: 4px;
+  }
+}
+
 /* Video editor: timeline */
 .studio-timeline-wrap {
   flex-shrink: 0;
@@ -556,17 +634,30 @@
   color: rgba(255, 255, 255, 0.75);
 }
 .studio-status-progress {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   width: 200px;
+}
+.studio-status-progress-track {
+  flex: 1;
   height: 4px;
   background: rgba(255, 255, 255, 0.15);
   border-radius: 2px;
   overflow: hidden;
+  min-width: 0;
 }
 .studio-status-progress-fill {
   height: 100%;
   background: #2f55ff;
   border-radius: 2px;
   transition: width 0.2s ease;
+}
+.studio-status-progress-pct {
+  flex-shrink: 0;
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  color: rgba(255, 255, 255, 0.85);
 }
 .studio-status-right .ghost-btn {
   color: rgba(255, 255, 255, 0.7);
@@ -1815,17 +1906,32 @@ input[type='file'] {
 
 .job-progress {
   margin-top: var(--pad-sm);
+  display: flex;
+  align-items: center;
+  gap: var(--pad-sm);
   width: min(420px, 100%);
+}
+
+.job-progress-track {
+  flex: 1;
   height: 8px;
   background: #e5e5e5;
   border-radius: 999px;
   overflow: hidden;
+  min-width: 0;
 }
 
 .job-progress-fill {
   height: 100%;
   background: linear-gradient(90deg, #2f55ff, #64b5ff);
   transition: width 0.5s ease;
+}
+
+.job-progress-pct {
+  flex-shrink: 0;
+  font-size: 0.8rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted, #666);
 }
 
 .error {

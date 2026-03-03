@@ -9,7 +9,7 @@ import { randomUUID } from 'node:crypto';
 import { spawn } from 'node:child_process';
 import { access, mkdir, readdir, readFile, rm, stat, writeFile } from 'node:fs/promises';
 import { extname, join } from 'node:path';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { paths } from '../paths';
 import { FontEntity } from '../fonts/font.entity';
 import { OrdersService } from '../orders/orders.service';
@@ -36,6 +36,8 @@ interface ReelMeta {
   showcase?: boolean;
   showcaseTitle?: string;
   showcaseDescription?: string;
+  /** Output size: phone (9:16), tablet (4:3), laptop (16:10), desktop (16:9). For showcase aspect-ratio. */
+  outputSize?: 'phone' | 'tablet' | 'laptop' | 'desktop';
 }
 
 export interface FontItem {
@@ -322,6 +324,7 @@ export class ReelsService {
         ...(meta.showcaseDescription != null && {
           showcaseDescription: meta.showcaseDescription,
         }),
+        ...(meta.outputSize && { outputSize: meta.outputSize }),
       });
     }
 
@@ -337,7 +340,7 @@ export class ReelsService {
 
   /** Reels marked for showcase (public list for web-orders landing). */
   async listShowcaseReels(): Promise<
-    Array<{ id: string; videoUrl: string; title: string; description: string }>
+    Array<{ id: string; videoUrl: string; title: string; description: string; outputSize?: string }>
   > {
     const all = await this.listReels();
     return all
@@ -347,6 +350,7 @@ export class ReelsService {
         videoUrl: r.videoUrl,
         title: r.showcaseTitle ?? r.folder,
         description: r.showcaseDescription ?? '',
+        ...(r.outputSize && { outputSize: r.outputSize }),
       }));
   }
 
@@ -776,6 +780,7 @@ export class ReelsService {
         nicheId: job.nicheId ?? meta.nicheId,
         nicheLabel: job.nicheLabel ?? meta.nicheLabel,
         orderId: job.orderId ?? meta.orderId,
+        outputSize: job.outputSize ?? meta.outputSize,
       });
     }
     // When video generation is complete, move order to ready_for_sending so processing is false
@@ -1187,6 +1192,21 @@ export class ReelsService {
     await mkdir(paths.piperVoicesDir, { recursive: true });
   }
 
+  /** Backoffice: list active jobs (queued + processing) so the UI can show queue and poll for progress. */
+  async listActiveJobs(statusFilter?: string): Promise<ReelJob[]> {
+    const statuses: ('queued' | 'processing')[] =
+      statusFilter === 'queued'
+        ? ['queued']
+        : statusFilter === 'processing'
+          ? ['processing']
+          : ['queued', 'processing'];
+    const rows = await this.reelJobRepo.find({
+      where: { status: In(statuses) },
+      order: { created_at: 'DESC' },
+    });
+    return rows.map((e) => this.entityToJob(e));
+  }
+
   /** Worker (offline): list jobs with status=queued from DB for local processing. */
   async listQueuedJobsForWorker(): Promise<ReelJob[]> {
     const rows = await this.reelJobRepo.find({
@@ -1265,6 +1285,9 @@ export class ReelsService {
       orderId: entity.order_id ?? undefined,
       nicheId: entity.niche_id ?? undefined,
       nicheLabel: entity.niche_label ?? undefined,
+      outputSize: ['phone', 'tablet', 'laptop', 'desktop'].includes(entity.output_size ?? '')
+        ? (entity.output_size as ReelMeta['outputSize'])
+        : undefined,
     };
     await this.writeReelMeta(outputFolderName, meta);
     entity.status = 'completed';

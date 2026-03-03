@@ -3,11 +3,14 @@ import { Link } from 'react-router-dom'
 
 const API_BASE = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '')
 
+type OutputSize = 'phone' | 'tablet' | 'laptop' | 'desktop'
+
 interface ShowcaseItem {
   id: string
   videoUrl: string
   title: string
   description: string
+  outputSize?: OutputSize
 }
 
 const LANDING_SHOWCASE_MAX = 6
@@ -70,7 +73,10 @@ export default function Landing() {
           <div className="landing-showcase-grid">
             {displaySamples.map((item) => (
               <article key={item.id} className="landing-showcase-card">
-                <div className="landing-showcase-card-video-wrap">
+                <div
+                  className="landing-showcase-card-video-wrap"
+                  data-output-size={item.outputSize || 'phone'}
+                >
                   <video
                     src={item.videoUrl.startsWith('http') ? item.videoUrl : `${API_BASE}${item.videoUrl}`}
                     controls

@@ -2,11 +2,59 @@
  * Run reels_generator.py for a job. Used by the local worker.
  * Requires REPO_ROOT (path to repo), Python in .reels-venv, and job payload from API.
  * Returns { outputFolderName } on success.
+ * Optional onProgress(progress, stage) is called when generator stdout reports progress (so API can show real progress).
  */
 import { spawn } from 'child_process'
 import fs from 'fs/promises'
 import path from 'path'
 import { fileURLToPath } from 'url'
+
+const PROGRESS_BY_STAGE = {
+  'Generating voiceover': 2,
+  'Preparing timeline': 4,
+  'Loading background': 5,
+}
+
+function parseProgressFromOutput(chunk, currentProgress, currentStage) {
+  let progress = currentProgress
+  let stage = currentStage
+  const lower = chunk.toLowerCase()
+
+  const reelMatch = chunk.match(/\[REEL\]\s*(.+)/)
+  if (reelMatch?.[1]) {
+    stage = reelMatch[1].trim()
+    progress = Math.max(currentProgress, PROGRESS_BY_STAGE[stage] ?? currentProgress)
+  }
+  if (lower.includes('moviepy - building video')) {
+    progress = Math.max(progress, 6)
+    stage = 'Preparing timeline'
+  }
+  if (lower.includes('moviepy - writing video')) {
+    progress = Math.max(progress, 12)
+    stage = 'Rendering frames'
+  }
+  if (lower.includes('moviepy - done')) {
+    progress = Math.max(progress, 95)
+    stage = 'Finalizing output'
+  }
+  if (lower.includes('moviepy - video ready')) {
+    progress = Math.max(progress, 99)
+    stage = 'Wrapping up'
+  }
+
+  const percentMatch = chunk.matchAll(/(\d{1,3})(?:\.\d+)?%/g)
+  let lastPercent = null
+  for (const m of percentMatch) {
+    if (m[1]) lastPercent = Number(m[1])
+  }
+  if (lastPercent != null && !Number.isNaN(lastPercent)) {
+    const mapped = Math.floor((lastPercent / 100) * 82) + 12
+    progress = Math.max(progress, Math.min(94, mapped))
+    stage = 'Rendering frames'
+  }
+
+  return progress !== currentProgress || stage !== currentStage ? { progress, stage } : null
+}
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const repoRoot = process.env.REPO_ROOT || path.resolve(__dirname, '../..')
@@ -49,7 +97,8 @@ function buildVoiceArgs(job) {
   return ['--voice-engine', 'edge', '--voice-name', job.voiceName || 'en-US-GuyNeural', '--edge-rate', '-5']
 }
 
-export async function runGenerator(job, apiBaseUrl) {
+export async function runGenerator(job, apiBaseUrl, options = {}) {
+  const { onProgress } = options
   await fs.mkdir(scriptsDir, { recursive: true })
   await fs.mkdir(outputDir, { recursive: true })
 
@@ -116,20 +165,31 @@ export async function runGenerator(job, apiBaseUrl) {
 
   const verbose = process.env.REELS_PYTHON_VERBOSE === '1' || process.env.WORKER_VERBOSE === '1'
   const startedAt = Date.now()
+  let lastProgress = 1
+  let lastStage = 'Preparing assets'
+
   const outputFolderName = await new Promise((resolve, reject) => {
     const proc = spawn(pythonExe, args, { cwd: repoRoot })
     let stdout = ''
     let stderr = ''
-    proc.stdout.on('data', (chunk) => {
+
+    function handleOutput(chunk, isStderr = false) {
       const s = chunk.toString()
-      stdout += s
-      if (verbose) process.stdout.write(s)
-    })
-    proc.stderr.on('data', (chunk) => {
-      const s = chunk.toString()
-      stderr += s
-      if (verbose) process.stderr.write(s)
-    })
+      if (isStderr) stderr += s
+      else stdout += s
+      if (verbose) (isStderr ? process.stderr : process.stdout).write(s)
+      if (typeof onProgress === 'function') {
+        const update = parseProgressFromOutput(s, lastProgress, lastStage)
+        if (update) {
+          lastProgress = update.progress
+          lastStage = update.stage
+          onProgress(update.progress, update.stage).catch(() => {})
+        }
+      }
+    }
+
+    proc.stdout.on('data', (chunk) => handleOutput(chunk, false))
+    proc.stderr.on('data', (chunk) => handleOutput(chunk, true))
     proc.on('error', (err) => reject(err))
     proc.on('exit', (code) => {
       const match = stdout.match(/Output folder\s*:\s*(.+)/i)

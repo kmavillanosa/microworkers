@@ -1338,6 +1338,17 @@ function App() {
     }
   }
 
+  async function loadActiveJobs() {
+    try {
+      const res = await fetch(`${apiBaseUrl}/api/reels/jobs`);
+      if (!res.ok) return;
+      const data = (await res.json()) as ReelJob[];
+      setJobs(Array.isArray(data) ? data : []);
+    } catch {
+      // ignore
+    }
+  }
+
   useEffect(() => {
     void Promise.all([
       loadClips(),
@@ -1350,6 +1361,7 @@ function App() {
       loadNiches(),
       loadPipelines(),
       loadOrders(),
+      loadActiveJobs(),
     ]);
     // Request notification permission early so the browser prompt appears on load
     if ("Notification" in window && Notification.permission === "default") {
@@ -4012,12 +4024,17 @@ function App() {
                     </span>
                     {activeStudioJob && (
                       <div className="studio-status-progress">
-                        <div
-                          className="studio-status-progress-fill"
-                          style={{
-                            width: `${Math.max(0, Math.min(100, activeStudioJob.progress))}%`,
-                          }}
-                        />
+                        <div className="studio-status-progress-track">
+                          <div
+                            className="studio-status-progress-fill"
+                            style={{
+                              width: `${Math.max(0, Math.min(100, activeStudioJob.progress))}%`,
+                            }}
+                          />
+                        </div>
+                        <span className="studio-status-progress-pct" aria-hidden="true">
+                          {Math.round(Math.max(0, Math.min(100, activeStudioJob.progress)))}%
+                        </span>
                       </div>
                     )}
                   </div>
@@ -4058,14 +4075,19 @@ function App() {
                         </p>
                       ) : (
                         <div className="job-progress">
-                          <div
-                            className="job-progress-fill"
-                            style={{
-                              width: `${Math.max(0, Math.min(100, job.progress))}%`,
-                            }}
-                      />
-                    </div>
-                  )}
+                          <div className="job-progress-track">
+                            <div
+                              className="job-progress-fill"
+                              style={{
+                                width: `${Math.max(0, Math.min(100, job.progress))}%`,
+                              }}
+                            />
+                          </div>
+                          <span className="job-progress-pct" aria-hidden="true">
+                            {Math.round(Math.max(0, Math.min(100, job.progress)))}%
+                          </span>
+                        </div>
+                      )}
                 </article>
               ))}
           </div>

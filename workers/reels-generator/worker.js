@@ -55,7 +55,16 @@ async function processOneJob(job) {
     }
   }
 
-  const { outputFolderName, folderPath } = await runGenerator(job, API_BASE)
+  const onProgress = async (progress, stage) => {
+    process.stdout.write(`\r  [Reel] ${progress}% · ${stage}    `)
+    await fetch(`${API_BASE}/api/worker/reel-jobs/${job.id}`, {
+      method: 'PATCH',
+      headers: headers(),
+      body: JSON.stringify({ progress, stage }),
+    })
+  }
+  const { outputFolderName, folderPath } = await runGenerator(job, API_BASE, { onProgress })
+  process.stdout.write('\n')
 
   const videoPath = path.join(folderPath, 'reel.mp4')
   const srtPath = path.join(folderPath, 'reel.srt')

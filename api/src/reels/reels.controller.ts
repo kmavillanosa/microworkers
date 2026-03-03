@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Post } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, Query } from '@nestjs/common';
 import { CreateReelDto } from './dto/create-reel.dto';
 import { InstallPiperVoiceDto } from './dto/install-piper-voice.dto';
 import { MarkReelUploadedDto } from './dto/mark-reel-uploaded.dto';
@@ -18,6 +18,11 @@ export class ReelsController {
       progress: job.progress,
       createdAt: job.createdAt,
     };
+  }
+
+  @Get('jobs')
+  async listJobs(@Query('status') status?: string) {
+    return this.reelsService.listActiveJobs(status);
   }
 
   @Get('jobs/:jobId')
