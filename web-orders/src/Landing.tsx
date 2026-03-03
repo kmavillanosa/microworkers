@@ -1,17 +1,8 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
+import { ShowcaseCard, type ShowcaseItem } from './ShowcaseCard'
 
 const API_BASE = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '')
-
-type OutputSize = 'phone' | 'tablet' | 'laptop' | 'desktop'
-
-interface ShowcaseItem {
-  id: string
-  videoUrl: string
-  title: string
-  description: string
-  outputSize?: OutputSize
-}
 
 const LANDING_SHOWCASE_MAX = 6
 
@@ -72,26 +63,12 @@ export default function Landing() {
           </p>
           <div className="landing-showcase-grid">
             {displaySamples.map((item) => (
-              <article key={item.id} className="landing-showcase-card">
-                <div
-                  className="landing-showcase-card-video-wrap"
-                  data-output-size={item.outputSize || 'phone'}
-                >
-                  <video
-                    src={item.videoUrl.startsWith('http') ? item.videoUrl : `${API_BASE}${item.videoUrl}`}
-                    controls
-                    playsInline
-                    preload="metadata"
-                    className="landing-showcase-card-video"
-                  />
-                </div>
-                <div className="landing-showcase-card-body">
-                  <h3 className="landing-showcase-card-title">{item.title}</h3>
-                  {item.description ? (
-                    <p className="landing-showcase-card-desc">{item.description}</p>
-                  ) : null}
-                </div>
-              </article>
+              <ShowcaseCard
+                key={item.id}
+                item={item}
+                videoSrc={item.videoUrl.startsWith('http') ? item.videoUrl : `${API_BASE}${item.videoUrl}`}
+                variant="landing"
+              />
             ))}
           </div>
           {(showcaseItems.length > LANDING_SHOWCASE_MAX || (showcaseItems.length > 0 && showcaseItems.length <= LANDING_SHOWCASE_MAX)) && (

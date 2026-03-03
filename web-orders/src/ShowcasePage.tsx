@@ -1,18 +1,9 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
+import { ShowcaseCard, type ShowcaseItem } from './ShowcaseCard'
 
 /** Base URL for API and media (no trailing slash). Empty = same origin (use proxy in dev). */
 const API_BASE = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '')
-
-type OutputSize = 'phone' | 'tablet' | 'laptop' | 'desktop'
-
-interface ShowcaseItem {
-  id: string
-  videoUrl: string
-  title: string
-  description: string
-  outputSize?: OutputSize
-}
 
 export default function ShowcasePage() {
   const [items, setItems] = useState<ShowcaseItem[]>([])
@@ -87,26 +78,12 @@ export default function ShowcasePage() {
         ) : (
           <div className="showcase-grid">
             {items.map((item) => (
-              <article key={item.id} className="showcase-card">
-                <div
-                  className="showcase-card-video-wrap"
-                  data-output-size={item.outputSize || 'phone'}
-                >
-                  <video
-                    src={item.videoUrl.startsWith('http') ? item.videoUrl : `${API_BASE}${item.videoUrl}`}
-                    controls
-                    playsInline
-                    preload="metadata"
-                    className="showcase-card-video"
-                  />
-                </div>
-                <div className="showcase-card-body">
-                  <h3 className="showcase-card-title">{item.title}</h3>
-                  {item.description ? (
-                    <p className="showcase-card-desc">{item.description}</p>
-                  ) : null}
-                </div>
-              </article>
+              <ShowcaseCard
+                key={item.id}
+                item={item}
+                videoSrc={item.videoUrl.startsWith('http') ? item.videoUrl : `${API_BASE}${item.videoUrl}`}
+                variant="page"
+              />
             ))}
           </div>
         )}
