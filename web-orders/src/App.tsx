@@ -9,7 +9,9 @@ function App() {
   return (
     <>
       <nav className="app-nav">
-        <Link to="/" className="app-nav-brand">ReelAgad</Link>
+        <Link to="/" className="app-nav-brand" aria-label="ReelAgad home">
+          <img src="/logo.svg" alt="" className="app-nav-logo" width="288" height="77" />
+        </Link>
         <Link to="/showcase" className="app-nav-link">Samples</Link>
         <Link to="/order" className="app-nav-link app-nav-cta">Order now</Link>
       </nav>

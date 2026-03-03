@@ -711,7 +711,7 @@ export default function OrderPage() {
           spotlightPadding={8}
           styles={{
             options: {
-              primaryColor: 'var(--accent, #F36F21)',
+              primaryColor: 'var(--accent, #14bd63)',
               zIndex: 10000,
             },
           }}

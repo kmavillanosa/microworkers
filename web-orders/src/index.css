@@ -2,23 +2,25 @@
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', 'Helvetica Neue', Helvetica, Arial, sans-serif;
   line-height: 1.5;
 
-  /* Brand */
-  --color-primary: #F36F21;
-  --color-primary-hover: #D95F1C;
-  --color-primary-disabled: #F7B189;
+  /* Brand (from logo: green primary, navy secondary) */
+  --color-primary: #14bd63;
+  --color-primary-hover: #0fa352;
+  --color-primary-disabled: #7dd9a8;
+  --color-secondary: #041d3c;
+  --color-secondary-hover: #0a284a;
 
   /* Neutrals */
-  --color-dark: #333333;
-  --color-text-secondary: #666666;
-  --color-muted: #9E9E9E;
+  --color-dark: #1a1a1a;
+  --color-text-secondary: #555555;
+  --color-muted: #6b7280;
 
   /* Surfaces */
-  --color-bg: #F5F5F5;
-  --color-card: #FFFFFF;
+  --color-bg: #f8faf9;
+  --color-card: #ffffff;
 
-  /* Accent Surfaces */
-  --color-accent-soft: #E6D2C3;
-  --color-accent-neutral: #7A6B63;
+  /* Accent Surfaces (compatible with green + navy) */
+  --color-accent-soft: #e8f5ef;
+  --color-accent-neutral: #2d4a6c;
 
   /* Status */
   --color-success: #2E7D32;
@@ -61,10 +63,10 @@ body::before {
   background-color: var(--color-bg);
   /* Craft / measurement grid: subtle lines, every 5th line slightly stronger */
   background-image:
-    linear-gradient(rgba(122, 107, 99, 0.08) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(122, 107, 99, 0.08) 1px, transparent 1px),
-    linear-gradient(rgba(122, 107, 99, 0.14) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(122, 107, 99, 0.14) 1px, transparent 1px);
+    linear-gradient(rgba(4, 29, 60, 0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(4, 29, 60, 0.06) 1px, transparent 1px),
+    linear-gradient(rgba(4, 29, 60, 0.1) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(4, 29, 60, 0.1) 1px, transparent 1px);
   background-size: 20px 20px, 20px 20px, 100px 100px, 100px 100px;
   pointer-events: none;
   z-index: 0;
@@ -73,7 +75,7 @@ body::after {
   content: '';
   position: fixed;
   inset: 0;
-  background: linear-gradient(160deg, rgba(245, 245, 245, 0.88) 0%, rgba(255, 255, 255, 0.92) 50%, rgba(245, 245, 245, 0.88) 100%);
+  background: linear-gradient(160deg, rgba(248, 250, 249, 0.92) 0%, rgba(255, 255, 255, 0.96) 50%, rgba(248, 250, 249, 0.92) 100%);
   pointer-events: none;
   z-index: 0;
 }
@@ -90,15 +92,18 @@ body::after {
   flex-wrap: wrap;
 }
 .app-nav-brand {
-  font-family: var(--landing-font);
-  font-weight: 600;
-  font-size: 1.15rem;
-  color: var(--color-dark);
+  display: inline-flex;
+  align-items: center;
   text-decoration: none;
 }
 .app-nav-brand:hover {
   text-decoration: none;
-  color: var(--accent);
+  opacity: 0.9;
+}
+.app-nav-logo {
+  height: 38px;
+  width: auto;
+  display: block;
 }
 .app-nav-link {
   color: var(--color-text-secondary);
@@ -697,11 +702,11 @@ button { cursor: pointer; }
 }
 .audio-tier-card:hover {
   border-color: var(--accent-border);
-  background: rgba(243, 111, 33, 0.04);
+  background: rgba(20, 189, 99, 0.06);
 }
 .audio-tier-card-selected {
   border-color: var(--accent);
-  background: rgba(243, 111, 33, 0.08);
+  background: rgba(20, 189, 99, 0.1);
   box-shadow: 0 0 0 1px var(--accent);
 }
 .audio-tier-card-input {
@@ -1271,13 +1276,13 @@ button { cursor: pointer; }
   padding: clamp(3rem, 10vw, 5.5rem) clamp(2rem, 5vw, 3rem) clamp(2.5rem, 7vw, 4.5rem);
   background: var(--landing-bg);
   background-image:
-    radial-gradient(ellipse 100% 60% at 50% -10%, rgba(243, 111, 33, 0.12) 0%, transparent 55%),
-    radial-gradient(ellipse 70% 50% at 85% 20%, rgba(122, 107, 99, 0.08) 0%, transparent 50%),
-    radial-gradient(ellipse 60% 40% at 15% 60%, rgba(243, 111, 33, 0.05) 0%, transparent 45%);
+    radial-gradient(ellipse 100% 60% at 50% -10%, rgba(20, 189, 99, 0.1) 0%, transparent 55%),
+    radial-gradient(ellipse 70% 50% at 85% 20%, rgba(4, 29, 60, 0.06) 0%, transparent 50%),
+    radial-gradient(ellipse 60% 40% at 15% 60%, rgba(4, 29, 60, 0.04) 0%, transparent 45%);
   color: var(--landing-hero-text);
   border-radius: 0 0 28px 28px;
   box-shadow: 0 8px 32px rgba(44, 44, 44, 0.08);
-  border: 1px solid rgba(122, 107, 99, 0.18);
+  border: 1px solid rgba(4, 29, 60, 0.14);
   position: relative;
   overflow: hidden;
 }
@@ -1293,9 +1298,9 @@ button { cursor: pointer; }
   letter-spacing: 0.08em;
   color: var(--color-primary);
   background: rgba(255, 255, 255, 0.95);
-  border: 1px solid rgba(243, 111, 33, 0.25);
+  border: 1px solid rgba(20, 189, 99, 0.25);
   border-radius: 999px;
-  box-shadow: 0 2px 8px rgba(243, 111, 33, 0.1);
+  box-shadow: 0 2px 8px rgba(20, 189, 99, 0.12);
 }
 
 .landing-hero-title {
@@ -1352,13 +1357,13 @@ button { cursor: pointer; }
 .landing-cta-primary {
   background: var(--accent);
   color: var(--color-card);
-  box-shadow: 0 2px 10px rgba(243, 111, 33, 0.3);
+  box-shadow: 0 2px 10px rgba(20, 189, 99, 0.3);
 }
 
 .landing-cta-primary:hover {
   background: var(--accent-hover);
   transform: translateY(-1px);
-  box-shadow: 0 4px 14px rgba(243, 111, 33, 0.35);
+  box-shadow: 0 4px 14px rgba(20, 189, 99, 0.35);
 }
 
 .landing-cta-secondary {
@@ -1448,7 +1453,7 @@ button { cursor: pointer; }
   color: var(--color-card);
   background: var(--accent);
   border-radius: 50%;
-  box-shadow: 0 2px 6px rgba(243, 111, 33, 0.3);
+  box-shadow: 0 2px 6px rgba(20, 189, 99, 0.3);
 }
 
 .landing-how-cta {
@@ -1520,7 +1525,7 @@ button { cursor: pointer; }
   padding-right: 1.5rem;
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.6) 0%, rgba(245, 245, 245, 0.4) 100%);
   border-radius: 20px;
-  border: 1px solid rgba(122, 107, 99, 0.12);
+  border: 1px solid rgba(4, 29, 60, 0.1);
 }
 
 .landing-showcase .landing-section-title {
@@ -1547,7 +1552,7 @@ button { cursor: pointer; }
   border-radius: 20px;
   overflow: hidden;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06), 0 1px 3px rgba(0, 0, 0, 0.04);
-  border: 1px solid rgba(122, 107, 99, 0.12);
+  border: 1px solid rgba(4, 29, 60, 0.1);
   transition: transform 0.25s ease, box-shadow 0.25s ease;
   display: flex;
   flex-direction: column;
@@ -1556,8 +1561,8 @@ button { cursor: pointer; }
 .landing-showcase-card:hover,
 .showcase-card:hover {
   transform: translateY(-6px);
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.1), 0 4px 12px rgba(243, 111, 33, 0.08);
-  border-color: rgba(243, 111, 33, 0.2);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.1), 0 4px 12px rgba(20, 189, 99, 0.1);
+  border-color: rgba(20, 189, 99, 0.25);
 }
 
 .landing-showcase-card-video-wrap {
@@ -1666,7 +1671,7 @@ button { cursor: pointer; }
 
 .landing-showcase-more-link:hover {
   color: var(--accent-hover);
-  background: rgba(243, 111, 33, 0.08);
+  background: rgba(20, 189, 99, 0.08);
 }
 
 .landing-arrow {
@@ -1737,7 +1742,7 @@ button { cursor: pointer; }
   padding: 3rem 2rem;
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.7) 0%, rgba(245, 245, 245, 0.5) 100%);
   border-radius: 20px;
-  border: 1px solid rgba(122, 107, 99, 0.15);
+  border: 1px solid rgba(4, 29, 60, 0.12);
 }
 
 .showcase-page-empty-text {
