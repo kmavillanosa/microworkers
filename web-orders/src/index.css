@@ -827,6 +827,23 @@ button { cursor: pointer; }
 .script-allowed-words.script-over-limit strong {
   color: var(--color-error);
 }
+.script-over-limit-checkbox {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  margin: 0.5rem 0 0;
+  font-size: 0.9rem;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+.script-over-limit-checkbox input {
+  margin-top: 0.25rem;
+  width: auto;
+  min-height: auto;
+}
+.script-over-limit-checkbox span {
+  line-height: 1.4;
+}
 .field { margin-bottom: 0.75rem; }
 .field input, .field select, .field textarea {
   width: 100%;

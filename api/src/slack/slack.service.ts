@@ -17,11 +17,14 @@ export class SlackService {
 
 	/**
 	 * Send a new-order notification to the configured Slack channel.
-	 * No-op if SLACK_ORDER_WEBHOOK_URL is not set.
+	 * Called when payment is confirmed (PayMongo webhook or manual PATCH payment), not when the order is first created.
+	 * No-op if SLACK_ORDER_WEBHOOK_URL is not set. Restart the API after adding the env var.
 	 */
 	async notifyOrder(payload: SlackOrderPayload): Promise<void> {
 		if (!this.webhookUrl) {
-			this.logger.debug('SLACK_ORDER_WEBHOOK_URL not set; skipping Slack notification')
+			this.logger.log(
+				'Slack: SLACK_ORDER_WEBHOOK_URL is not set; skipping order notification. Set it in .env and restart the API.',
+			)
 			return
 		}
 		const who =
@@ -35,6 +38,7 @@ export class SlackService {
 			`• Order ID: \`${payload.orderId}\``,
 		].join('\n')
 		try {
+			this.logger.log(`Slack: sending order notification for order ${payload.orderId}`)
 			const res = await fetch(this.webhookUrl, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
@@ -44,14 +48,16 @@ export class SlackService {
 					unfurl_media: false,
 				}),
 			})
-			if (!res.ok) {
+			if (res.ok) {
+				this.logger.log(`Slack: notification sent for order ${payload.orderId}`)
+			} else {
 				this.logger.warn(
-					`Slack webhook returned ${res.status}: ${await res.text()}`,
+					`Slack webhook returned ${res.status} for order ${payload.orderId}: ${await res.text()}`,
 				)
 			}
 		} catch (err) {
 			this.logger.warn(
-				`Slack notification failed: ${err instanceof Error ? err.message : String(err)}`,
+				`Slack notification failed for order ${payload.orderId}: ${err instanceof Error ? err.message : String(err)}`,
 			)
 		}
 	}

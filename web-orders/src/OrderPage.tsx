@@ -246,6 +246,8 @@ export default function OrderPage() {
   const [useClipAudio, setUseClipAudio] = useState(false)
   /** Use clip audio and add TTS narrator (mixed). Only relevant when a clip is selected. */
   const [useClipAudioWithNarrator, setUseClipAudioWithNarrator] = useState(false)
+  /** When true, user may submit even if script exceeds recommended word count for the video length. */
+  const [proceedOverWordLimit, setProceedOverWordLimit] = useState(false)
 
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
@@ -364,9 +366,9 @@ export default function OrderPage() {
     const maxWords = clipName && effectiveMaxWords != null ? effectiveMaxWords : null
     if (maxWords != null && script.trim().length > 0) {
       const count = wordCount(script)
-      if (count > maxWords) {
+      if (count > maxWords && !proceedOverWordLimit) {
         setError(
-          `Your script has ${count} words. The video length allows at most ${maxWords} words. Shorten your script to fit.`
+          `Your script has ${count} words. The video length allows at most ${maxWords} words. Shorten your script to fit, or check the box below to proceed anyway.`
         )
         return null
       }
@@ -1059,15 +1061,28 @@ export default function OrderPage() {
                     <label className="label" htmlFor="order-script">Script</label>
                     <p className="field-hint field-hint-above">Paste or type your script. If you add a video above, we can transcribe it for you.</p>
                     {clipName && effectiveMaxWords != null && (
-                      <p
-                        className={`script-allowed-words${wordCount(script) > effectiveMaxWords ? ' script-over-limit' : ''}`}
-                        aria-live="polite"
-                      >
-                        Max words for this video length: <strong>{effectiveMaxWords}</strong>
-                        {script.trim().length > 0 && (
-                          <> — {wordCount(script)} / {effectiveMaxWords} words</>
+                      <>
+                        <p
+                          className={`script-allowed-words${wordCount(script) > effectiveMaxWords ? ' script-over-limit' : ''}`}
+                          aria-live="polite"
+                        >
+                          Max words for this video length: <strong>{effectiveMaxWords}</strong>
+                          {script.trim().length > 0 && (
+                            <> — {wordCount(script)} / {effectiveMaxWords} words</>
+                          )}
+                        </p>
+                        {wordCount(script) > effectiveMaxWords && (
+                          <label className="script-over-limit-checkbox">
+                            <input
+                              type="checkbox"
+                              checked={proceedOverWordLimit}
+                              onChange={(e) => setProceedOverWordLimit(e.target.checked)}
+                              aria-describedby="order-script"
+                            />
+                            <span>I understand my script is longer than recommended for this video length, and I’d like to proceed anyway.</span>
+                          </label>
                         )}
-                      </p>
+                      </>
                     )}
                     <textarea
                       id="order-script"

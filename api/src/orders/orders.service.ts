@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common'
+import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common'
 import { randomUUID } from 'node:crypto'
 import { InjectRepository } from '@nestjs/typeorm'
 import { Repository } from 'typeorm'
@@ -64,6 +64,8 @@ function frameCount(script: string, wordsPerFrame: number): number {
 
 @Injectable()
 export class OrdersService {
+	private readonly logger = new Logger(OrdersService.name)
+
 	constructor(
 		@InjectRepository(OrderEntity)
 		private readonly ordersRepo: Repository<OrderEntity>,
@@ -417,8 +419,11 @@ export class OrdersService {
 				orderType,
 				orderId: order.id,
 			})
-		} catch {
-			// Don't fail payment confirmation if Slack fails
+		} catch (err) {
+			// Don't fail payment confirmation if Slack fails; log for debugging
+			this.logger.warn(
+				`Slack notification failed for order ${order.id}: ${err instanceof Error ? err.message : String(err)}`,
+			)
 		}
 	}
 
