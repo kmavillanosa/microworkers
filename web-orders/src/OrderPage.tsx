@@ -197,7 +197,11 @@ export default function OrderPage() {
   const [fonts, setFonts] = useState<FontItem[]>([])
   const [clips, setClips] = useState<ClipItem[]>([])
   const [voices, setVoices] = useState<Array<{ id: string; name: string; engine: string }>>([])
-  const [pricing, setPricing] = useState<{ wordsPerFrame: number; pricePerFramePesos: number } | null>(null)
+  const [pricing, setPricing] = useState<{
+    wordsPerFrame: number
+    pricePerFramePesos: number
+    pricePerFramePesosByTier?: { ttsOnly: number; clipOnly: number; clipAndNarrator: number }
+  } | null>(null)
 
   const [script, setScript] = useState('')
   const [title, setTitle] = useState('')
@@ -237,7 +241,17 @@ export default function OrderPage() {
 
   /** From API GET /api/orders/pricing; safe fallbacks only when API has not responded yet. */
   const wordsPerFrame = pricing?.wordsPerFrame ?? 1
-  const pricePerFramePesos = pricing?.pricePerFramePesos ?? 0
+  const tiers = pricing?.pricePerFramePesosByTier ?? {
+    ttsOnly: 5,
+    clipOnly: 3,
+    clipAndNarrator: 4,
+  }
+  const pricePerFramePesos =
+    !useClipAudio && !useClipAudioWithNarrator
+      ? tiers.ttsOnly
+      : useClipAudioWithNarrator
+        ? tiers.clipAndNarrator
+        : tiers.clipOnly
   const effectiveScript = script.trim() || clipTranscript?.text || ''
   const previewFrames = scriptToFrames(effectiveScript, wordsPerFrame)
   const transcriptLanguage = clipTranscript?.language
@@ -271,8 +285,21 @@ export default function OrderPage() {
       const defaultFont = (fontData as { defaultFont?: string })?.defaultFont ?? 'default'
       if (!fontId) setFontId(defaultFont)
       setClips(Array.isArray(clipList) ? clipList : [])
-      if (pricingData && typeof pricingData.wordsPerFrame === 'number' && typeof pricingData.pricePerFramePesos === 'number') {
-        setPricing({ wordsPerFrame: pricingData.wordsPerFrame, pricePerFramePesos: pricingData.pricePerFramePesos })
+      if (pricingData && typeof pricingData.wordsPerFrame === 'number') {
+        const byTier = pricingData.pricePerFramePesosByTier
+        const pricePerFramePesos =
+          typeof pricingData.pricePerFramePesos === 'number'
+            ? pricingData.pricePerFramePesos
+            : byTier?.ttsOnly ?? 5
+        setPricing({
+          wordsPerFrame: pricingData.wordsPerFrame,
+          pricePerFramePesos,
+          pricePerFramePesosByTier: byTier ?? {
+            ttsOnly: pricePerFramePesos,
+            clipOnly: 3,
+            clipAndNarrator: 4,
+          },
+        })
       }
       const typedVoiceData = voiceData as VoicesRes | null
       if (typedVoiceData) {
@@ -775,47 +802,59 @@ export default function OrderPage() {
                       </p>
                     )}
                     {clipName && (
-                      <div className="field clip-audio-options" role="group" aria-label="How should your video sound?">
-                        <span className="label">How should your video sound?</span>
-                        <label className="clip-audio-option">
-                          <input
-                            type="radio"
-                            name="clipAudioOption"
-                            value=""
-                            checked={!useClipAudio && !useClipAudioWithNarrator}
-                            onChange={() => {
-                              setUseClipAudio(false)
-                              setUseClipAudioWithNarrator(false)
-                            }}
-                          />
-                          <span>Just a voice reads my words (no sound from my video)</span>
-                        </label>
-                        <label className="clip-audio-option">
-                          <input
-                            type="radio"
-                            name="clipAudioOption"
-                            value="no_narrator"
-                            checked={useClipAudio && !useClipAudioWithNarrator}
-                            onChange={() => {
-                              setUseClipAudio(true)
-                              setUseClipAudioWithNarrator(false)
-                            }}
-                          />
-                          <span>Keep my video&apos;s sound only (no voice reading)</span>
-                        </label>
-                        <label className="clip-audio-option">
-                          <input
-                            type="radio"
-                            name="clipAudioOption"
-                            value="with_narrator"
-                            checked={useClipAudioWithNarrator}
-                            onChange={() => {
-                              setUseClipAudio(true)
-                              setUseClipAudioWithNarrator(true)
-                            }}
-                          />
-                          <span>My video&apos;s sound plus a voice reads my words</span>
-                        </label>
+                      <div className="field audio-tier-cards-wrap" role="group" aria-label="How should your video sound?">
+                        <span className="label audio-tier-cards-label">How should your video sound?</span>
+                        <p className="audio-tier-cards-hint">Choose one. Price varies by option.</p>
+                        <div className="audio-tier-cards">
+                          <label className={`audio-tier-card ${!useClipAudio && !useClipAudioWithNarrator ? 'audio-tier-card-selected' : ''}`}>
+                            <input
+                              type="radio"
+                              name="clipAudioOption"
+                              value=""
+                              checked={!useClipAudio && !useClipAudioWithNarrator}
+                              onChange={() => {
+                                setUseClipAudio(false)
+                                setUseClipAudioWithNarrator(false)
+                              }}
+                              className="audio-tier-card-input"
+                            />
+                            <span className="audio-tier-card-title">Only a voice (no sound from my video)</span>
+                            <span className="audio-tier-card-desc">We turn off your video&apos;s sound. A voice reads your words. That&apos;s it.</span>
+                            <span className="audio-tier-card-price">₱{tiers.ttsOnly} per frame</span>
+                          </label>
+                          <label className={`audio-tier-card ${useClipAudio && !useClipAudioWithNarrator ? 'audio-tier-card-selected' : ''}`}>
+                            <input
+                              type="radio"
+                              name="clipAudioOption"
+                              value="no_narrator"
+                              checked={useClipAudio && !useClipAudioWithNarrator}
+                              onChange={() => {
+                                setUseClipAudio(true)
+                                setUseClipAudioWithNarrator(false)
+                              }}
+                              className="audio-tier-card-input"
+                            />
+                            <span className="audio-tier-card-title">Only my video&apos;s sound (no extra voice)</span>
+                            <span className="audio-tier-card-desc">We keep the sound from your video. We put your words on screen as text. No one else talks.</span>
+                            <span className="audio-tier-card-price">₱{tiers.clipOnly} per frame</span>
+                          </label>
+                          <label className={`audio-tier-card ${useClipAudioWithNarrator ? 'audio-tier-card-selected' : ''}`}>
+                            <input
+                              type="radio"
+                              name="clipAudioOption"
+                              value="with_narrator"
+                              checked={useClipAudioWithNarrator}
+                              onChange={() => {
+                                setUseClipAudio(true)
+                                setUseClipAudioWithNarrator(true)
+                              }}
+                              className="audio-tier-card-input"
+                            />
+                            <span className="audio-tier-card-title">My video&apos;s sound + a voice reading my words</span>
+                            <span className="audio-tier-card-desc">We keep your video&apos;s sound and add a voice that reads your words. Words also show on screen.</span>
+                            <span className="audio-tier-card-price">₱{tiers.clipAndNarrator} per frame</span>
+                          </label>
+                        </div>
                       </div>
                     )}
                   </div>

@@ -880,6 +880,11 @@ function App() {
   const [orderPricing, setOrderPricing] = useState<{
     wordsPerFrame: number;
     pricePerFramePesos: number;
+    pricePerFramePesosByTier?: {
+      ttsOnly: number;
+      clipOnly: number;
+      clipAndNarrator: number;
+    };
   } | null>(null);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [orderClipTranscripts, setOrderClipTranscripts] = useState<
@@ -1023,9 +1028,13 @@ function App() {
   /** Breakdown: pending, ongoing (accepted+processing), completed (closed), rejected (declined). */
   const ordersBreakdown = useMemo(() => {
     const wpf = orderPricing?.wordsPerFrame ?? 5;
-    const pfp = orderPricing?.pricePerFramePesos ?? 5;
-    function priceFor(script: string): number {
-      const words = script.trim().split(/\s+/).filter(Boolean);
+    const tiers = orderPricing?.pricePerFramePesosByTier;
+    const defaultPfp = orderPricing?.pricePerFramePesos ?? 5;
+    function priceFor(o: Order): number {
+      const pfp = tiers
+        ? (o.useClipAudioWithNarrator ? tiers.clipAndNarrator : o.useClipAudio ? tiers.clipOnly : tiers.ttsOnly)
+        : defaultPfp;
+      const words = o.script.trim().split(/\s+/).filter(Boolean);
       const frames = wpf < 1 ? 0 : Math.ceil(words.length / wpf) || 0;
       return frames * pfp;
     }
@@ -1037,8 +1046,9 @@ function App() {
       rejected: { count: 0, amount: 0 },
     };
     for (const o of ordersInDateRange) {
-      const status = (o as Order).orderStatus ?? "pending";
-      const amount = priceFor(o.script);
+      const order = o as Order;
+      const status = order.orderStatus ?? "pending";
+      const amount = priceFor(order);
       if (status === "pending") {
         buckets.pending.count += 1;
         buckets.pending.amount += amount;
@@ -1071,7 +1081,7 @@ function App() {
         buckets.rejected.amount,
     };
     return { ...buckets, total };
-  }, [ordersInDateRange, orderPricing?.wordsPerFrame, orderPricing?.pricePerFramePesos]);
+  }, [ordersInDateRange, orderPricing?.wordsPerFrame, orderPricing?.pricePerFramePesos, orderPricing?.pricePerFramePesosByTier]);
 
   const pendingOrdersCount = useMemo(
     () => orders.filter((o) => (o as Order).orderStatus === "pending").length,
@@ -1155,14 +1165,25 @@ function App() {
         const p = (await pricingRes.json()) as {
           wordsPerFrame: number;
           pricePerFramePesos: number;
+          pricePerFramePesosByTier?: {
+            ttsOnly: number;
+            clipOnly: number;
+            clipAndNarrator: number;
+          };
         };
-        if (
-          typeof p.wordsPerFrame === "number" &&
-          typeof p.pricePerFramePesos === "number"
-        ) {
+        if (typeof p.wordsPerFrame === "number") {
+          const pricePerFramePesos =
+            typeof p.pricePerFramePesos === "number"
+              ? p.pricePerFramePesos
+              : p.pricePerFramePesosByTier?.ttsOnly ?? 5;
           setOrderPricing({
             wordsPerFrame: p.wordsPerFrame,
-            pricePerFramePesos: p.pricePerFramePesos,
+            pricePerFramePesos,
+            pricePerFramePesosByTier: p.pricePerFramePesosByTier ?? {
+              ttsOnly: pricePerFramePesos,
+              clipOnly: 3,
+              clipAndNarrator: 4,
+            },
           });
         }
       }
@@ -1197,10 +1218,19 @@ function App() {
     }
   }
 
-  /** Compute frame count and total price for a script using current order pricing. */
-  function orderFramesAndPrice(script: string): { frames: number; pricePesos: number } {
+  /** Price per frame for an order's tier (TTS only, clip only, or clip + narrator). */
+  function pricePerFrameForOrder(order: Order): number {
+    const tiers = orderPricing?.pricePerFramePesosByTier;
+    if (!tiers) return orderPricing?.pricePerFramePesos ?? 5;
+    if (order.useClipAudioWithNarrator) return tiers.clipAndNarrator;
+    if (order.useClipAudio) return tiers.clipOnly;
+    return tiers.ttsOnly;
+  }
+
+  /** Compute frame count and total price for a script using current order pricing; optional order for tier. */
+  function orderFramesAndPrice(script: string, order?: Order): { frames: number; pricePesos: number } {
     const wpf = orderPricing?.wordsPerFrame ?? 5;
-    const pfp = orderPricing?.pricePerFramePesos ?? 5;
+    const pfp = order ? pricePerFrameForOrder(order) : (orderPricing?.pricePerFramePesos ?? 5);
     const words = script.trim().split(/\s+/).filter(Boolean);
     const frames = wpf < 1 ? 0 : Math.ceil(words.length / wpf) || 0;
     return { frames, pricePesos: frames * pfp };
@@ -3733,7 +3763,7 @@ function App() {
 
               <main className="studio-canvas">
                 {selectedOrder && (() => {
-                  const { frames, pricePesos } = orderFramesAndPrice(selectedOrder.script);
+                  const { frames, pricePesos } = orderFramesAndPrice(selectedOrder.script, selectedOrder);
                   return (
                   <section className="studio-order-bar panel compact">
                     <div className="studio-order-bar-inner">
@@ -5965,7 +5995,7 @@ function App() {
                         <div className="orders-kanban-column-cards">
                           {ordersByStatus[col.id].map((order) => {
                             const status = (order as Order).orderStatus ?? "pending";
-                            const { frames, pricePesos } = orderFramesAndPrice(order.script);
+                            const { frames, pricePesos } = orderFramesAndPrice(order.script, order);
                             const orderReels = reels.filter((r) => r.orderId === order.id);
                             const transcriptInfo = order.clipName ? orderClipTranscripts[order.clipName] : null;
                             const transcriptReady = transcriptInfo?.status === "completed";

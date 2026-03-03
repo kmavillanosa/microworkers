@@ -11,9 +11,18 @@ import { PendingCheckoutEntity } from './pending-checkout.entity'
 
 export type OrderStatus = 'pending' | 'accepted' | 'declined' | 'processing' | 'ready_for_sending' | 'closed'
 
+/** Pricing tier: TTS only (default), clip audio only, or clip + narrator. */
+export type PricingTierId = 'tts_only' | 'clip_only' | 'clip_and_narrator'
+
 export interface OrderPricing {
 	wordsPerFrame: number
+	/** Single price for backward compat (same as pricePerFramePesosByTier.ttsOnly). */
 	pricePerFramePesos: number
+	pricePerFramePesosByTier: {
+		ttsOnly: number
+		clipOnly: number
+		clipAndNarrator: number
+	}
 }
 
 export interface Order {
@@ -276,48 +285,73 @@ export class OrdersService {
 		await this.ordersRepo.save(entity)
 	}
 
+	private static readonly PRICING_TIER_DEFAULTS: Record<PricingTierId, number> = {
+		tts_only: 5,
+		clip_only: 3,
+		clip_and_narrator: 4,
+	}
+
 	async getPricing(): Promise<OrderPricing> {
-		let row = await this.pricingRepo.findOne({ where: { id: 'default' } })
-		if (!row) {
-			row = this.pricingRepo.create({
-				id: 'default',
-				words_per_frame: 5,
-				price_per_frame_pesos: 5,
-			})
-			await this.pricingRepo.save(row)
-		}
+		const defaultRow = await this.pricingRepo.findOne({ where: { id: 'default' } })
+		const wordsPerFrame = defaultRow?.words_per_frame ?? 5
+		const ttsDefaultPrice = defaultRow?.price_per_frame_pesos ?? OrdersService.PRICING_TIER_DEFAULTS.tts_only
+		await this.ensurePricingRow('tts_only', wordsPerFrame, ttsDefaultPrice)
+		await this.ensurePricingRow('clip_only', wordsPerFrame, OrdersService.PRICING_TIER_DEFAULTS.clip_only)
+		await this.ensurePricingRow('clip_and_narrator', wordsPerFrame, OrdersService.PRICING_TIER_DEFAULTS.clip_and_narrator)
+		const [tts, clip, clipNarr] = await Promise.all([
+			this.pricingRepo.findOne({ where: { id: 'tts_only' } }),
+			this.pricingRepo.findOne({ where: { id: 'clip_only' } }),
+			this.pricingRepo.findOne({ where: { id: 'clip_and_narrator' } }),
+		])
+		const ttsOnly = tts?.price_per_frame_pesos ?? OrdersService.PRICING_TIER_DEFAULTS.tts_only
+		const clipOnly = clip?.price_per_frame_pesos ?? OrdersService.PRICING_TIER_DEFAULTS.clip_only
+		const clipAndNarrator = clipNarr?.price_per_frame_pesos ?? OrdersService.PRICING_TIER_DEFAULTS.clip_and_narrator
 		return {
-			wordsPerFrame: row.words_per_frame ?? 5,
-			pricePerFramePesos: row.price_per_frame_pesos ?? 5,
+			wordsPerFrame,
+			pricePerFramePesos: ttsOnly,
+			pricePerFramePesosByTier: { ttsOnly, clipOnly, clipAndNarrator },
+		}
+	}
+
+	private async ensurePricingRow(id: string, wordsPerFrame: number, pricePerFramePesos: number): Promise<void> {
+		let row = await this.pricingRepo.findOne({ where: { id } })
+		if (!row) {
+			row = this.pricingRepo.create({ id, words_per_frame: wordsPerFrame, price_per_frame_pesos: pricePerFramePesos })
+			await this.pricingRepo.save(row)
 		}
 	}
 
 	async updatePricing(dto: UpdateOrderPricingDto): Promise<OrderPricing> {
 		const current = await this.getPricing()
 		const wordsPerFrame = dto.wordsPerFrame ?? current.wordsPerFrame
-		const pricePerFramePesos = dto.pricePerFramePesos ?? current.pricePerFramePesos
 		if (wordsPerFrame < 1 || wordsPerFrame > 100) {
 			throw new BadRequestException('wordsPerFrame must be between 1 and 100')
 		}
-		if (pricePerFramePesos < 0) {
+		if (dto.pricePerFramePesos != null && dto.pricePerFramePesos < 0) {
 			throw new BadRequestException('pricePerFramePesos must be non-negative')
 		}
-		let row = await this.pricingRepo.findOne({ where: { id: 'default' } })
-		if (!row) {
-			row = this.pricingRepo.create({
-				id: 'default',
-				words_per_frame: wordsPerFrame,
-				price_per_frame_pesos: pricePerFramePesos,
-			})
+		const ttsPrice = dto.pricePerFramePesos ?? current.pricePerFramePesosByTier.ttsOnly
+		let ttsRow = await this.pricingRepo.findOne({ where: { id: 'tts_only' } })
+		if (!ttsRow) {
+			ttsRow = this.pricingRepo.create({ id: 'tts_only', words_per_frame: wordsPerFrame, price_per_frame_pesos: ttsPrice })
 		} else {
-			row.words_per_frame = wordsPerFrame
-			row.price_per_frame_pesos = pricePerFramePesos
+			ttsRow.words_per_frame = wordsPerFrame
+			ttsRow.price_per_frame_pesos = ttsPrice
 		}
-		await this.pricingRepo.save(row)
-		return {
-			wordsPerFrame,
-			pricePerFramePesos,
+		await this.pricingRepo.save(ttsRow)
+		if (dto.clipOnly != null && dto.clipOnly >= 0) {
+			let r = await this.pricingRepo.findOne({ where: { id: 'clip_only' } })
+			if (!r) r = this.pricingRepo.create({ id: 'clip_only', words_per_frame: wordsPerFrame, price_per_frame_pesos: dto.clipOnly })
+			else r.price_per_frame_pesos = dto.clipOnly
+			await this.pricingRepo.save(r)
 		}
+		if (dto.clipAndNarrator != null && dto.clipAndNarrator >= 0) {
+			let r = await this.pricingRepo.findOne({ where: { id: 'clip_and_narrator' } })
+			if (!r) r = this.pricingRepo.create({ id: 'clip_and_narrator', words_per_frame: wordsPerFrame, price_per_frame_pesos: dto.clipAndNarrator })
+			else r.price_per_frame_pesos = dto.clipAndNarrator
+			await this.pricingRepo.save(r)
+		}
+		return this.getPricing()
 	}
 
 	private mapEntity(row: OrderEntity): Order {
