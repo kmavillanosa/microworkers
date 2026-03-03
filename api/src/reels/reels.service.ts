@@ -32,6 +32,7 @@ import {
   VoiceEngine,
 } from './reels.types';
 import { ReelJobEntity } from './reel-job.entity';
+import { VoicesService } from '../voices/voices.service';
 
 interface LocalVoice {
   id: string;
@@ -62,86 +63,6 @@ export interface FontItem {
   source: 'custom' | 'builtin';
 }
 
-const edgeNarratorPresets = [
-  // en-US
-  { id: 'en-US-AnaNeural', name: 'American (Ana Neural)', locale: 'en-US' },
-  {
-    id: 'en-US-AndrewMultilingualNeural',
-    name: 'American (Andrew Multilingual)',
-    locale: 'en-US',
-  },
-  {
-    id: 'en-US-AndrewNeural',
-    name: 'American (Andrew Neural)',
-    locale: 'en-US',
-  },
-  { id: 'en-US-AriaNeural', name: 'American (Aria Neural)', locale: 'en-US' },
-  {
-    id: 'en-US-AvaMultilingualNeural',
-    name: 'American (Ava Multilingual)',
-    locale: 'en-US',
-  },
-  { id: 'en-US-AvaNeural', name: 'American (Ava Neural)', locale: 'en-US' },
-  {
-    id: 'en-US-BrianMultilingualNeural',
-    name: 'American (Brian Multilingual)',
-    locale: 'en-US',
-  },
-  { id: 'en-US-BrianNeural', name: 'American (Brian Neural)', locale: 'en-US' },
-  {
-    id: 'en-US-ChristopherNeural',
-    name: 'American (Christopher Neural)',
-    locale: 'en-US',
-  },
-  { id: 'en-US-DavisNeural', name: 'American (Davis Neural)', locale: 'en-US' },
-  {
-    id: 'en-US-EmmaMultilingualNeural',
-    name: 'American (Emma Multilingual)',
-    locale: 'en-US',
-  },
-  { id: 'en-US-EmmaNeural', name: 'American (Emma Neural)', locale: 'en-US' },
-  { id: 'en-US-EricNeural', name: 'American (Eric Neural)', locale: 'en-US' },
-  { id: 'en-US-GuyNeural', name: 'American (Guy Neural)', locale: 'en-US' },
-  { id: 'en-US-JennyNeural', name: 'American (Jenny Neural)', locale: 'en-US' },
-  {
-    id: 'en-US-MichelleNeural',
-    name: 'American (Michelle Neural)',
-    locale: 'en-US',
-  },
-  { id: 'en-US-RogerNeural', name: 'American (Roger Neural)', locale: 'en-US' },
-  {
-    id: 'en-US-SteffanNeural',
-    name: 'American (Steffan Neural)',
-    locale: 'en-US',
-  },
-  { id: 'en-US-TonyNeural', name: 'American (Tony Neural)', locale: 'en-US' },
-  // en-GB
-  { id: 'en-GB-RyanNeural', name: 'British (Ryan Neural)', locale: 'en-GB' },
-  { id: 'en-GB-SoniaNeural', name: 'British (Sonia Neural)', locale: 'en-GB' },
-  // en-PH (Philippines English)
-  {
-    id: 'en-PH-JamesNeural',
-    name: 'Philippines English (James Neural)',
-    locale: 'en-PH',
-  },
-  {
-    id: 'en-PH-RosaNeural',
-    name: 'Philippines English (Rosa Neural)',
-    locale: 'en-PH',
-  },
-  // fil-PH (Filipino)
-  {
-    id: 'fil-PH-BlessicaNeural',
-    name: 'Filipino (Blessica Neural)',
-    locale: 'fil-PH',
-  },
-  {
-    id: 'fil-PH-AngeloNeural',
-    name: 'Filipino (Angelo Neural)',
-    locale: 'fil-PH',
-  },
-] as const;
-
 @Injectable()
 export class ReelsService {
   private readonly logger = new Logger(ReelsService.name);
@@ -166,6 +87,7 @@ export class ReelsService {
     @InjectRepository(ReelJobEntity)
     private readonly reelJobRepo: Repository<ReelJobEntity>,
     private readonly ordersService: OrdersService,
+    private readonly voicesService: VoicesService,
   ) {}
 
   async listVoices(): Promise<any> {
@@ -173,12 +95,23 @@ export class ReelsService {
     const pyttsx3 = await this.listPyttsx3Voices();
     const piperInstalled = await this.listInstalledPiperVoices();
     const installedSet = new Set(piperInstalled.map((voice) => voice.id));
+    const edgeRows = await this.voicesService.findEnabled();
+    const edge = edgeRows.map((v) => ({
+      id: v.id,
+      name: v.name,
+      locale: v.locale,
+      country: v.country,
+      language: v.language,
+      gender: v.gender,
+    }));
+    const defaultVoiceId =
+      edge.length > 0 ? edge[0].id : 'en-US-AndrewNeural';
 
     return {
       defaultEngine: 'edge' as const,
-      defaultVoiceId: 'en-US-GuyNeural',
+      defaultVoiceId,
       pyttsx3,
-      edge: edgeNarratorPresets,
+      edge,
       piper: {
         installed: piperInstalled,
         catalog: piperVoiceCatalog.map((voice) => ({
@@ -884,7 +817,7 @@ export class ReelsService {
       return ['--voice-engine', 'none'];
     }
     if (job.voiceEngine === 'edge') {
-      const selectedEdgeVoice = job.voiceName || edgeNarratorPresets[0].id;
+      const selectedEdgeVoice = job.voiceName || 'en-US-AndrewNeural';
       return [
         '--voice-engine',
         'edge',

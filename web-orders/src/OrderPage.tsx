@@ -42,12 +42,29 @@ function fontFamilyFor(fontId: string): string {
   if (lower === 'default') return 'system-ui, sans-serif'
   return `"${fontId}", sans-serif`
 }
+interface EdgeVoice {
+  id: string
+  name: string
+  locale?: string
+  country?: string
+  language?: string
+  gender?: string
+}
 interface VoicesRes {
   defaultEngine: string
   defaultVoiceId: string
-  edge: Array<{ id: string; name: string }>
+  edge: EdgeVoice[]
   pyttsx3: Array<{ id: string; name: string }>
   piper: { installed: Array<{ id: string; name: string }>; catalog: Array<{ id: string; name: string; installed: boolean }> }
+}
+
+/** Regional indicator flag from locale (e.g. en-US -> US -> 🇺🇸). */
+function localeToFlag(locale: string | undefined): string {
+  if (!locale) return ''
+  const part = locale.split('-').pop() ?? ''
+  const cc = part.toUpperCase()
+  if (cc.length !== 2) return ''
+  return String.fromCodePoint(...[...cc].map((c) => 0x1f1e6 - 65 + c.charCodeAt(0)))
 }
 
 /** Split script into frames; each frame has up to wordsPerFrame words. */
@@ -217,7 +234,23 @@ export default function OrderPage() {
 
   const [fonts, setFonts] = useState<FontItem[]>([])
   const [clips, setClips] = useState<ClipItem[]>([])
-  const [voices, setVoices] = useState<Array<{ id: string; name: string; engine: string }>>([])
+  type VoiceOption = { id: string; name: string; engine: string; locale?: string; country?: string; language?: string; gender?: string }
+  const [voices, setVoices] = useState<VoiceOption[]>([])
+  const [voiceSearchOpen, setVoiceSearchOpen] = useState(false)
+  const [voiceSearchQuery, setVoiceSearchQuery] = useState('')
+  const voiceSearchInputRef = useRef<HTMLInputElement>(null)
+  const voicePickerRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!voiceSearchOpen) return
+    function handleClickOutside(e: MouseEvent) {
+      if (voicePickerRef.current && !voicePickerRef.current.contains(e.target as Node)) {
+        setVoiceSearchOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [voiceSearchOpen])
   const [pricing, setPricing] = useState<{
     wordsPerFrame: number
     pricePerFramePesos: number
@@ -290,6 +323,7 @@ export default function OrderPage() {
   const canPrev = safeFrameIndex > 0
   const canNext = safeFrameIndex < previewFrames.length - 1
   const reelPricePesos = previewFrames.length * pricePerFramePesos
+  const canPayWithQr = reelPricePesos >= 20
   /** Prefer client-side duration/words (no server); fall back to API transcript data. */
   const effectiveDurationSeconds = clipDurationSeconds ?? clipTranscript?.durationSeconds ?? null
   const effectiveMaxWords = clipMaxWords ?? clipTranscript?.maxWordsForNarration ?? null
@@ -326,15 +360,29 @@ export default function OrderPage() {
       }
       const typedVoiceData = voiceData as VoicesRes | null
       if (typedVoiceData) {
-        const list: Array<{ id: string; name: string; engine: string }> = []
+        const list: VoiceOption[] = []
         if (typedVoiceData.edge?.length) {
-          typedVoiceData.edge.forEach((v) => list.push({ id: v.id, name: v.name, engine: 'edge' }))
+          typedVoiceData.edge.forEach((v) =>
+            list.push({
+              id: v.id,
+              name: v.name,
+              engine: 'edge',
+              locale: v.locale,
+              country: v.country,
+              language: v.language,
+              gender: v.gender,
+            })
+          )
         }
         if (typedVoiceData.piper?.installed?.length) {
-          typedVoiceData.piper.installed.forEach((v) => list.push({ id: v.id, name: v.name, engine: 'piper' }))
+          typedVoiceData.piper.installed.forEach((v) =>
+            list.push({ id: v.id, name: v.name, engine: 'piper' })
+          )
         }
         if (typedVoiceData.pyttsx3?.length) {
-          typedVoiceData.pyttsx3.forEach((v) => list.push({ id: v.id, name: v.name, engine: 'pyttsx3' }))
+          typedVoiceData.pyttsx3.forEach((v) =>
+            list.push({ id: v.id, name: v.name, engine: 'pyttsx3' })
+          )
         }
         setVoices(list)
         if (typedVoiceData.defaultVoiceId && !voiceName) {
@@ -411,6 +459,35 @@ export default function OrderPage() {
     e.preventDefault()
     const amountPesos = validateAndGetAmount()
     if (amountPesos == null) return
+    const selectedVoice = voices.find((v) => v.engine === voiceEngine && v.id === voiceName)
+    const scriptWords = wordCount(effectiveScript || script)
+    const videoLabel = clipName
+      ? (uploadedClipUrl ? 'Your uploaded video' : clipName)
+      : 'No video (captions only)'
+    const audioMode = !clipName
+      ? 'Narrator only (no clip audio)'
+      : useClipAudioWithNarrator
+        ? 'Clip audio + narrator'
+        : useClipAudio
+          ? 'Clip audio only'
+          : 'Narrator only'
+    const summaryLines = [
+      'Please review your order before paying:',
+      '',
+      'Payment method: Continue to payment (checkout page)',
+      `Total: ₱${amountPesos.toLocaleString()}`,
+      `Frames: ${previewFrames.length} × ₱${pricePerFramePesos}`,
+      `Script words: ${scriptWords}`,
+      `Video: ${videoLabel}`,
+      `Narrator: ${selectedVoice ? `${selectedVoice.name} (${selectedVoice.engine})` : `${voiceEngine} / ${voiceName}`}`,
+      `Audio mode: ${audioMode}`,
+      `Name: ${customerName.trim() || '—'}`,
+      `Email: ${customerEmail.trim() || '—'}`,
+      `Address: ${deliveryAddress.trim() || '—'}`,
+      '',
+      'Do you want to proceed to payment?',
+    ]
+    if (!window.confirm(summaryLines.join('\n'))) return
     setSubmitting(true)
     setError('')
     try {
@@ -484,6 +561,35 @@ export default function OrderPage() {
       setError('QR payment requires at least ₱20. Use "Continue to payment" for smaller amounts.')
       return
     }
+    const selectedVoice = voices.find((v) => v.engine === voiceEngine && v.id === voiceName)
+    const scriptWords = wordCount(effectiveScript || script)
+    const videoLabel = clipName
+      ? (uploadedClipUrl ? 'Your uploaded video' : clipName)
+      : 'No video (captions only)'
+    const audioMode = !clipName
+      ? 'Narrator only (no clip audio)'
+      : useClipAudioWithNarrator
+        ? 'Clip audio + narrator'
+        : useClipAudio
+          ? 'Clip audio only'
+          : 'Narrator only'
+    const summaryLines = [
+      'Please review your order before paying:',
+      '',
+      'Payment method: Pay with QR (GCash / Maya / bank app)',
+      `Total: ₱${amountPesos.toLocaleString()}`,
+      `Frames: ${previewFrames.length} × ₱${pricePerFramePesos}`,
+      `Script words: ${scriptWords}`,
+      `Video: ${videoLabel}`,
+      `Narrator: ${selectedVoice ? `${selectedVoice.name} (${selectedVoice.engine})` : `${voiceEngine} / ${voiceName}`}`,
+      `Audio mode: ${audioMode}`,
+      `Name: ${customerName.trim() || '—'}`,
+      `Email: ${customerEmail.trim() || '—'}`,
+      `Address: ${deliveryAddress.trim() || '—'}`,
+      '',
+      'Do you want to proceed and generate a QR code for payment?',
+    ]
+    if (!window.confirm(summaryLines.join('\n'))) return
     setSubmitting(true)
     setError('')
     try {
@@ -1066,7 +1172,7 @@ export default function OrderPage() {
                           className={`script-allowed-words${wordCount(script) > effectiveMaxWords ? ' script-over-limit' : ''}`}
                           aria-live="polite"
                         >
-                          Max words for this video length: <strong>{effectiveMaxWords}</strong>
+                          Suggested word length for this video: <strong>{effectiveMaxWords}</strong>
                           {script.trim().length > 0 && (
                             <> — {wordCount(script)} / {effectiveMaxWords} words</>
                           )}
@@ -1134,23 +1240,139 @@ export default function OrderPage() {
                 <section className="order-form-step" aria-labelledby="order-step-voice-heading">
                   <h2 id="order-step-voice-heading" className="order-form-step-title">Voice</h2>
                   <p className="order-form-step-intro">Narrator voice (or video sound only above).</p>
-                  <div className="field">
+                  <div className="field" ref={voicePickerRef}>
                     <label className="label" htmlFor="order-voice">Narrator voice</label>
-                    <select
-                      id="order-voice"
-                      value={voiceEngine + '::' + voiceName}
-                      onChange={(e) => {
-                        const v = e.target.value
-                        const [eng, name] = v.split('::')
-                        setVoiceEngine(eng)
-                        setVoiceName(name)
+                    {(() => {
+                      const selectedVoice = voices.find((v) => v.engine === voiceEngine && v.id === voiceName)
+                      const displayValue = voiceSearchOpen
+                        ? voiceSearchQuery
+                        : selectedVoice
+                          ? [localeToFlag(selectedVoice.locale), selectedVoice.name, selectedVoice.country, selectedVoice.gender].filter(Boolean).join(' ')
+                          : voiceName || 'Select voice…'
+                      return (
+                    <div
+                      className="order-form-control order-voice-picker"
+                      style={{
+                        position: 'relative',
+                        minHeight: '2.5rem',
+                        display: 'flex',
+                        alignItems: 'center',
+                        border: '1px solid var(--color-border, #ccc)',
+                        borderRadius: '6px',
+                        background: 'var(--input-bg, #fff)',
                       }}
-                      required
                     >
-                      {voices.map((v) => (
-                        <option key={v.engine + v.id} value={v.engine + '::' + v.id}>{v.name} ({v.engine})</option>
-                      ))}
-                    </select>
+                      <input
+                        id="order-voice"
+                        type="text"
+                        role="combobox"
+                        aria-expanded={voiceSearchOpen}
+                        aria-autocomplete="list"
+                        aria-controls="order-voice-list"
+                        aria-label="Narrator voice (search by name, country, or language)"
+                        value={displayValue}
+                        onChange={(e) => {
+                          setVoiceSearchQuery(e.target.value)
+                          setVoiceSearchOpen(true)
+                        }}
+                        onFocus={() => setVoiceSearchOpen(true)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Escape') {
+                            setVoiceSearchOpen(false)
+                            setVoiceSearchQuery('')
+                            voiceSearchInputRef.current?.blur()
+                          }
+                        }}
+                        ref={voiceSearchInputRef}
+                        required={!voiceName}
+                        style={{
+                          flex: 1,
+                          minWidth: 0,
+                          padding: '0.5rem 0.75rem',
+                          border: 'none',
+                          background: 'transparent',
+                          fontSize: 'inherit',
+                        }}
+                      />
+                      <ul
+                        id="order-voice-list"
+                        role="listbox"
+                        style={{
+                          display: voiceSearchOpen ? 'block' : 'none',
+                          position: 'absolute',
+                          top: '100%',
+                          left: 0,
+                          right: 0,
+                          margin: 0,
+                          marginTop: 2,
+                          padding: 0,
+                          listStyle: 'none',
+                          maxHeight: '16rem',
+                          overflowY: 'auto',
+                          border: '1px solid var(--color-border, #ccc)',
+                          borderRadius: '6px',
+                          background: 'var(--input-bg, #fff)',
+                          boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                          zIndex: 10,
+                        }}
+                      >
+                        {(voiceSearchQuery.trim()
+                          ? voices.filter((v) => {
+                              const q = voiceSearchQuery.trim().toLowerCase()
+                              return (
+                                v.name.toLowerCase().includes(q) ||
+                                v.id.toLowerCase().includes(q) ||
+                                (v.country ?? '').toLowerCase().includes(q) ||
+                                (v.language ?? '').toLowerCase().includes(q)
+                              )
+                            })
+                          : voices
+                        ).map((v) => {
+                          const selected = v.engine === voiceEngine && v.id === voiceName
+                          return (
+                            <li
+                              key={v.engine + v.id}
+                              role="option"
+                              aria-selected={selected}
+                              style={{
+                                padding: '0.5rem 0.75rem',
+                                cursor: 'pointer',
+                                borderBottom: '1px solid var(--color-border, #eee)',
+                                background: selected ? 'var(--color-highlight-bg, #e8f4fc)' : undefined,
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '0.5rem',
+                                flexWrap: 'wrap',
+                              }}
+                              onClick={() => {
+                                setVoiceEngine(v.engine)
+                                setVoiceName(v.id)
+                                setVoiceSearchQuery('')
+                                setVoiceSearchOpen(false)
+                                voiceSearchInputRef.current?.blur()
+                              }}
+                            >
+                              <span aria-hidden style={{ fontSize: '1.2em' }}>{localeToFlag(v.locale)}</span>
+                              <strong>{v.name}</strong>
+                              {v.country != null && v.country !== '' && (
+                                <span style={{ color: 'var(--color-muted, #666)' }}>{v.country}</span>
+                              )}
+                              {v.language != null && v.language !== '' && (
+                                <span style={{ color: 'var(--color-muted, #666)' }}>{v.language}</span>
+                              )}
+                              {v.gender != null && v.gender !== '' && (
+                                <span style={{ color: 'var(--color-muted, #666)', textTransform: 'capitalize' }}>{v.gender}</span>
+                              )}
+                              {v.engine !== 'edge' && (
+                                <span style={{ fontSize: '0.85em', color: 'var(--color-muted, #666)' }}>({v.engine})</span>
+                              )}
+                            </li>
+                          )
+                        })}
+                      </ul>
+                    </div>
+                      )
+                    })()}
                   </div>
                 </section>
 
@@ -1202,14 +1424,16 @@ export default function OrderPage() {
                     >
                       {submitting ? 'Redirecting…' : 'Continue to payment'}
                     </button>
-                    <button
-                      type="button"
-                      className="btn btn-secondary order-form-submit-btn"
-                      disabled={submitting}
-                      onClick={handlePayWithQr}
-                    >
-                      Pay with QR
-                    </button>
+                    {canPayWithQr && (
+                      <button
+                        type="button"
+                        className="btn btn-secondary order-form-submit-btn"
+                        disabled={submitting}
+                        onClick={handlePayWithQr}
+                      >
+                        Pay with QR
+                      </button>
+                    )}
                   </div>
                   <p className="order-form-submit-hint">
                     Continue to payment opens the secure checkout page. Pay with QR shows a code to scan (GCash, Maya, bank app; min ₱20).

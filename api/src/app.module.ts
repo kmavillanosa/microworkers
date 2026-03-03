@@ -43,6 +43,8 @@ import { SettingsService } from './settings/settings.service';
 import { ReelJobEntity } from './reels/reel-job.entity';
 import { WorkerReelJobsController } from './worker/worker-reel-jobs.controller';
 import { SlackService } from './slack/slack.service';
+import { VoiceEntity } from './voices/voice.entity';
+import { VoicesService } from './voices/voices.service';
 
 @Module({
   imports: [
@@ -61,6 +63,7 @@ import { SlackService } from './slack/slack.service';
       ClipEntity,
       AppSettingEntity,
       ReelJobEntity,
+      VoiceEntity,
     ]),
     ScheduleModule.forRoot(),
     ServeStaticModule.forRoot(
@@ -83,6 +86,6 @@ import { SlackService } from './slack/slack.service';
     ),
   ],
   controllers: [AccountsController, ReelsController, ClipsController, OrderClipsController, YoutubeController, FacebookController, CaptionsController, PipelineController, OrdersController, FontsController, ImageCacheController, PaymongoWebhookController, SettingsController, WorkerReelJobsController],
-  providers: [AccountsService, ReelsService, ClipsService, YoutubeService, FacebookService, CaptionsService, PipelineService, OrdersService, FontsService, ImageCacheService, PaymongoService, SettingsService, SlackService],
+  providers: [AccountsService, ReelsService, ClipsService, YoutubeService, FacebookService, CaptionsService, PipelineService, OrdersService, FontsService, ImageCacheService, PaymongoService, SettingsService, SlackService, VoicesService],
 })
 export class AppModule {}

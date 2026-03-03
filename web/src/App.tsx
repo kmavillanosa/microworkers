@@ -718,8 +718,11 @@ function App() {
 
   const navigate = useNavigate();
   const [settingsTab, setSettingsTab] = useState<
-    "accounts" | "niches" | "pipelines" | "fonts" | "clips" | "payment" | "pricing" | "danger"
+    "accounts" | "niches" | "pipelines" | "fonts" | "clips" | "payment" | "pricing" | "voices" | "danger"
   >("accounts");
+  type SettingsVoice = { id: string; name: string; locale: string; country: string; language: string; gender: string; enabled: boolean };
+  const [settingsVoices, setSettingsVoices] = useState<SettingsVoice[]>([]);
+  const [settingsVoicesTogglingId, setSettingsVoicesTogglingId] = useState<string | null>(null);
   const [paymentMethodOptions, setPaymentMethodOptions] = useState<
     Array<{ id: string; label: string }>
   >([]);
@@ -1559,6 +1562,42 @@ function App() {
         .catch(() => setPaymentMethodsMessage("Failed to load payment methods."));
     }
   }, [settingsTab, apiBaseUrl]);
+
+  useEffect(() => {
+    if (settingsTab === "voices") {
+      fetch(`${apiBaseUrl}/api/settings/voices`)
+        .then((r) => (r.ok ? r.json() : []))
+        .then((data: SettingsVoice[]) => setSettingsVoices(Array.isArray(data) ? data : []))
+        .catch(() => setSettingsVoices([]));
+    }
+  }, [settingsTab, apiBaseUrl]);
+
+  async function handleToggleVoiceEnabled(voiceId: string, enabled: boolean) {
+    setSettingsVoicesTogglingId(voiceId);
+    try {
+      const res = await fetch(`${apiBaseUrl}/api/settings/voices/${encodeURIComponent(voiceId)}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ enabled }),
+      });
+      if (res.ok) {
+        setSettingsVoices((prev) =>
+          prev.map((v) => (v.id === voiceId ? { ...v, enabled } : v))
+        );
+      }
+    } finally {
+      setSettingsVoicesTogglingId(null);
+    }
+  }
+
+  function localeToFlag(locale: string): string {
+    const part = locale.split("-").pop() || "";
+    const cc = part.toUpperCase();
+    if (cc.length !== 2) return "";
+    return String.fromCodePoint(
+      ...[...cc].map((c) => 0x1f1e6 - 65 + c.charCodeAt(0))
+    );
+  }
 
   useEffect(() => {
     let isCancelled = false;
@@ -4805,6 +4844,13 @@ function App() {
                 </button>
                 <button
                   type="button"
+                  className={settingsTab === "voices" ? "active" : ""}
+                  onClick={() => setSettingsTab("voices")}
+                >
+                  Order voices
+                </button>
+                <button
+                  type="button"
                   className={settingsTab === "danger" ? "active" : ""}
                   onClick={() => setSettingsTab("danger")}
                 >
@@ -5777,6 +5823,56 @@ function App() {
                       >
                         {orderPricingSaving ? "Saving…" : "Save"}
                       </button>
+                    </div>
+                  </section>
+                )}
+
+                {settingsTab === "voices" && (
+                  <section className="panel output-panel">
+                    <h2>Order voices</h2>
+                    <p className="muted small">
+                      TTS voices shown in the web-orders app. Disable voices to hide them from the order form.
+                    </p>
+                    <div className="panel compact" style={{ marginTop: "var(--pad-sm)", overflowX: "auto" }}>
+                      <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 520 }}>
+                        <thead>
+                          <tr>
+                            <th style={{ textAlign: "left", padding: "0.5rem 0.75rem", borderBottom: "1px solid var(--color-border)" }}>Voice</th>
+                            <th style={{ textAlign: "left", padding: "0.5rem 0.75rem", borderBottom: "1px solid var(--color-border)" }}>Country</th>
+                            <th style={{ textAlign: "left", padding: "0.5rem 0.75rem", borderBottom: "1px solid var(--color-border)" }}>Language</th>
+                            <th style={{ textAlign: "left", padding: "0.5rem 0.75rem", borderBottom: "1px solid var(--color-border)" }}>Gender</th>
+                            <th style={{ textAlign: "center", padding: "0.5rem 0.75rem", borderBottom: "1px solid var(--color-border)" }}>Enabled</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {settingsVoices.map((v) => (
+                            <tr key={v.id}>
+                              <td style={{ padding: "0.5rem 0.75rem", borderBottom: "1px solid var(--color-border)" }}>
+                                <span style={{ marginRight: "0.5rem" }}>{localeToFlag(v.locale)}</span>
+                                <strong>{v.name}</strong>
+                                <span className="muted small" style={{ marginLeft: "0.35rem" }}>{v.id}</span>
+                              </td>
+                              <td style={{ padding: "0.5rem 0.75rem", borderBottom: "1px solid var(--color-border)" }}>{v.country}</td>
+                              <td style={{ padding: "0.5rem 0.75rem", borderBottom: "1px solid var(--color-border)" }}>{v.language}</td>
+                              <td style={{ padding: "0.5rem 0.75rem", borderBottom: "1px solid var(--color-border)" }}>{v.gender}</td>
+                              <td style={{ padding: "0.5rem 0.75rem", borderBottom: "1px solid var(--color-border)", textAlign: "center" }}>
+                                <label style={{ display: "inline-flex", alignItems: "center", gap: "0.35rem", cursor: "pointer" }}>
+                                  <input
+                                    type="checkbox"
+                                    checked={v.enabled}
+                                    disabled={settingsVoicesTogglingId === v.id}
+                                    onChange={() => handleToggleVoiceEnabled(v.id, !v.enabled)}
+                                  />
+                                  {v.enabled ? "Yes" : "No"}
+                                </label>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                      {settingsVoices.length === 0 && (
+                        <p className="muted small" style={{ padding: "1rem" }}>Loading voices…</p>
+                      )}
                     </div>
                   </section>
                 )}
