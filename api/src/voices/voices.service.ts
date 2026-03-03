@@ -34,14 +34,18 @@ export class VoicesService {
     await this.voiceRepo.save(rows)
   }
 
-  /** Set sample_text from VOICE_SEED so seed updates (e.g. translations) apply to existing rows. */
+  /** Set sample_text and sort_order from VOICE_SEED so seed updates apply to existing rows. */
   private async backfillSampleText(): Promise<void> {
-    const byId = new Map(VOICE_SEED.map((r) => [r.id, r.sample_text]))
+    const byId = new Map(
+      VOICE_SEED.map((r, i) => [r.id, { sample_text: r.sample_text, sort_order: i }]),
+    )
     const voices = await this.voiceRepo.find()
     const toSave = voices.filter((v) => byId.has(v.id))
     if (toSave.length === 0) return
     for (const v of toSave) {
-      v.sample_text = byId.get(v.id) ?? null
+      const entry = byId.get(v.id)!
+      v.sample_text = entry.sample_text
+      v.sort_order = entry.sort_order
     }
     await this.voiceRepo.save(toSave)
   }
