@@ -9,6 +9,7 @@ import {
   useLocation,
   useParams,
 } from "react-router-dom";
+import { cachedFetch, clearCacheForUrl } from "./cachedFetch";
 import "./App.css";
 
 // ---------------------------------------------------------------------------
@@ -1140,6 +1141,8 @@ function App() {
         method: "DELETE",
       });
       if (!res.ok) throw new Error("Delete failed");
+      clearCacheForUrl(`${apiBaseUrl}/api/orders`);
+      clearCacheForUrl(`${apiBaseUrl}/api/reels`);
       await Promise.all([loadOrders(), loadReels()]);
       setSelectedOrder((prev) => (prev?.id === orderId ? null : prev));
     } catch (e) {
@@ -1153,8 +1156,8 @@ function App() {
   async function loadOrders() {
     try {
       const [ordersRes, pricingRes] = await Promise.all([
-        fetch(`${apiBaseUrl}/api/orders`),
-        fetch(`${apiBaseUrl}/api/orders/pricing`),
+        cachedFetch(`${apiBaseUrl}/api/orders`, { ttl: 10000 }),
+        cachedFetch(`${apiBaseUrl}/api/orders/pricing`, { ttl: 30000 }),
       ]);
       if (ordersRes.ok) {
         const data = (await ordersRes.json()) as Order[];
@@ -1299,6 +1302,7 @@ function App() {
         }),
       });
       if (res.ok) {
+        clearCacheForUrl(`${apiBaseUrl}/api/orders/pricing`);
         const p = (await res.json()) as {
           wordsPerFrame: number;
           pricePerFramePesos: number;
@@ -1338,6 +1342,7 @@ function App() {
           progress: number;
           createdAt: string;
         };
+        clearCacheForUrl(`${apiBaseUrl}/api/reels/jobs`);
         setJobs((previous) => [
           {
             id: created.jobId,
@@ -1374,6 +1379,7 @@ function App() {
         body: JSON.stringify({ orderStatus }),
       });
       if (!res.ok) throw new Error("Failed to update status");
+      clearCacheForUrl(`${apiBaseUrl}/api/orders`);
       await loadOrders();
       setSelectedOrder((prev) =>
         prev?.id === orderId ? { ...prev, orderStatus } : prev,
@@ -1385,7 +1391,9 @@ function App() {
 
   async function loadActiveJobs() {
     try {
-      const res = await fetch(`${apiBaseUrl}/api/reels/jobs`);
+      const res = await cachedFetch(`${apiBaseUrl}/api/reels/jobs`, {
+        ttl: 3000,
+      });
       if (!res.ok) return;
       const data = (await res.json()) as ReelJob[];
       setJobs(Array.isArray(data) ? data : []);
@@ -1421,7 +1429,7 @@ function App() {
       if (!orderIdFromUrl) setSelectedOrder(null);
       return;
     }
-    fetch(`${apiBaseUrl}/api/orders/${orderIdFromUrl}`)
+    cachedFetch(`${apiBaseUrl}/api/orders/${orderIdFromUrl}`, { ttl: 10000 })
       .then((r) => (r.ok ? r.json() : null))
       .then((order: Order | null) => {
         if (!order) return;
@@ -1499,12 +1507,13 @@ function App() {
     }
   }, [reels, youtubeTitle]);
 
-  // Poll job status in real time when there are active jobs; refresh immediately when tab becomes visible so completion is detected and notification can fire
+  // Poll job status when there are active jobs; avoid spamming the API (every 5s). Refresh when tab becomes visible.
+  const JOB_POLL_INTERVAL_MS = 5000;
   useEffect(() => {
     if (!activeJobs.length) return;
     const poll = () => void refreshActiveJobs();
     poll();
-    const interval = window.setInterval(poll, 1500);
+    const interval = window.setInterval(poll, JOB_POLL_INTERVAL_MS);
     const onVisible = () => {
       if (document.visibilityState === "visible") poll();
     };
@@ -1553,7 +1562,9 @@ function App() {
   useEffect(() => {
     if (settingsTab === "payment") {
       setPaymentMethodsMessage("");
-      fetch(`${apiBaseUrl}/api/settings/payment-methods`)
+      cachedFetch(`${apiBaseUrl}/api/settings/payment-methods`, {
+        ttl: 60000,
+      })
         .then((r) => (r.ok ? r.json() : null))
         .then((data: { options?: Array<{ id: string; label: string }>; enabled?: string[] } | null) => {
           if (data?.options) setPaymentMethodOptions(data.options);
@@ -1565,7 +1576,7 @@ function App() {
 
   useEffect(() => {
     if (settingsTab === "voices") {
-      fetch(`${apiBaseUrl}/api/settings/voices`)
+      cachedFetch(`${apiBaseUrl}/api/settings/voices`, { ttl: 60000 })
         .then((r) => (r.ok ? r.json() : []))
         .then((data: SettingsVoice[]) => setSettingsVoices(Array.isArray(data) ? data : []))
         .catch(() => setSettingsVoices([]));
@@ -1581,6 +1592,7 @@ function App() {
         body: JSON.stringify({ enabled }),
       });
       if (res.ok) {
+        clearCacheForUrl(`${apiBaseUrl}/api/settings/voices`);
         setSettingsVoices((prev) =>
           prev.map((v) => (v.id === voiceId ? { ...v, enabled } : v))
         );
@@ -1694,7 +1706,9 @@ function App() {
 
   async function loadClips() {
     try {
-      const response = await fetch(`${apiBaseUrl}/api/clips`);
+      const response = await cachedFetch(`${apiBaseUrl}/api/clips`, {
+        ttl: 15000,
+      });
       if (!response.ok) return;
       const data = (await response.json()) as ClipItem[];
       setClips(Array.isArray(data) ? data : []);
@@ -1707,7 +1721,9 @@ function App() {
   }
 
   async function loadVoices() {
-    const response = await fetch(`${apiBaseUrl}/api/reels/voices`);
+    const response = await cachedFetch(`${apiBaseUrl}/api/reels/voices`, {
+      ttl: 30000,
+    });
     if (!response.ok) throw new Error("Failed to load voices");
     const data = (await response.json()) as VoicesResponse & {
       defaultVoiceId?: string;
@@ -1742,7 +1758,9 @@ function App() {
 
   async function loadFonts() {
     try {
-      const response = await fetch(`${apiBaseUrl}/api/reels/fonts`);
+      const response = await cachedFetch(`${apiBaseUrl}/api/reels/fonts`, {
+        ttl: 30000,
+      });
       if (!response.ok) return;
       const data = (await response.json()) as FontsResponse;
       const items = Array.isArray(data?.items) ? data.items : [];
@@ -1760,7 +1778,9 @@ function App() {
   }
 
   async function loadReels() {
-    const response = await fetch(`${apiBaseUrl}/api/reels`);
+    const response = await cachedFetch(`${apiBaseUrl}/api/reels`, {
+      ttl: 5000,
+    });
     if (!response.ok) throw new Error("Failed to load reels");
     const data: ReelItem[] = await response.json();
     setReels(data);
@@ -1768,7 +1788,9 @@ function App() {
 
   async function loadAllAccounts() {
     try {
-      const response = await fetch(`${apiBaseUrl}/api/accounts`);
+      const response = await cachedFetch(`${apiBaseUrl}/api/accounts`, {
+        ttl: 30000,
+      });
       if (!response.ok) throw new Error("Failed to load accounts");
       const data = (await response.json()) as SocialAccount[];
       setAllAccounts(data);
@@ -1779,7 +1801,9 @@ function App() {
 
   async function loadNiches() {
     try {
-      const res = await fetch(`${apiBaseUrl}/api/captions/niches`);
+      const res = await cachedFetch(`${apiBaseUrl}/api/captions/niches`, {
+        ttl: 30000,
+      });
       if (!res.ok) return;
       const data = (await res.json()) as NicheItem[];
       setNiches(data);
@@ -1797,7 +1821,9 @@ function App() {
 
   async function loadPipelines() {
     try {
-      const res = await fetch(`${apiBaseUrl}/api/pipeline`);
+      const res = await cachedFetch(`${apiBaseUrl}/api/pipeline`, {
+        ttl: 5000,
+      });
       if (!res.ok) return;
       const list = (await res.json()) as Pipeline[];
       setPipelines(list);
@@ -1806,7 +1832,10 @@ function App() {
       await Promise.all(
         list.map(async (p) => {
         try {
-            const sr = await fetch(`${apiBaseUrl}/api/pipeline/${p.id}/status`);
+            const sr = await cachedFetch(
+              `${apiBaseUrl}/api/pipeline/${p.id}/status`,
+              { ttl: 3000 },
+            );
           if (sr.ok) {
               const s = (await sr.json()) as Pipeline & { isRunning: boolean };
               if (s.isRunning) runningIds.add(p.id);
@@ -2013,6 +2042,8 @@ function App() {
         const err = (await res.json()) as { message?: string };
         throw new Error(err.message ?? "Upload failed");
       }
+      clearCacheForUrl(`${apiBaseUrl}/api/fonts`);
+      clearCacheForUrl(`${apiBaseUrl}/api/reels/fonts`);
       setFontUploadFile(null);
       await loadFonts();
       setFontMessage("Font uploaded.");
@@ -2031,6 +2062,8 @@ function App() {
         body: JSON.stringify({ name: editingFontName.trim() }),
       });
       if (!res.ok) throw new Error("Update failed");
+      clearCacheForUrl(`${apiBaseUrl}/api/fonts`);
+      clearCacheForUrl(`${apiBaseUrl}/api/reels/fonts`);
       setEditingFontId(null);
       setEditingFontName("");
       await loadFonts();
@@ -2047,6 +2080,8 @@ function App() {
         method: "DELETE",
       });
       if (!res.ok) throw new Error("Delete failed");
+      clearCacheForUrl(`${apiBaseUrl}/api/fonts`);
+      clearCacheForUrl(`${apiBaseUrl}/api/reels/fonts`);
       await loadFonts();
       setFontMessage("Font deleted.");
     } catch {
@@ -2055,14 +2090,16 @@ function App() {
   }
 
   async function loadGameClips() {
-    const res = await fetch(`${apiBaseUrl}/api/clips`);
+    const res = await cachedFetch(`${apiBaseUrl}/api/clips`, { ttl: 15000 });
     if (!res.ok) return;
     const data = (await res.json()) as ClipItem[];
     setGameClips(data);
   }
 
   async function loadOrderClips() {
-    const res = await fetch(`${apiBaseUrl}/api/order-clips`);
+    const res = await cachedFetch(`${apiBaseUrl}/api/order-clips`, {
+      ttl: 15000,
+    });
     if (!res.ok) return;
     const data = (await res.json()) as ClipItem[];
     setOrderClips(data);
@@ -2083,6 +2120,7 @@ function App() {
         body: formData,
       });
       if (!res.ok) throw new Error((await res.json())?.message ?? "Upload failed");
+      clearCacheForUrl(`${apiBaseUrl}/api/clips`);
       setGameClipUploadFile(null);
       await loadGameClips();
       await loadClips();
@@ -2107,6 +2145,7 @@ function App() {
         body: formData,
       });
       if (!res.ok) throw new Error((await res.json())?.message ?? "Upload failed");
+      clearCacheForUrl(`${apiBaseUrl}/api/order-clips`);
       setOrderClipUploadFile(null);
       await loadOrderClips();
       setClipMessage("Order clip uploaded.");
@@ -2985,7 +3024,10 @@ function App() {
     const nextJobs = await Promise.all(
       currentJobs.map(async (job) => {
         if (job.status === "completed" || job.status === "failed") return job;
-        const response = await fetch(`${apiBaseUrl}/api/reels/jobs/${job.id}`);
+        const response = await cachedFetch(
+          `${apiBaseUrl}/api/reels/jobs/${job.id}`,
+          { ttl: 4000 },
+        );
         if (!response.ok) {
           if (response.status === 404) {
             return {
@@ -3116,6 +3158,8 @@ function App() {
           status: ReelJob["status"];
           progress: number;
         };
+        clearCacheForUrl(`${apiBaseUrl}/api/reels/jobs`);
+        clearCacheForUrl(`${apiBaseUrl}/api/orders`);
         setJobs((previous) => [
           {
             id: created.jobId,
@@ -3184,6 +3228,8 @@ function App() {
         status: ReelJob["status"];
         progress: number;
       };
+      clearCacheForUrl(`${apiBaseUrl}/api/reels/jobs`);
+      clearCacheForUrl(`${apiBaseUrl}/api/reels`);
       setJobs((previous) => [
         {
           id: created.jobId,
@@ -5718,6 +5764,7 @@ function App() {
                             body: JSON.stringify({ enabled: paymentMethodsEnabled }),
                           });
                           if (res.ok) {
+                            clearCacheForUrl(`${apiBaseUrl}/api/settings/payment-methods`);
                             setPaymentMethodsMessage("Saved. Checkout will show the selected methods.");
                           } else {
                             setPaymentMethodsMessage("Failed to save.");
@@ -5933,6 +5980,8 @@ function App() {
                     method: "DELETE",
                   });
                   if (!res.ok) throw new Error("Delete failed");
+                  clearCacheForUrl(`${apiBaseUrl}/api/orders`);
+                  clearCacheForUrl(`${apiBaseUrl}/api/reels`);
                   await Promise.all([loadOrders(), loadReels()]);
                   setSelectedOrder((prev) => (prev?.id === id ? null : prev));
                   navigate("/orders");

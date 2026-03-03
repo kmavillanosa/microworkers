@@ -43,6 +43,18 @@ Ports are chosen to avoid conflicts with other services on the same host (e.g. b
 | web        | `./web/Dockerfile` | **5175** (local/dev) or **8082** (prod) → 80 | Vite build + nginx. Set `VITE_API_BASE_URL` to API URL (e.g. http://localhost:3010). |
 | web-orders | `./web-orders/Dockerfile` | **5176** (local/dev) or **8443** (deploy/prod) → 80 | Same as web. |
 
+## Reset after changing env or clearing data
+
+- **Containers only** (`down` then `up`): Env vars from `.env.local` and `api/.env.local` are read on each `up`, but **MySQL data** and **named volumes** are kept, and **frontend images** keep old build-time vars (e.g. `VITE_*`).
+- **Full reset (fresh DB + new env in frontends):**
+  1. Stop and remove containers **and volumes**:  
+     `docker compose -f docker-compose.local.yml --env-file .env.local --profile workers down -v`
+  2. Rebuild images that use build args (so new `VITE_*` etc. are baked in):  
+     `docker compose -f docker-compose.local.yml --env-file .env.local --profile workers build --no-cache web web-orders`
+  3. Start again:  
+     `docker compose -f docker-compose.local.yml --env-file .env.local --profile workers up -d`  
+  MySQL will re-run init; API and workers use runtime env from the updated env files.
+
 ## Build args (frontends)
 
 - **VITE_API_BASE_URL**  

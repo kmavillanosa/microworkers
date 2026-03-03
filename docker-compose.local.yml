@@ -78,8 +78,8 @@ services:
       context: ./web
       dockerfile: Dockerfile
       args:
-        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:3010}
-        VITE_API_VPS_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:3010}
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-https://localhost:3010}
+        VITE_API_VPS_BASE_URL: ${VITE_API_BASE_URL:-https://localhost:3010}
         VITE_APP_ENV: ${VITE_APP_ENV:-local}
     container_name: microworkers-web
     ports:
@@ -91,7 +91,7 @@ services:
       context: ./web-orders
       dockerfile: Dockerfile
       args:
-        VITE_API_BASE_URL: ${VITE_API_BASE_URL_WEB_ORDERS:-${VITE_API_BASE_URL:-http://localhost:3010}}
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL_WEB_ORDERS:-${VITE_API_BASE_URL:-https://localhost:3010}}
         VITE_PAYMONGO_ENABLED: ${VITE_PAYMONGO_ENABLED:-true}
         VITE_APP_ENV: ${VITE_APP_ENV:-local}
     container_name: microworkers-web-orders
@@ -128,8 +128,8 @@ services:
       dockerfile: workers/reels-generator/Dockerfile
     container_name: microworkers-reels-generator
     environment:
-      VPS_API_URL: ${VPS_API_URL:-http://localhost:3010}
-      API_BASE_URL: ${VPS_API_URL:-http://localhost:3010}
+      VPS_API_URL: ${VPS_API_URL:-https://localhost:3010}
+      API_BASE_URL: ${VPS_API_URL:-https://localhost:3010}
       REPO_ROOT: /data
       REELS_PYTHON_EXE: /usr/bin/python3
       REELS_PYTHON_VERBOSE: "1"

@@ -840,6 +840,8 @@ button { cursor: pointer; }
   margin-top: 0.25rem;
   width: auto;
   min-height: auto;
+  transform: scale(0.8);
+  transform-origin: top left;
 }
 .script-over-limit-checkbox span {
   line-height: 1.4;

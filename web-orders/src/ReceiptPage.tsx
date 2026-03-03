@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
 
-/** API base (no trailing slash). Empty = same origin (works with http and https when served from same host). */
-const API = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '')
+/** API base (no trailing slash). Empty = same origin (works with both http and https). */
+const API = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '') || 'http://localhost:3010'
 
 type OrderStatus = 'pending' | 'accepted' | 'declined' | 'processing' | 'ready_for_sending' | 'closed'
 
