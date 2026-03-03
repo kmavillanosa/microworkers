@@ -8,6 +8,7 @@ import type { UpdateOrderDto } from './dto/update-order.dto'
 import { OrderEntity } from './order.entity'
 import { OrderPricingEntity } from './order-pricing.entity'
 import { PendingCheckoutEntity } from './pending-checkout.entity'
+import { SlackService } from '../slack/slack.service'
 
 export type OrderStatus = 'pending' | 'accepted' | 'declined' | 'processing' | 'ready_for_sending' | 'closed'
 
@@ -53,6 +54,14 @@ export interface Order {
 	scriptStyle?: Record<string, unknown> | null
 }
 
+/** Split script into frame count (words / wordsPerFrame). */
+function frameCount(script: string, wordsPerFrame: number): number {
+	if (wordsPerFrame < 1) return 0
+	const words = script.trim().split(/\s+/).filter(Boolean)
+	if (words.length === 0) return 0
+	return Math.ceil(words.length / wordsPerFrame)
+}
+
 @Injectable()
 export class OrdersService {
 	constructor(
@@ -62,6 +71,7 @@ export class OrdersService {
 		private readonly pricingRepo: Repository<OrderPricingEntity>,
 		@InjectRepository(PendingCheckoutEntity)
 		private readonly pendingCheckoutRepo: Repository<PendingCheckoutEntity>,
+		private readonly slackService: SlackService,
 	) {}
 
 	async create(dto: CreateOrderDto, paymentSessionId?: string): Promise<Order> {
@@ -192,7 +202,9 @@ export class OrdersService {
 		order.payment_reference = paymentReference
 		order.payment_status = 'confirmed'
 		await this.ordersRepo.save(order)
-		return this.mapEntity(order)
+		const mapped = this.mapEntity(order)
+		void this.notifySlackIfConfigured(mapped)
+		return mapped
 	}
 
 	/** Mark order as paid when PayMongo webhook receives checkout_session.payment.paid. Stores transaction ref, optional descriptor, and payer info for receipt and backoffice. */
@@ -215,7 +227,9 @@ export class OrdersService {
 		if (payer?.customerEmail?.trim()) order.customer_email = payer.customerEmail.trim()
 		if (payer?.deliveryAddress !== undefined) order.delivery_address = payer.deliveryAddress?.trim() ?? ''
 		await this.ordersRepo.save(order)
-		return this.mapEntity(order)
+		const mapped = this.mapEntity(order)
+		void this.notifySlackIfConfigured(mapped)
+		return mapped
 	}
 
 	async updateStatus(id: string, orderStatus: OrderStatus): Promise<Order> {
@@ -372,6 +386,40 @@ export class OrdersService {
 			await this.pricingRepo.save(r)
 		}
 		return this.getPricing()
+	}
+
+	/** Compute amount (pesos) and human-readable order type for Slack. */
+	private async getOrderAmountAndType(order: Order): Promise<{ amountPesos: number; orderType: string }> {
+		const pricing = await this.getPricing()
+		const wordsPerFrame = pricing.wordsPerFrame
+		const frames = frameCount(order.script ?? '', wordsPerFrame)
+		const tiers = pricing.pricePerFramePesosByTier
+		const useClip = order.useClipAudio ?? false
+		const useClipNarrator = order.useClipAudioWithNarrator ?? false
+		const pricePerFrame =
+			useClipNarrator ? tiers.clipAndNarrator : useClip ? tiers.clipOnly : tiers.ttsOnly
+		const amountPesos = frames * pricePerFrame
+		const orderType = useClipNarrator ? 'Clip + narrator' : useClip ? 'Clip only' : 'TTS only'
+		return { amountPesos, orderType }
+	}
+
+	/** Send Slack notification when payment is confirmed; no-op if webhook not configured. */
+	private async notifySlackIfConfigured(order: Order): Promise<void> {
+		try {
+			const { amountPesos, orderType } = await this.getOrderAmountAndType(order)
+			const baseUrl = (process.env.WEB_ORDERS_BASE_URL ?? '').replace(/\/$/, '')
+			const receiptLink = baseUrl ? `${baseUrl}/receipt/${order.id}` : `/receipt/${order.id}`
+			await this.slackService.notifyOrder({
+				receiptLink,
+				customerName: order.customerName ?? '',
+				customerEmail: order.customerEmail ?? '',
+				amountPesos,
+				orderType,
+				orderId: order.id,
+			})
+		} catch {
+			// Don't fail payment confirmation if Slack fails
+		}
 	}
 
 	private mapEntity(row: OrderEntity): Order {

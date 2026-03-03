@@ -42,6 +42,7 @@ import { SettingsController } from './settings/settings.controller';
 import { SettingsService } from './settings/settings.service';
 import { ReelJobEntity } from './reels/reel-job.entity';
 import { WorkerReelJobsController } from './worker/worker-reel-jobs.controller';
+import { SlackService } from './slack/slack.service';
 
 @Module({
   imports: [
@@ -82,6 +83,6 @@ import { WorkerReelJobsController } from './worker/worker-reel-jobs.controller';
     ),
   ],
   controllers: [AccountsController, ReelsController, ClipsController, OrderClipsController, YoutubeController, FacebookController, CaptionsController, PipelineController, OrdersController, FontsController, ImageCacheController, PaymongoWebhookController, SettingsController, WorkerReelJobsController],
-  providers: [AccountsService, ReelsService, ClipsService, YoutubeService, FacebookService, CaptionsService, PipelineService, OrdersService, FontsService, ImageCacheService, PaymongoService, SettingsService],
+  providers: [AccountsService, ReelsService, ClipsService, YoutubeService, FacebookService, CaptionsService, PipelineService, OrdersService, FontsService, ImageCacheService, PaymongoService, SettingsService, SlackService],
 })
 export class AppModule {}
