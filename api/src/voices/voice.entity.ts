@@ -25,4 +25,7 @@ export class VoiceEntity {
 
   @Column({ type: 'int', default: 0 })
   sort_order: number
+
+  @Column({ type: 'varchar', length: 512, nullable: true })
+  sample_text: string | null
 }

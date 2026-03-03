@@ -16,6 +16,7 @@ import {
   stat,
   writeFile,
 } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
 import { extname, join } from 'node:path';
 import { In, Repository } from 'typeorm';
 import { paths } from '../paths';
@@ -103,6 +104,7 @@ export class ReelsService {
       country: v.country,
       language: v.language,
       gender: v.gender,
+      sample_text: v.sample_text ?? undefined,
     }));
     const defaultVoiceId =
       edge.length > 0 ? edge[0].id : 'en-US-AndrewNeural';
@@ -120,6 +122,65 @@ export class ReelsService {
         })),
       },
     };
+  }
+
+  /**
+   * Generate Edge TTS preview audio for a voice. Returns path to MP3 file (caller streams and deletes).
+   * Uses sample_text from DB if text not provided. Edge voices only.
+   */
+  async generateVoicePreview(
+    voiceId: string,
+    text?: string,
+  ): Promise<{ path: string; cleanup: () => Promise<void> } | null> {
+    const resolvedText =
+      (text?.trim()?.slice(0, 500)) ||
+      (await this.voicesService.getSampleText(voiceId));
+    if (!resolvedText) return null;
+    if (!(await this.fileExists(paths.pythonExe))) return null;
+    if (!(await this.fileExists(paths.voicePreviewScript))) return null;
+    const prefix = join(tmpdir(), `voice-preview-${randomUUID()}`);
+    const textPath = `${prefix}.txt`;
+    const outputPath = `${prefix}.mp3`;
+    const cleanup = async () => {
+      await rm(textPath, { force: true }).catch(() => {});
+      await rm(outputPath, { force: true }).catch(() => {});
+    };
+    try {
+      await writeFile(textPath, resolvedText, 'utf-8');
+    } catch {
+      await cleanup();
+      return null;
+    }
+    const code = await new Promise<number | null>((resolve) => {
+      const proc = spawn(
+        paths.pythonExe,
+        [paths.voicePreviewScript, voiceId, textPath, outputPath],
+        { cwd: paths.repoRoot, windowsHide: true },
+      );
+      const timer = setTimeout(() => {
+        proc.kill();
+        resolve(null);
+      }, 30_000);
+      proc.on('error', () => {
+        clearTimeout(timer);
+        resolve(1);
+      });
+      proc.on('exit', (c) => {
+        clearTimeout(timer);
+        resolve(c ?? 1);
+      });
+    });
+    if (code !== 0) {
+      await cleanup();
+      return null;
+    }
+    try {
+      await access(outputPath);
+    } catch {
+      await cleanup();
+      return null;
+    }
+    return { path: outputPath, cleanup };
   }
 
   async listFonts(): Promise<{ defaultFont: string; items: FontItem[] }> {

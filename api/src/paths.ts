@@ -33,4 +33,5 @@ export const paths = {
   pythonExe,
   transcribeScript: resolve(repoRoot, 'transcribe_clip.py'),
   generatorScript: resolve(repoRoot, 'reels_generator.py'),
+  voicePreviewScript: resolve(repoRoot, 'voice_preview.py'),
 };

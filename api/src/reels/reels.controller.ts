@@ -1,9 +1,20 @@
-import { Body, Controller, Get, Param, Patch, Post, Query } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  NotFoundException,
+  Param,
+  Patch,
+  Post,
+  Query,
+  StreamableFile,
+} from '@nestjs/common';
 import { CreateReelDto } from './dto/create-reel.dto';
 import { InstallPiperVoiceDto } from './dto/install-piper-voice.dto';
 import { MarkReelUploadedDto } from './dto/mark-reel-uploaded.dto';
 import { UpdateShowcaseDto } from './dto/update-showcase.dto';
 import { ReelsService } from './reels.service';
+import { readFile } from 'node:fs/promises';
 
 @Controller('api/reels')
 export class ReelsController {
@@ -72,6 +83,26 @@ export class ReelsController {
   @Get('voices')
   async listVoices() {
     return this.reelsService.listVoices();
+  }
+
+  @Get('voice-preview')
+  async voicePreview(
+    @Query('voiceId') voiceId: string,
+    @Query('text') text?: string,
+  ) {
+    const result = await this.reelsService.generateVoicePreview(
+      String(voiceId ?? '').trim(),
+      typeof text === 'string' ? text : undefined,
+    );
+    if (!result) {
+      throw new NotFoundException('Voice preview not available');
+    }
+    const buffer = await readFile(result.path);
+    await result.cleanup();
+    return new StreamableFile(buffer, {
+      type: 'audio/mpeg',
+      disposition: 'inline',
+    });
   }
 
   @Get('fonts')

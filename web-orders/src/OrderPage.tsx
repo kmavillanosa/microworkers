@@ -49,6 +49,7 @@ interface EdgeVoice {
   country?: string
   language?: string
   gender?: string
+  sample_text?: string
 }
 interface VoicesRes {
   defaultEngine: string
@@ -234,12 +235,14 @@ export default function OrderPage() {
 
   const [fonts, setFonts] = useState<FontItem[]>([])
   const [clips, setClips] = useState<ClipItem[]>([])
-  type VoiceOption = { id: string; name: string; engine: string; locale?: string; country?: string; language?: string; gender?: string }
+  type VoiceOption = { id: string; name: string; engine: string; locale?: string; country?: string; language?: string; gender?: string; sample_text?: string }
   const [voices, setVoices] = useState<VoiceOption[]>([])
   const [voiceSearchOpen, setVoiceSearchOpen] = useState(false)
   const [voiceSearchQuery, setVoiceSearchQuery] = useState('')
+  const [voicePreviewLoading, setVoicePreviewLoading] = useState(false)
   const voiceSearchInputRef = useRef<HTMLInputElement>(null)
   const voicePickerRef = useRef<HTMLDivElement>(null)
+  const voicePreviewAudioRef = useRef<HTMLAudioElement | null>(null)
 
   useEffect(() => {
     if (!voiceSearchOpen) return
@@ -371,6 +374,7 @@ export default function OrderPage() {
               country: v.country,
               language: v.language,
               gender: v.gender,
+              sample_text: v.sample_text,
             })
           )
         }
@@ -1374,6 +1378,47 @@ export default function OrderPage() {
                       )
                     })()}
                   </div>
+                  {voiceEngine === 'edge' && voiceName && (
+                    <div className="field" style={{ marginTop: '0.5rem' }}>
+                      <button
+                        type="button"
+                        className="order-form-control"
+                        disabled={voicePreviewLoading}
+                        onClick={async () => {
+                          if (voicePreviewAudioRef.current) {
+                            voicePreviewAudioRef.current.pause()
+                            voicePreviewAudioRef.current = null
+                          }
+                          setVoicePreviewLoading(true)
+                          try {
+                            const res = await fetch(
+                              `${API}/api/reels/voice-preview?voiceId=${encodeURIComponent(voiceName)}`
+                            )
+                            if (!res.ok) return
+                            const blob = await res.blob()
+                            const url = URL.createObjectURL(blob)
+                            const audio = new Audio(url)
+                            voicePreviewAudioRef.current = audio
+                            audio.onended = () => {
+                              URL.revokeObjectURL(url)
+                              voicePreviewAudioRef.current = null
+                              setVoicePreviewLoading(false)
+                            }
+                            audio.onerror = () => {
+                              URL.revokeObjectURL(url)
+                              voicePreviewAudioRef.current = null
+                              setVoicePreviewLoading(false)
+                            }
+                            await audio.play()
+                          } catch {
+                            setVoicePreviewLoading(false)
+                          }
+                        }}
+                      >
+                        {voicePreviewLoading ? 'Loading…' : 'Play sample'}
+                      </button>
+                    </div>
+                  )}
                 </section>
 
                 <section className="order-form-step" aria-labelledby="order-step-details-heading">
