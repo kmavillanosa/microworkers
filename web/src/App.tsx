@@ -952,14 +952,6 @@ function App() {
     [instagramAccounts],
   );
 
-  const activeJobs = useMemo(
-    () =>
-      jobs.filter(
-        (job) => job.status === "queued" || job.status === "processing",
-      ),
-    [jobs],
-  );
-
   /** Orders within the selected date range (for filtering and breakdown). */
   const ordersInDateRange = useMemo(() => {
     if (!ordersFilterDateStart || !ordersFilterDateEnd) return orders;
@@ -1455,23 +1447,6 @@ function App() {
       .catch(() => setSelectedOrder(null));
   }, [location.pathname, orderIdFromUrl]);
 
-  // Poll orders when viewing the orders section so new orders appear without refresh
-  const isOnOrdersSection =
-    location.pathname === "/orders" || location.pathname.startsWith("/orders/");
-  useEffect(() => {
-    if (!isOnOrdersSection) return;
-    const poll = () => void loadOrders();
-    const interval = window.setInterval(poll, 20000);
-    const onVisible = () => {
-      if (document.visibilityState === "visible") poll();
-    };
-    document.addEventListener("visibilitychange", onVisible);
-    return () => {
-      window.clearInterval(interval);
-      document.removeEventListener("visibilitychange", onVisible);
-    };
-  }, [isOnOrdersSection]);
-
   // Handle OAuth redirect callbacks
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -1506,23 +1481,6 @@ function App() {
       setYoutubeTitle(`Short ${currentLatestReel.folder}`);
     }
   }, [reels, youtubeTitle]);
-
-  // Poll job status when there are active jobs; avoid spamming the API (every 5s). Refresh when tab becomes visible.
-  const JOB_POLL_INTERVAL_MS = 5000;
-  useEffect(() => {
-    if (!activeJobs.length) return;
-    const poll = () => void refreshActiveJobs();
-    poll();
-    const interval = window.setInterval(poll, JOB_POLL_INTERVAL_MS);
-    const onVisible = () => {
-      if (document.visibilityState === "visible") poll();
-    };
-    document.addEventListener("visibilitychange", onVisible);
-    return () => {
-      window.clearInterval(interval);
-      document.removeEventListener("visibilitychange", onVisible);
-    };
-  }, [activeJobs.length]);
 
   // Auto-select first connected account when lists change
   useEffect(() => {
@@ -2483,6 +2441,8 @@ function App() {
         loadAllAccounts(),
         loadYoutubeStatus(),
         loadFacebookStatus(),
+        loadOrders(),
+        loadActiveJobs(),
       ]);
       setStatusMessage("Dashboard refreshed.");
     } catch {
@@ -3013,70 +2973,6 @@ function App() {
       setYoutubeMessage("Existing reels flagged as uploaded.");
     } catch {
       setYoutubeMessage("Unable to mark existing reels.");
-    }
-  }
-
-  async function refreshActiveJobs() {
-    const currentJobs = jobs;
-    const previousStatuses = new Map(
-      currentJobs.map((job) => [job.id, job.status] as const),
-    );
-    const nextJobs = await Promise.all(
-      currentJobs.map(async (job) => {
-        if (job.status === "completed" || job.status === "failed") return job;
-        const response = await cachedFetch(
-          `${apiBaseUrl}/api/reels/jobs/${job.id}`,
-          { ttl: 4000 },
-        );
-        if (!response.ok) {
-          if (response.status === 404) {
-            return {
-              ...job,
-              status: "failed" as const,
-              error:
-                "Job state was cleared (API restarted). Refresh reels list.",
-            };
-          }
-          return job;
-        }
-        return (await response.json()) as ReelJob;
-      }),
-    );
-    setJobs(nextJobs);
-    const hasNewCompleted = nextJobs.some((job) => {
-      const previousStatus = previousStatuses.get(job.id);
-      return job.status === "completed" && previousStatus !== "completed";
-    });
-    const hasNewFailed = nextJobs.some((job) => {
-      const previousStatus = previousStatuses.get(job.id);
-      return job.status === "failed" && previousStatus !== "failed";
-    });
-    if (hasNewCompleted) {
-      setStatusMessage("A reel finished successfully.");
-      await loadReels();
-      await loadOrders();
-      const completedJob = nextJobs.find(
-        (j) => j.status === "completed" && previousStatuses.get(j.id) !== "completed",
-      );
-      const completedOrderId = completedJob?.orderId;
-      if (completedOrderId) {
-        setProcessingOrders((prev) => {
-          const next = { ...prev };
-          delete next[completedOrderId];
-          return next;
-        });
-      }
-      navigate("/outputs");
-      sendNotification(
-        "Reel ready 🎬",
-        "Generation and upload are done. Open Outputs to preview or share.",
-      );
-    }
-    if (hasNewFailed) {
-      sendNotification(
-        "Reel Failed ❌",
-        "Something went wrong during generation. Check the job status.",
-      );
     }
   }
 
