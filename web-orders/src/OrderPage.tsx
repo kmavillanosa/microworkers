@@ -244,6 +244,7 @@ export default function OrderPage() {
   const [orderId, setOrderId] = useState<string | null>(null)
   const isImpersonating = searchParams.has('impersonate')
   const orderIdFromQuery = searchParams.get('orderId')
+  const [impersonatedOriginalOrder, setImpersonatedOriginalOrder] = useState<OrderSnapshot | null>(null)
 
   const [fonts, setFonts] = useState<FontItem[]>([])
   const [clips, setClips] = useState<ClipItem[]>([])
@@ -758,6 +759,7 @@ export default function OrderPage() {
       .then((r) => (r.ok ? r.json() : null))
       .then((order: OrderSnapshot | null) => {
         if (!order) return
+        setImpersonatedOriginalOrder(isImpersonating ? order : null)
         setOrderId(order.id)
         setScript(order.script ?? '')
         setTitle(order.title ?? '')
@@ -805,7 +807,9 @@ export default function OrderPage() {
           setSearchParams({}, { replace: true })
         }
       })
-      .catch(() => { })
+      .catch(() => {
+        if (isImpersonating) setImpersonatedOriginalOrder(null)
+      })
   }, [isImpersonating, orderIdFromQuery, setSearchParams])
 
   // When we have an uploaded clip URL but no client duration yet (e.g. loaded from order), get duration from the video in the browser
@@ -940,6 +944,24 @@ export default function OrderPage() {
         ? 'Saving order…'
         : 'Redirecting to checkout…'
 
+  const orderedOutputSize = impersonatedOriginalOrder?.outputSize ?? 'phone'
+  const orderedOutputSizeLabel =
+    PREVIEW_SIZES.find((size) => size.id === orderedOutputSize)?.label ?? orderedOutputSize
+  const orderedAudioMode = !impersonatedOriginalOrder?.clipName
+    ? 'Narrator only'
+    : impersonatedOriginalOrder.useClipAudioWithNarrator
+      ? 'Clip audio + narrator'
+      : impersonatedOriginalOrder.useClipAudio
+        ? 'Clip audio only'
+        : 'Narrator only'
+  const orderedScriptPosition = impersonatedOriginalOrder?.scriptPosition ?? 'bottom'
+  const orderedAnimationMode = normalizeCaptionAnimationMode(
+    impersonatedOriginalOrder?.scriptStyle?.animationMode,
+  )
+  const orderedCaptionFontScale = impersonatedOriginalOrder?.scriptStyle?.fontScale ?? 1
+  const orderedCaptionBgOpacity = impersonatedOriginalOrder?.scriptStyle?.bgOpacity ?? 180
+  const orderedClipLabel = impersonatedOriginalOrder?.clipName ?? 'None — caption style only'
+
   const isTestMode = (import.meta.env.VITE_APP_ENV ?? '') !== 'production'
 
   if (paymongoQrImageUrl && paymongoAmountPesos != null) {
@@ -1023,6 +1045,57 @@ export default function OrderPage() {
           </button>
         </header>
         {error && <p style={{ color: '#dc2626', marginBottom: '1rem' }}>{error}</p>}
+
+        {isImpersonating && impersonatedOriginalOrder && (
+          <section className="order-form-step" aria-labelledby="impersonation-ordered-details-heading">
+            <h2 id="impersonation-ordered-details-heading" className="order-form-step-title">
+              Customer ordered details
+            </h2>
+            <p className="order-form-step-intro">
+              Original values saved by the customer on this order (before your edits).
+            </p>
+            <p className="order-form-submit-hint">
+              order_id: {impersonatedOriginalOrder.id}
+              <> · output_size: {orderedOutputSize} ({orderedOutputSizeLabel})</>
+              <> · audio_mode: {orderedAudioMode}</>
+              <> · narrator_voice: {impersonatedOriginalOrder.voiceName || '—'}</>
+            </p>
+            <p className="order-form-submit-hint">
+              voice_engine: {impersonatedOriginalOrder.voiceEngine || '—'}
+              <> · font: {impersonatedOriginalOrder.fontId || '—'}</>
+              <> · clip: {orderedClipLabel}</>
+              <> · script_position: {orderedScriptPosition}</>
+              <> · animation_mode: {orderedAnimationMode}</>
+            </p>
+            <p className="order-form-submit-hint">
+              caption_font_scale: {orderedCaptionFontScale}
+              <> · caption_bg_opacity: {orderedCaptionBgOpacity}</>
+              <> · customer_name: {impersonatedOriginalOrder.customerName?.trim() || '—'}</>
+              <> · customer_email: {impersonatedOriginalOrder.customerEmail?.trim() || '—'}</>
+            </p>
+            <p className="order-form-submit-hint">
+              delivery_address: {impersonatedOriginalOrder.deliveryAddress?.trim() || '—'}
+            </p>
+            <div className="field">
+              <label className="label" htmlFor="impersonation-original-title">Original title</label>
+              <input
+                id="impersonation-original-title"
+                type="text"
+                value={impersonatedOriginalOrder.title ?? ''}
+                readOnly
+              />
+            </div>
+            <div className="field">
+              <label className="label" htmlFor="impersonation-original-script">Original script</label>
+              <textarea
+                id="impersonation-original-script"
+                value={impersonatedOriginalOrder.script ?? ''}
+                rows={4}
+                readOnly
+              />
+            </div>
+          </section>
+        )}
 
         <>
           <style>{fonts.filter((f) => isCustomFontFile(f.id)).map((f) => `

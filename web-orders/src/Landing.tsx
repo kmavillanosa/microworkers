@@ -6,6 +6,10 @@ const API_BASE = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '')
 
 const LANDING_SHOWCASE_MAX = 6
 
+function BetaBadge() {
+  return <span className="landing-beta-badge">BETA</span>
+}
+
 export default function Landing() {
   const [showcaseItems, setShowcaseItems] = useState<ShowcaseItem[]>([])
   const [showcaseLoading, setShowcaseLoading] = useState(true)
@@ -24,13 +28,21 @@ export default function Landing() {
   return (
     <div className="landing-page">
       <header className="landing-hero">
-        <span className="landing-hero-badge">Captions & voiceover on demand</span>
+        <span className="landing-hero-badge">
+          <BetaBadge />
+          <span>We’re in beta testing</span>
+        </span>
         <h1 className="landing-hero-title">
-        One script. One click. One powerful reel.
+          One script. One click. One powerful reel.
         </h1>
         <p className="landing-hero-sub">
           Pick your style, voice, and format. We add captions, narration, and delivery in the size you need. No editing skills required.
         </p>
+        <div className="landing-hero-proof" role="list" aria-label="Benefits">
+          <span role="listitem">Fast turnaround</span>
+          <span role="listitem">AI captions + narration</span>
+          <span role="listitem">Phone, tablet, laptop, desktop</span>
+        </div>
         <div className="landing-hero-actions">
           <Link to="/order" className="landing-cta landing-cta-primary">
             Create your reel

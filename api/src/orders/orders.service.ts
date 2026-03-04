@@ -54,6 +54,7 @@ export interface Order {
   useClipAudioWithNarrator?: boolean;
   bankCode: string | null;
   paymentReference: string | null;
+  paymentSessionId: string | null;
   /** PayMongo statement_descriptor or other transaction descriptor. */
   paymentDescriptor: string | null;
   paymentStatus: 'pending' | 'confirmed';
@@ -585,6 +586,7 @@ export class OrdersService {
       useClipAudioWithNarrator: row.use_clip_audio_with_narrator ?? false,
       bankCode: row.bank_code,
       paymentReference: row.payment_reference,
+      paymentSessionId: row.payment_session_id,
       paymentDescriptor: row.payment_descriptor ?? null,
       paymentStatus: row.payment_status,
       orderStatus: (row.order_status ?? 'pending') as OrderStatus,

@@ -353,6 +353,13 @@ export function OrdersPage() {
                     const useClipAudio = orderUseClipAudio[order.id] ?? order.useClipAudio ?? false;
                     const useClipAudioWithNarrator =
                       orderUseClipAudioWithNarrator[order.id] ?? order.useClipAudioWithNarrator ?? false;
+                    const orderedAudioMode = order.useClipAudioWithNarrator
+                      ? "clip_and_narrator"
+                      : order.useClipAudio
+                        ? "clip_only"
+                        : "tts_only";
+                    const orderedScriptPosition = order.scriptPosition ?? "bottom";
+                    const orderedAnimationMode = order.scriptStyle?.animationMode ?? "normal";
                     const clipAudioBlocked =
                       Boolean(order.clipName) &&
                       (useClipAudio || useClipAudioWithNarrator) &&
@@ -406,12 +413,22 @@ export function OrdersPage() {
                             {order.paymentStatus === "confirmed"
                               ? orderPaymentLine(order)
                               : "Payment pending"}
+                            <> · payment_session_id: {order.paymentSessionId ?? "—"}</>
+                            <> · narrator_voice: {order.voiceName ?? "—"}</>
                             {order.clipName && (
                               <> · Transcript: {transcriptInfo?.status ?? "pending"}</>
                             )}
                             {orderReels.length > 0 && (
                               <> · {orderReels.length} video{orderReels.length !== 1 ? "s" : ""}</>
                             )}
+                          </p>
+                          <p className="orders-kanban-card-meta muted small">
+                            Order config: output_size: {order.outputSize ?? "phone"}
+                            <> · audio_mode: {orderedAudioMode}</>
+                            <> · font: {order.fontId ?? "—"}</>
+                            <> · clip: {order.clipName ?? "—"}</>
+                            <> · script_position: {orderedScriptPosition}</>
+                            <> · animation_mode: {orderedAnimationMode}</>
                           </p>
                           {order.clipName && (
                             <div
@@ -574,7 +591,11 @@ export function OrdersPage() {
                             type="button"
                             className="btn-secondary orders-kanban-btn"
                             onClick={() => {
-                              window.location.assign(impersonateOrderUrl(order.id));
+                              window.open(
+                                impersonateOrderUrl(order.id),
+                                "_blank",
+                                "noopener,noreferrer",
+                              );
                             }}
                           >
                             Impersonate

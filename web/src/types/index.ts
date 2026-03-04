@@ -96,6 +96,7 @@ export type Order = {
   useClipAudioWithNarrator?: boolean;
   bankCode: string | null;
   paymentReference: string | null;
+  paymentSessionId?: string | null;
   /** PayMongo statement_descriptor or transaction descriptor. */
   paymentDescriptor?: string | null;
   paymentStatus: "pending" | "confirmed";
