@@ -30,7 +30,7 @@ export default function Landing() {
       <header className="landing-hero">
         <span className="landing-hero-badge">
           <BetaBadge />
-          <span>We’re in beta testing</span>
+          <span>{" "}We are now live!</span>
         </span>
         <h1 className="landing-hero-title">
           One script. One click. One powerful reel.

@@ -1215,26 +1215,15 @@ export function SettingsPage() {
                 {paymentMethodsMessage}
               </p>
             ) : null}
-            <div
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                gap: "var(--pad-sm)",
-                marginTop: "var(--pad-md)",
-              }}
-            >
+            <div className="settings-payment-methods-list">
               {paymentMethodOptions.map((opt) => (
                 <label
                   key={opt.id}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "var(--gap-sm)",
-                    cursor: "pointer",
-                  }}
+                  className="settings-payment-method-row"
                 >
                   <input
                     type="checkbox"
+                    className="settings-payment-method-checkbox"
                     checked={paymentMethodsEnabled.includes(opt.id)}
                     onChange={(e) => {
                       if (e.target.checked) {
@@ -1249,7 +1238,9 @@ export function SettingsPage() {
                       }
                     }}
                   />
-                  <span>{opt.label}</span>
+                  <span className="settings-payment-method-label">
+                    {opt.label}
+                  </span>
                 </label>
               ))}
             </div>

@@ -2360,6 +2360,44 @@ input[type='file'] {
   max-width: 52rem;
 }
 
+.settings-payment-methods-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--pad-sm);
+  margin-top: var(--pad-md);
+}
+
+.settings-payment-method-row {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--gap-sm);
+  cursor: pointer;
+  padding: var(--pad-sm) var(--pad-md);
+  border: var(--border);
+  border-radius: var(--radius-md);
+  background: #fff;
+}
+
+.settings-payment-method-row:hover {
+  border-color: #c9d4ff;
+  background: #f8faff;
+}
+
+.settings-payment-method-checkbox {
+  width: 1rem !important;
+  height: 1rem;
+  margin: 0.125rem 0 0;
+  padding: 0;
+  flex-shrink: 0;
+  accent-color: #6b8aff;
+}
+
+.settings-payment-method-label {
+  display: block;
+  line-height: 1.35;
+  color: #1f1f1f;
+}
+
 /* ------------------------------------------------------------------ */
 /* Settings — account management                                        */
 /* ------------------------------------------------------------------ */
