@@ -76,26 +76,23 @@ function isOrderCompleted(order: Order): boolean {
 }
 
 /** Trigger a real download (fetch + blob) so the file downloads instead of opening in a new tab. */
-function triggerDownload(url: string, suggestedName: string) {
+async function triggerDownload(url: string, suggestedName: string): Promise<void> {
   const fullUrl = url.startsWith('http') ? url : `${API}${url}`
-  fetch(fullUrl)
-    .then((r) => {
-      if (!r.ok) throw new Error('Download failed')
-      return r.blob()
-    })
-    .then((blob) => {
-      const objUrl = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = objUrl
-      a.download = suggestedName
-      document.body.appendChild(a)
-      a.click()
-      document.body.removeChild(a)
-      URL.revokeObjectURL(objUrl)
-    })
-    .catch(() => {
-      window.open(fullUrl, '_blank', 'noopener,noreferrer')
-    })
+  try {
+    const response = await fetch(fullUrl)
+    if (!response.ok) throw new Error('Download failed')
+    const blob = await response.blob()
+    const objUrl = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = objUrl
+    a.download = suggestedName
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(objUrl)
+  } catch {
+    window.open(fullUrl, '_blank', 'noopener,noreferrer')
+  }
 }
 
 export default function ReceiptPage() {
@@ -104,6 +101,7 @@ export default function ReceiptPage() {
   const [reels, setReels] = useState<ReelItem[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [downloadingVideoId, setDownloadingVideoId] = useState<string | null>(null)
 
   useEffect(() => {
     if (!orderId) {
@@ -149,8 +147,19 @@ export default function ReceiptPage() {
   }
 
   function handleDownloadAndClose(url: string, suggestedName: string) {
-    triggerDownload(url, suggestedName)
+    void triggerDownload(url, suggestedName)
     void markOrderClosedOnDownload()
+  }
+
+  async function handleVideoDownloadAndClose(reelId: string, url: string, suggestedName: string) {
+    if (downloadingVideoId === reelId) return
+    setDownloadingVideoId(reelId)
+    void markOrderClosedOnDownload()
+    try {
+      await triggerDownload(url, suggestedName)
+    } finally {
+      setDownloadingVideoId((prev) => (prev === reelId ? null : prev))
+    }
   }
 
   if (loading) {
@@ -298,13 +307,20 @@ export default function ReceiptPage() {
                   <p className="receipt-download-reel-label">Reel {index + 1}</p>
                 )}
                 <div className="receipt-download-links">
-                  <button
-                    type="button"
-                    className="btn btn-secondary receipt-download-btn"
-                    onClick={() => handleDownloadAndClose(reel.videoUrl, `reel${reels.length > 1 ? `-${index + 1}` : ''}.mp4`)}
-                  >
-                    Download video
-                  </button>
+                  {(() => {
+                    const isDownloadingVideo = downloadingVideoId === reel.id
+                    return (
+                      <button
+                        type="button"
+                        className="btn btn-secondary receipt-download-btn"
+                        onClick={() => void handleVideoDownloadAndClose(reel.id, reel.videoUrl, `reel${reels.length > 1 ? `-${index + 1}` : ''}.mp4`)}
+                        disabled={isDownloadingVideo}
+                        aria-busy={isDownloadingVideo}
+                      >
+                        {isDownloadingVideo ? 'Downloading video…' : 'Download video'}
+                      </button>
+                    )
+                  })()}
                   <button
                     type="button"
                     className="btn btn-secondary receipt-download-btn"
