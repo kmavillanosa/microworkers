@@ -26,3 +26,4 @@
 - **Compose:** In `docker-compose.local.yml` under the **`workers`** profile. Set **VPS_API_URL** in `.env.local` (e.g. `VPS_API_URL=https://reelagad.com`).
 - **Run:** `docker compose -f docker-compose.local.yml --profile workers up -d` (with repo mounted), or on your host: `cd workers/reels-generator && VPS_API_URL=https://reelagad.com node worker.js`.
 - **"Poll error: fetch failed":** The worker cannot reach the API. Use **`VPS_API_URL=https://reelagad.com`** so requests go through your domain (nginx → frontend → API). Do not use `localhost:3010` from inside a container (localhost is the container, not the host).
+- **"Poll failed: 401" or "Claim failed: 401":** The API expects **WORKER_SECRET**. Set the same value in the worker env (and in the API env). If the API has no WORKER_SECRET, leave it unset in the worker.

@@ -19,7 +19,7 @@ import { runGenerator, outputDir } from './run-generator.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
-const API_BASE = process.env.VPS_API_URL || process.env.API_BASE_URL || 'http://localhost:3010'
+const API_BASE = process.env.VPS_API_URL || process.env.API_BASE_URL || 'https://reelagad.com'
 const WORKER_SECRET = process.env.WORKER_SECRET
 const POLL_MS = parseInt(process.env.POLL_MS || '15000', 10)
 const REPO_ROOT = process.env.REPO_ROOT || path.resolve(process.cwd(), '..')
@@ -132,6 +132,7 @@ async function main() {
   if (VERBOSE) console.log('Verbose logging: on')
 
   const pollUrl = `${API_BASE}/api/worker/reel-jobs?status=queued`
+  let pollErrorCount = 0
   while (true) {
     try {
       logVerbose('GET', pollUrl)
@@ -139,6 +140,9 @@ async function main() {
       if (!res.ok) {
         const body = await res.text()
         console.warn('Poll failed:', res.status, res.statusText, body ? body.slice(0, 200) : '')
+        if (res.status === 401 && !WORKER_SECRET) {
+          console.warn('  → API may require WORKER_SECRET. Set the same value in the worker env.')
+        }
         await new Promise((r) => setTimeout(r, POLL_MS))
         continue
       }
@@ -158,6 +162,9 @@ async function main() {
       if (!claimRes.ok) {
         const body = await claimRes.text()
         console.warn('Claim failed:', claimRes.status, body ? body.slice(0, 200) : '')
+        if (claimRes.status === 401 && !WORKER_SECRET) {
+          console.warn('  → Set WORKER_SECRET in the worker env to match the API.')
+        }
         await new Promise((r) => setTimeout(r, 2000))
         continue
       }
@@ -180,8 +187,15 @@ async function main() {
         }).catch(() => {})
       }
     } catch (err) {
+      pollErrorCount += 1
       console.warn('Poll error:', err?.message || err)
       console.warn('  (detail:', formatErr(err) + ')')
+      if (pollErrorCount === 1) {
+        console.warn(
+          '  → Ensure VPS_API_URL is reachable from this container (e.g. https://reelagad.com). Current:',
+          API_BASE,
+        )
+      }
       if (VERBOSE && err?.stack) console.warn(err.stack)
     }
     await new Promise((r) => setTimeout(r, POLL_MS))

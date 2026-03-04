@@ -47,6 +47,8 @@ services:
     environment:
       NODE_ENV: development
       PORT: 3000
+      SSL_CERT_PATH: ""
+      SSL_KEY_PATH: ""
       REPO_ROOT: /app/data
       REELS_PYTHON_EXE: /usr/bin/python3
       REELS_PYTHON_VERBOSE: "1"
@@ -123,7 +125,7 @@ services:
 
   # Polls VPS_API_URL for queued reel jobs, runs video generation locally, uploads result to same API.
   # Set VPS_API_URL in .env.local. Use https://reelagad.com when API is behind nginx (recommended);
-  # or https://api:3000 when running in same Docker network as api service.
+  # or http://api:3000 when running in same Docker network as api service.
   reels-generator:
     build:
       context: .

@@ -46,6 +46,10 @@
   padding: var(--pad-sm) var(--pad-md) 0;
   margin-bottom: var(--pad-md);
   flex-shrink: 0;
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  background: var(--ivory-bg, #fffef7);
 }
 
 .topbar-right {
@@ -142,6 +146,10 @@
   width: 100%;
   max-width: 100%;
   overflow: hidden;
+}
+
+.studio-page {
+  padding: var(--pad-md);
 }
 
 .studio-sidebar,
@@ -1303,6 +1311,27 @@ input[type='file'] {
   color: #9ca3af;
 }
 
+.orders-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--gap-sm);
+  align-items: center;
+  margin-bottom: var(--pad-md);
+}
+
+.orders-filters label {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.orders-filters select,
+.orders-filters input[type='text'],
+.orders-filters input[type='date'] {
+  padding: 0.35rem 0.6rem;
+  font-size: 0.85rem;
+}
+
 /* Orders Kanban - light theme */
 .orders-kanban {
   display: grid;
@@ -1392,6 +1421,12 @@ input[type='file'] {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
+.orders-kanban-card-body {
+  display: grid;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
 /* Card body – hierarchy */
 .orders-kanban-card-header {
   display: flex;
@@ -1433,6 +1468,11 @@ input[type='file'] {
 .orders-kanban-card-customer-delivery {
   font-size: 0.7rem;
 }
+
+.orders-kanban-card-customer-size {
+  font-size: 0.7rem;
+}
+
 .orders-kanban-card-summary {
   margin: 0.35rem 0 0;
   font-size: 0.75rem;
