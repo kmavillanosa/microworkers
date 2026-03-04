@@ -424,6 +424,49 @@ def compute_word_timings_for_chunk (
 	return word_timings
 
 
+def normalize_caption_animation_mode (value: str) -> str:
+	mode = (value or 'normal').strip().lower()
+	if mode in {'calming', 'normal', 'extreme'}:
+		return mode
+	return 'normal'
+
+
+def build_caption_animation_steps (
+	word_timings: list[tuple[float, float]],
+	animation_mode: str,
+) -> list[tuple[int, float, float, float, int]]:
+	"""Return caption animation steps as tuples:
+	(highlight_count, start, end, scale_multiplier, y_offset_px)."""
+	if not word_timings:
+		return []
+
+	mode = normalize_caption_animation_mode(animation_mode)
+	steps: list[tuple[int, float, float, float, int]] = []
+
+	if mode == 'calming':
+		index = 0
+		while index < len(word_timings):
+			end_index = min(len(word_timings) - 1, index + 1)
+			step_start = word_timings[index][0]
+			step_end = max(step_start + 0.05, word_timings[end_index][1])
+			steps.append((end_index + 1, step_start, step_end, 0.98, 0))
+			index += 2
+		return steps
+
+	if mode == 'extreme':
+		for idx, (word_start, word_end) in enumerate(word_timings, start=1):
+			safe_end = max(word_start + 0.05, word_end)
+			punch_end = word_start + (safe_end - word_start) * 0.45
+			punch_end = max(word_start + 0.02, punch_end)
+			steps.append((idx, word_start, punch_end, 1.12, -6))
+			steps.append((idx, punch_end, safe_end, 1.0, 0))
+		return steps
+
+	for idx, (word_start, word_end) in enumerate(word_timings, start=1):
+		steps.append((idx, word_start, max(word_start + 0.05, word_end), 1.0, 0))
+	return steps
+
+
 def resolve_font_path (font_name: str, bold: bool) -> Optional[str]:
 	cache_key = f'{font_name.lower().strip()}::{"bold" if bold else "regular"}'
 	if cache_key in _FONT_CACHE:
@@ -1081,6 +1124,7 @@ def build_reel (
 	caption_position: str = 'bottom',
 	caption_font_scale: float = 1.0,
 	caption_bg_opacity: int = 180,
+	caption_animation: str = 'normal',
 ) -> tuple[Path, Path]:
 	temp_dir = output_path.parent / '.tmp'
 	temp_dir.mkdir(parents=True, exist_ok=True)
@@ -1189,6 +1233,7 @@ def build_reel (
 
 	layers = [background_clip]
 	caption_cache: dict[tuple, tuple[np.ndarray, tuple[int, int]]] = {}
+	caption_animation_mode = normalize_caption_animation_mode(caption_animation)
 
 	for chunk, (start, end) in zip(chunks, timings):
 		word_timings = compute_word_timings_for_chunk(
@@ -1198,8 +1243,19 @@ def build_reel (
 		)
 		if not word_timings:
 			continue
-		for highlight_count, (word_start, word_end) in enumerate(word_timings, start=1):
-			cache_key = (chunk, highlight_count, caption_position, caption_font_scale, caption_bg_opacity)
+		animation_steps = build_caption_animation_steps(
+			word_timings=word_timings,
+			animation_mode=caption_animation_mode,
+		)
+		for highlight_count, word_start, word_end, scale_multiplier, y_offset in animation_steps:
+			effective_font_scale = caption_font_scale * scale_multiplier
+			cache_key = (
+				chunk,
+				highlight_count,
+				caption_position,
+				round(effective_font_scale, 4),
+				caption_bg_opacity,
+			)
 			if cache_key not in caption_cache:
 				caption_cache[cache_key] = create_caption_image(
 					text=chunk,
@@ -1209,14 +1265,15 @@ def build_reel (
 					highlight_words=highlight_count,
 					caption_position=caption_position,
 					bg_opacity=caption_bg_opacity,
-					font_scale=caption_font_scale,
+					font_scale=effective_font_scale,
 				)
 			image, position = caption_cache[cache_key]
+			position_x, position_y = position
 			caption_clip = (
 				ImageClip(image)
 				.with_start(word_start)
 				.with_duration(max(0.05, word_end - word_start))
-				.with_position(position)
+				.with_position((position_x, position_y + y_offset))
 			)
 			layers.append(caption_clip)
 
@@ -1446,6 +1503,13 @@ def create_arg_parser () -> argparse.ArgumentParser:
 		default=180,
 		help='Caption background opacity 0-255 (default 180).',
 	)
+	parser.add_argument(
+		'--caption-animation',
+		type=str,
+		default='normal',
+		choices=['calming', 'normal', 'extreme'],
+		help='Caption animation intensity: calming, normal, or extreme.',
+	)
 	return parser
 
 
@@ -1513,6 +1577,7 @@ def main () -> None:
 		caption_position=getattr(args, 'caption_position', 'bottom'),
 		caption_font_scale=getattr(args, 'caption_font_scale', 1.0),
 		caption_bg_opacity=getattr(args, 'caption_bg_opacity', 180),
+		caption_animation=getattr(args, 'caption_animation', 'normal'),
 	)
 	print(f'\nOutput folder : {output_path.parent}')
 	print(f'  reel        : {output_path.name}')

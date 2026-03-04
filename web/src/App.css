@@ -450,6 +450,28 @@
   border-radius: 999px;
   padding: 2px 6px;
   font-weight: 700;
+  transform-origin: center center;
+}
+.studio-preview-inner .render-preview-caption-anim-calming {
+  animation: studio-caption-calm 2.2s ease-in-out infinite;
+}
+.studio-preview-inner .render-preview-caption-anim-normal {
+  animation: studio-caption-normal 1.4s ease-in-out infinite;
+}
+.studio-preview-inner .render-preview-caption-anim-extreme {
+  animation: studio-caption-extreme 0.68s ease-in-out infinite;
+}
+@keyframes studio-caption-calm {
+  0%, 100% { transform: translateY(0) scale(1); }
+  50% { transform: translateY(-2px) scale(1.01); }
+}
+@keyframes studio-caption-normal {
+  0%, 100% { transform: translateY(0) scale(1); }
+  50% { transform: translateY(-3px) scale(1.03); }
+}
+@keyframes studio-caption-extreme {
+  0%, 100% { transform: translateY(0) scale(1); }
+  50% { transform: translateY(-6px) scale(1.08); }
 }
 
 /* Studio preview: mobile and narrow viewports */

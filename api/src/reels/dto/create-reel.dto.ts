@@ -123,7 +123,7 @@ export class CreateReelDto {
   @IsIn(['top', 'center', 'bottom'])
   scriptPosition?: 'top' | 'center' | 'bottom';
 
-  /** Script/caption style: { fontScale?: number, bgOpacity?: number }. */
+  /** Script/caption style: { fontScale?: number, bgOpacity?: number, animationMode?: 'calming'|'normal'|'extreme' }. */
   @IsOptional()
   scriptStyle?: Record<string, unknown>;
 }

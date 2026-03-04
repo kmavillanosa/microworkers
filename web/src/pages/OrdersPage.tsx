@@ -82,6 +82,8 @@ export function OrdersPage() {
   })));
 
   const thisYear = new Date().getFullYear();
+  const impersonateOrderUrl = (orderId: string) =>
+    `https://reelagad.com/order?orderId=${encodeURIComponent(orderId)}&impersonate`;
 
   const filteredOrders = useMemo(() => {
     const ref = ordersFilterReference.trim().toLowerCase();
@@ -567,6 +569,15 @@ export function OrdersPage() {
                             onClick={() => navigate(`/?orderId=${order.id}`)}
                           >
                             Open in Studio
+                          </button>
+                          <button
+                            type="button"
+                            className="btn-secondary orders-kanban-btn"
+                            onClick={() => {
+                              window.location.assign(impersonateOrderUrl(order.id));
+                            }}
+                          >
+                            Impersonate
                           </button>
                           <button
                             type="button"

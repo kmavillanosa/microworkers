@@ -755,7 +755,7 @@ export class ReelsService {
       : 'bottom';
     args.push('--caption-position', captionPosition ?? 'bottom');
     const style = job.scriptStyle as
-      | { fontScale?: number; bgOpacity?: number }
+      | { fontScale?: number; bgOpacity?: number; animationMode?: string }
       | undefined;
     if (style?.fontScale != null) {
       args.push('--caption-font-scale', String(Number(style.fontScale)));
@@ -765,6 +765,13 @@ export class ReelsService {
         '--caption-bg-opacity',
         String(Math.max(0, Math.min(255, Number(style.bgOpacity)))),
       );
+    }
+    const animationModeRaw =
+      typeof style?.animationMode === 'string'
+        ? style.animationMode.trim().toLowerCase()
+        : '';
+    if (['calming', 'normal', 'extreme'].includes(animationModeRaw)) {
+      args.push('--caption-animation', animationModeRaw);
     }
     this.logger.debug(`Running generator for job ${job.id}: ${args.join(' ')}`);
     if (this.pythonVerbose) {

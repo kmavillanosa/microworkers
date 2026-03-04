@@ -1,46 +1,69 @@
-import { IsBoolean, IsEmail, IsIn, IsOptional, IsString } from 'class-validator'
+import {
+  IsBoolean,
+  IsEmail,
+  IsIn,
+  IsOptional,
+  IsString,
+} from 'class-validator';
 
 /** Partial update for an order (e.g. script revision, customer info, or clip-audio options before checkout). */
 export class UpdateOrderDto {
-	@IsString()
-	@IsOptional()
-	customerName?: string
+  @IsString()
+  @IsOptional()
+  customerName?: string;
 
-	@IsEmail()
-	@IsOptional()
-	customerEmail?: string
+  @IsEmail()
+  @IsOptional()
+  customerEmail?: string;
 
-	@IsString()
-	@IsOptional()
-	deliveryAddress?: string
+  @IsString()
+  @IsOptional()
+  deliveryAddress?: string;
 
-	@IsString()
-	@IsOptional()
-	script?: string
+  @IsString()
+  @IsOptional()
+  script?: string;
 
-	@IsString()
-	@IsOptional()
-	title?: string
+  @IsString()
+  @IsOptional()
+  title?: string;
 
-	/** Output video size: phone, tablet, laptop, desktop. */
-	@IsString()
-	@IsOptional()
-	@IsIn(['phone', 'tablet', 'laptop', 'desktop'])
-	outputSize?: string
+  @IsString()
+  @IsOptional()
+  fontId?: string;
 
-	@IsBoolean()
-	@IsOptional()
-	useClipAudio?: boolean
+  @IsString()
+  @IsOptional()
+  clipName?: string;
 
-	@IsBoolean()
-	@IsOptional()
-	useClipAudioWithNarrator?: boolean
+  @IsString()
+  @IsOptional()
+  @IsIn(['edge', 'pyttsx3', 'piper', 'none'])
+  voiceEngine?: string;
 
-	@IsString()
-	@IsOptional()
-	@IsIn(['top', 'center', 'bottom'])
-	scriptPosition?: string
+  @IsString()
+  @IsOptional()
+  voiceName?: string;
 
-	@IsOptional()
-	scriptStyle?: Record<string, unknown>
+  /** Output video size: phone, tablet, laptop, desktop. */
+  @IsString()
+  @IsOptional()
+  @IsIn(['phone', 'tablet', 'laptop', 'desktop'])
+  outputSize?: string;
+
+  @IsBoolean()
+  @IsOptional()
+  useClipAudio?: boolean;
+
+  @IsBoolean()
+  @IsOptional()
+  useClipAudioWithNarrator?: boolean;
+
+  @IsString()
+  @IsOptional()
+  @IsIn(['top', 'center', 'bottom'])
+  scriptPosition?: string;
+
+  @IsOptional()
+  scriptStyle?: Record<string, unknown>;
 }

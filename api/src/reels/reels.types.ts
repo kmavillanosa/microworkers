@@ -45,7 +45,7 @@ export interface ReelJob {
   transcriptSegments?: Array<{ start: number; end: number; text: string }>;
   /** Script/caption position: top, center, bottom. */
   scriptPosition?: 'top' | 'center' | 'bottom';
-  /** Script/caption style: { fontScale?, bgOpacity? }. */
+  /** Script/caption style: { fontScale?, bgOpacity?, animationMode? }. */
   scriptStyle?: Record<string, unknown>;
 }
 

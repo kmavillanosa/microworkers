@@ -162,6 +162,10 @@ export async function runGenerator(job, apiBaseUrl, options = {}) {
   const style = job.scriptStyle || {}
   if (style.fontScale != null) args.push('--caption-font-scale', String(Number(style.fontScale)))
   if (style.bgOpacity != null) args.push('--caption-bg-opacity', String(Math.max(0, Math.min(255, Number(style.bgOpacity)))))
+  const animationMode = typeof style.animationMode === 'string' ? style.animationMode.trim().toLowerCase() : ''
+  if (['calming', 'normal', 'extreme'].includes(animationMode)) {
+    args.push('--caption-animation', animationMode)
+  }
 
   const verbose = process.env.REELS_PYTHON_VERBOSE === '1' || process.env.WORKER_VERBOSE === '1'
   const startedAt = Date.now()

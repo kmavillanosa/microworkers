@@ -15,6 +15,12 @@ import type { Order, OrderStatus, StudioPreviewSize } from "../types";
 
 type VoiceEngine = "edge" | "piper" | "pyttsx3" | "none";
 type BackgroundMode = "clip" | "auto" | "caption";
+type CaptionAnimationMode = "calming" | "normal" | "extreme";
+type CaptionStyle = {
+    fontScale?: number;
+    bgOpacity?: number;
+    animationMode?: CaptionAnimationMode;
+};
 
 type ReelQueueResponse = {
     jobId: string;
@@ -34,10 +40,7 @@ type ReelCreatePayload = {
     orderId?: string;
     outputSize?: "phone" | "tablet" | "laptop" | "desktop";
     scriptPosition?: "top" | "center" | "bottom";
-    scriptStyle?: {
-        fontScale?: number;
-        bgOpacity?: number;
-    };
+    scriptStyle?: CaptionStyle;
 };
 
 const OUTPUT_SIZE_OPTIONS = new Set(["phone", "tablet", "laptop", "desktop"]);
@@ -45,6 +48,13 @@ const SCRIPT_POSITION_OPTIONS = new Set(["top", "center", "bottom"]);
 
 function isVoiceEngine(value: string | null | undefined): value is VoiceEngine {
     return value === "edge" || value === "piper" || value === "pyttsx3" || value === "none";
+}
+
+function normalizeCaptionAnimationMode(value: unknown): CaptionAnimationMode {
+    if (value === "calming" || value === "normal" || value === "extreme") {
+        return value;
+    }
+    return "normal";
 }
 
 function getApiErrorMessage(payload: unknown): string | null {
@@ -130,10 +140,11 @@ export function StudioPage() {
     const [studioScriptPosition, setStudioScriptPosition] = useState<
         "top" | "center" | "bottom"
     >("bottom");
-    const [studioScriptStyle, setStudioScriptStyle] = useState<{
-        fontScale?: number;
-        bgOpacity?: number;
-    }>({ fontScale: 1, bgOpacity: 180 });
+    const [studioScriptStyle, setStudioScriptStyle] = useState<CaptionStyle>({
+        fontScale: 1,
+        bgOpacity: 180,
+        animationMode: "normal",
+    });
 
     const orderIdFromUrl = searchParams.get("orderId")?.trim() ?? "";
 
@@ -212,6 +223,7 @@ export function StudioPage() {
                         typeof order.scriptStyle?.bgOpacity === "number"
                             ? order.scriptStyle.bgOpacity
                             : 180,
+                    animationMode: normalizeCaptionAnimationMode(order.scriptStyle?.animationMode),
                 });
 
                 setOrderUseClipAudio((prev) => ({
@@ -355,10 +367,16 @@ export function StudioPage() {
                     typeof selectedOrder.scriptStyle.bgOpacity === "number"
                         ? selectedOrder.scriptStyle.bgOpacity
                         : 180,
+                animationMode: normalizeCaptionAnimationMode(selectedOrder.scriptStyle.animationMode),
             };
         }
         return studioScriptStyle;
     }, [selectedOrder?.scriptStyle, studioScriptStyle]);
+
+    const hasCustomStudioScriptStyle =
+        studioScriptStyle.fontScale !== 1 ||
+        studioScriptStyle.bgOpacity !== 180 ||
+        (studioScriptStyle.animationMode ?? "normal") !== "normal";
 
     const previewCaptionStyle = useMemo<CSSProperties>(() => {
         const style: CSSProperties = {
@@ -450,9 +468,8 @@ export function StudioPage() {
             setStatusMessage("");
 
             try {
-                alert("HERE!!");
                 const response = await fetch(
-                    `https://reelagad.com/api/orders/${encodeURIComponent(selectedOrder.id)}/process`,
+                    `${apiBaseUrl}/api/orders/${encodeURIComponent(selectedOrder.id)}/process`,
                     {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
@@ -511,10 +528,7 @@ export function StudioPage() {
             payload.scriptStyle = selectedOrder.scriptStyle ?? undefined;
         } else {
             payload.scriptPosition = studioScriptPosition;
-            payload.scriptStyle =
-                studioScriptStyle.fontScale !== 1 || studioScriptStyle.bgOpacity !== 180
-                    ? studioScriptStyle
-                    : undefined;
+            payload.scriptStyle = hasCustomStudioScriptStyle ? studioScriptStyle : undefined;
         }
 
         setIsCreating(true);
@@ -1013,6 +1027,22 @@ export function StudioPage() {
                                     <option value="180">Medium</option>
                                     <option value="220">Dark</option>
                                 </select>
+
+                                <select
+                                    className="studio-preview-size-select"
+                                    value={studioScriptStyle.animationMode ?? "normal"}
+                                    onChange={(event) =>
+                                        setStudioScriptStyle((prev) => ({
+                                            ...prev,
+                                            animationMode: normalizeCaptionAnimationMode(event.target.value),
+                                        }))
+                                    }
+                                    aria-label="Caption animation mode"
+                                >
+                                    <option value="calming">Calming</option>
+                                    <option value="normal">Normal</option>
+                                    <option value="extreme">Extreme</option>
+                                </select>
                             </>
                         )}
                     </div>
@@ -1051,7 +1081,10 @@ export function StudioPage() {
                                 {title.trim() || "Your title here"}
                             </div>
 
-                            <div className="render-preview-caption" style={previewCaptionStyle}>
+                            <div
+                                className={`render-preview-caption render-preview-caption-anim-${effectiveScriptStyle.animationMode ?? "normal"}`}
+                                style={previewCaptionStyle}
+                            >
                                 {previewCaptionText}
                             </div>
                         </div>

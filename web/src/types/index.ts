@@ -102,7 +102,11 @@ export type Order = {
   orderStatus: OrderStatus;
   createdAt: string;
   scriptPosition?: string | null;
-  scriptStyle?: { fontScale?: number; bgOpacity?: number } | null;
+  scriptStyle?: {
+    fontScale?: number;
+    bgOpacity?: number;
+    animationMode?: "calming" | "normal" | "extreme";
+  } | null;
 };
 
 /**
