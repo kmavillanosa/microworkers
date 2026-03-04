@@ -3,8 +3,11 @@
  * runs reels_generator.py locally, and uploads output back to the VPS.
  *
  * VPS API: set REELS_RUN_IN_PROCESS=false so jobs are queued in DB only.
- * Local: set VPS_API_URL to your VPS API (e.g. https://api.yourdomain.com or https://vps-ip:3010).
- * When using HTTPS with a self-signed cert on the VPS, the worker accepts it automatically.
+ * Set VPS_API_URL to a URL the worker can reach:
+ *   - Same host via nginx: https://reelagad.com (recommended; no port, uses your domain).
+ *   - Direct API (if reachable): https://vps-ip:3010 (worker accepts self-signed certs).
+ *   - Same Docker network as API: https://api:3000
+ * When using HTTPS with a self-signed cert, the worker accepts it automatically.
  * Optional: WORKER_SECRET on both sides for auth.
  */
 import 'dotenv/config'
@@ -177,7 +180,8 @@ async function main() {
         }).catch(() => {})
       }
     } catch (err) {
-      console.warn('Poll error:', formatErr(err))
+      console.warn('Poll error:', err?.message || err)
+      console.warn('  (detail:', formatErr(err) + ')')
       if (VERBOSE && err?.stack) console.warn(err.stack)
     }
     await new Promise((r) => setTimeout(r, POLL_MS))

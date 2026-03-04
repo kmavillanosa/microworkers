@@ -121,15 +121,17 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
-  # Polls VPS_API_URL for queued reel jobs, runs video generation locally, uploads result to same API. Set VPS_API_URL in .env.local to your VPS (e.g. http://88.222.245.88:3010).
+  # Polls VPS_API_URL for queued reel jobs, runs video generation locally, uploads result to same API.
+  # Set VPS_API_URL in .env.local. Use https://reelagad.com when API is behind nginx (recommended);
+  # or https://api:3000 when running in same Docker network as api service.
   reels-generator:
     build:
       context: .
       dockerfile: workers/reels-generator/Dockerfile
     container_name: microworkers-reels-generator
     environment:
-      VPS_API_URL: ${VPS_API_URL:-https://localhost:3010}
-      API_BASE_URL: ${VPS_API_URL:-https://localhost:3010}
+      VPS_API_URL: ${VPS_API_URL:-https://reelagad.com}
+      API_BASE_URL: ${VPS_API_URL:-https://reelagad.com}
       REPO_ROOT: /data
       REELS_PYTHON_EXE: /usr/bin/python3
       REELS_PYTHON_VERBOSE: "1"

@@ -17,11 +17,12 @@
 
   | Variable | Required | Description |
   |----------|----------|-------------|
-  | **VPS_API_URL** (or API_BASE_URL) | Yes | URL of the VPS API (e.g. `https://api.yourdomain.com` or `http://vps-ip:3010`). Worker polls and uploads here. |
+  | **VPS_API_URL** (or API_BASE_URL) | Yes | URL the worker can reach. Prefer **`https://reelagad.com`** (API behind nginx; no port). Or `https://vps-ip:3010` if API is exposed; or `https://api:3000` when worker runs in same Docker network as API. |
   | **REPO_ROOT** | Yes (if not default) | Path to repo root on the local machine (so the worker can run `reels_generator.py` and use `output/`, `assets/`, etc.). Default: parent of worker dir. |
   | **WORKER_SECRET** | Optional | If set on both VPS API and worker, worker sends `X-Worker-Secret` header; API rejects requests without it. |
   | **REELS_PYTHON_EXE** | Optional | Path to Python (default: `REPO_ROOT/.reels-venv/bin/python` or `Scripts/python.exe` on Windows). |
   | **POLL_MS** | Optional | Poll interval in ms (default 15000). |
 
-- **Compose:** In `docker-compose.local.yml` under the **`workers`** profile. When running the worker against a **remote** VPS, set **VPS_API_URL** to your VPS API URL (e.g. in `.env.local`: `VPS_API_URL=https://api.yourdomain.com`).
-- **Run:** `docker compose -f docker-compose.local.yml --profile workers up -d` (with repo mounted so Python and `reels_generator.py` are available), or on your host: `cd workers/reels-generator && VPS_API_URL=https://your-vps-api node worker.js`.
+- **Compose:** In `docker-compose.local.yml` under the **`workers`** profile. Set **VPS_API_URL** in `.env.local` (e.g. `VPS_API_URL=https://reelagad.com`).
+- **Run:** `docker compose -f docker-compose.local.yml --profile workers up -d` (with repo mounted), or on your host: `cd workers/reels-generator && VPS_API_URL=https://reelagad.com node worker.js`.
+- **"Poll error: fetch failed":** The worker cannot reach the API. Use **`VPS_API_URL=https://reelagad.com`** so requests go through your domain (nginx → frontend → API). Do not use `localhost:3010` from inside a container (localhost is the container, not the host).
