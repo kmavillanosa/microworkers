@@ -1379,47 +1379,61 @@ export default function OrderPage() {
                       )
                     })()}
                   </div>
-                  {voiceEngine === 'edge' && voiceName && (
-                    <div className="field" style={{ marginTop: '0.5rem' }}>
-                      <button
-                        type="button"
-                        className="order-form-control"
-                        disabled={voicePreviewLoading}
-                        onClick={async () => {
-                          if (voicePreviewAudioRef.current) {
-                            voicePreviewAudioRef.current.pause()
-                            voicePreviewAudioRef.current = null
-                          }
-                          setVoicePreviewLoading(true)
-                          try {
-                            const res = await fetch(
-                              `${API}/api/reels/voice-preview?voiceId=${encodeURIComponent(voiceName)}`
-                            )
-                            if (!res.ok) return
-                            const blob = await res.blob()
-                            const url = URL.createObjectURL(blob)
-                            const audio = new Audio(url)
-                            voicePreviewAudioRef.current = audio
-                            audio.onended = () => {
-                              URL.revokeObjectURL(url)
+                  {(() => {
+                    const narratorUsed = !useClipAudio || useClipAudioWithNarrator
+                    const canPreviewVoice = narratorUsed && voiceName && voiceEngine === 'edge'
+                    if (!canPreviewVoice) return null
+                    const previewText = script.trim().slice(0, 500)
+                    const previewLabel = previewText
+                      ? 'Preview script with this voice'
+                      : 'Play sample'
+                    return (
+                      <div className="field" style={{ marginTop: '0.5rem' }}>
+                        <button
+                          type="button"
+                          className="order-form-control"
+                          disabled={voicePreviewLoading}
+                          onClick={async () => {
+                            if (voicePreviewAudioRef.current) {
+                              voicePreviewAudioRef.current.pause()
                               voicePreviewAudioRef.current = null
+                            }
+                            setVoicePreviewLoading(true)
+                            try {
+                              const params = new URLSearchParams({
+                                voiceId: voiceName,
+                              })
+                              const textToPreview = script.trim().slice(0, 500)
+                              if (textToPreview) params.set('text', textToPreview)
+                              const res = await fetch(
+                                `${API}/api/reels/voice-preview?${params.toString()}`
+                              )
+                              if (!res.ok) return
+                              const blob = await res.blob()
+                              const url = URL.createObjectURL(blob)
+                              const audio = new Audio(url)
+                              voicePreviewAudioRef.current = audio
+                              audio.onended = () => {
+                                URL.revokeObjectURL(url)
+                                voicePreviewAudioRef.current = null
+                                setVoicePreviewLoading(false)
+                              }
+                              audio.onerror = () => {
+                                URL.revokeObjectURL(url)
+                                voicePreviewAudioRef.current = null
+                                setVoicePreviewLoading(false)
+                              }
+                              await audio.play()
+                            } catch {
                               setVoicePreviewLoading(false)
                             }
-                            audio.onerror = () => {
-                              URL.revokeObjectURL(url)
-                              voicePreviewAudioRef.current = null
-                              setVoicePreviewLoading(false)
-                            }
-                            await audio.play()
-                          } catch {
-                            setVoicePreviewLoading(false)
-                          }
-                        }}
-                      >
-                        {voicePreviewLoading ? 'Loading…' : 'Play sample'}
-                      </button>
-                    </div>
-                  )}
+                          }}
+                        >
+                          {voicePreviewLoading ? 'Loading…' : previewLabel}
+                        </button>
+                      </div>
+                    )
+                  })()}
                 </section>
 
                 <section className="order-form-step" aria-labelledby="order-step-details-heading">
