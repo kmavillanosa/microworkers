@@ -132,6 +132,27 @@ export default function ReceiptPage() {
     window.print()
   }
 
+  async function markOrderClosedOnDownload() {
+    if (!order || order.orderStatus === 'closed') return
+    try {
+      const res = await fetch(`${API}/api/orders/${encodeURIComponent(order.id)}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderStatus: 'closed' }),
+      })
+      if (res.ok) {
+        setOrder((prev) => (prev ? { ...prev, orderStatus: 'closed' } : prev))
+      }
+    } catch {
+      // non-fatal: download already started
+    }
+  }
+
+  function handleDownloadAndClose(url: string, suggestedName: string) {
+    triggerDownload(url, suggestedName)
+    void markOrderClosedOnDownload()
+  }
+
   if (loading) {
     return (
       <div className="container receipt-container">
@@ -192,6 +213,12 @@ export default function ReceiptPage() {
               {orderStatusLabel((order.orderStatus ?? 'pending') as OrderStatus)}
             </span>
           </p>
+
+          {order.orderStatus === 'ready_for_sending' && (
+            <p className="receipt-generated-banner" role="status" aria-live="polite">
+              🎉 Your video has been generated and is ready to download.
+            </p>
+          )}
         </section>
 
         {(order.customerName || order.customerEmail || order.deliveryAddress) && (
@@ -274,21 +301,21 @@ export default function ReceiptPage() {
                   <button
                     type="button"
                     className="btn btn-secondary receipt-download-btn"
-                    onClick={() => triggerDownload(reel.videoUrl, `reel${reels.length > 1 ? `-${index + 1}` : ''}.mp4`)}
+                    onClick={() => handleDownloadAndClose(reel.videoUrl, `reel${reels.length > 1 ? `-${index + 1}` : ''}.mp4`)}
                   >
                     Download video
                   </button>
                   <button
                     type="button"
                     className="btn btn-secondary receipt-download-btn"
-                    onClick={() => triggerDownload(reel.txtUrl, `reel${reels.length > 1 ? `-${index + 1}` : ''}.txt`)}
+                    onClick={() => handleDownloadAndClose(reel.txtUrl, `reel${reels.length > 1 ? `-${index + 1}` : ''}.txt`)}
                   >
                     Download script
                   </button>
                   <button
                     type="button"
                     className="btn btn-secondary receipt-download-btn"
-                    onClick={() => triggerDownload(reel.srtUrl, `reel${reels.length > 1 ? `-${index + 1}` : ''}.srt`)}
+                    onClick={() => handleDownloadAndClose(reel.srtUrl, `reel${reels.length > 1 ? `-${index + 1}` : ''}.srt`)}
                   >
                     Download SRT
                   </button>
@@ -307,9 +334,6 @@ export default function ReceiptPage() {
           </section>
         )}
 
-        <p className="receipt-footer muted">
-          Thank you for your order. We will deliver your reel to the email and address above. Contact us with your order reference if you have any questions.
-        </p>
       </div>
     </div>
   )

@@ -15,11 +15,8 @@ import type {
  */
 
 export const apiConfig = {
-  /** Local API (backoffice talks to this for orders, Generate reel, etc.). */
-  apiBaseUrl: import.meta.env.VITE_API_BASE_URL ?? "http://localhost:3010",
-
-  /** VPS API (customer orders, receipts, worker uploads). Set when you need to reference VPS (e.g. receipt links). */
-  apiVpsBaseUrl: import.meta.env.VITE_API_VPS_BASE_URL ?? "",
+  /** Local API for video processing and reel-generation flows. */
+  apiBaseUrl: import.meta.env.VITE_API_BASE_URL || "https://reelagad.com",
 
   appEnv: (import.meta.env.VITE_APP_ENV ?? "local").toLowerCase(),
   get envLabel() {

@@ -9,7 +9,6 @@ export function OrderOutputPage({
     reels,
     navigate,
     apiBaseUrl,
-    apiVpsBaseUrl,
     onDeleteOrder,
     orderDeletingId,
 }: {
@@ -17,14 +16,13 @@ export function OrderOutputPage({
     reels: ReelItem[];
     navigate: (path: string) => void;
     apiBaseUrl: string;
-    apiVpsBaseUrl: string;
     onDeleteOrder?: (orderId: string) => Promise<void>;
     orderDeletingId?: string | null;
 }) {
     const { orderId } = useParams<{ orderId: string }>();
     const order = orders.find((o) => o.id === orderId);
     const orderReels = reels.filter((r) => r.orderId === orderId);
-    const mediaBase = apiVpsBaseUrl || apiBaseUrl;
+    const mediaBase = apiBaseUrl;
 
     if (!orderId) {
         return (

@@ -59,7 +59,6 @@ type StateUpdater<T> = T | ((prev: T) => T);
 
 type AppStore = {
   apiBaseUrl: string;
-  apiVpsBaseUrl: string;
   envLabel: "local" | "dev" | "production";
 
   initialized: boolean;
@@ -334,8 +333,19 @@ type AppStore = {
   handleOAuthConnectedRedirect: (search: string) => Promise<boolean>;
 };
 
-const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:3010";
-const apiVpsBaseUrl = import.meta.env.VITE_API_VPS_BASE_URL ?? "";
+function normalizeApiBaseUrl(value: string | undefined, fallback: string): string {
+  const resolved = (value ?? "").trim() || fallback;
+  return resolved.replace(/\/+$/, "");
+}
+
+const apiBaseUrl = normalizeApiBaseUrl(
+  import.meta.env.VITE_API_BASE_URL,
+  "https://reelagad.com",
+);
+const ordersApiBaseUrl = apiBaseUrl;
+const settingsApiBaseUrl = apiBaseUrl;
+const transcriptionApiBaseUrl = apiBaseUrl;
+const orderClipsApiBaseUrl = apiBaseUrl;
 const appEnv = (import.meta.env.VITE_APP_ENV ?? "local").toLowerCase();
 const envLabel: "local" | "dev" | "production" =
   appEnv === "production" ? "production" : appEnv === "dev" ? "dev" : "local";
@@ -348,7 +358,6 @@ function updateWithUpdater<T>(current: T, value: StateUpdater<T>): T {
 
 export const useAppStore = create<AppStore>((set, get) => ({
   apiBaseUrl,
-  apiVpsBaseUrl,
   envLabel,
   initialized: false,
   statusMessage: "",
@@ -477,7 +486,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
     }
     if (tab === "payment") {
       set({ paymentMethodsMessage: "" });
-      void cachedFetch(`${apiBaseUrl}/api/settings/payment-methods`, {
+      void cachedFetch(`${settingsApiBaseUrl}/api/settings/payment-methods`, {
         ttl: 60000,
       })
         .then((r) => (r.ok ? r.json() : null))
@@ -496,7 +505,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
         .catch(() => set({ paymentMethodsMessage: "Failed to load payment methods." }));
     }
     if (tab === "voices") {
-      void cachedFetch(`${apiBaseUrl}/api/settings/voices`, { ttl: 60000 })
+      void cachedFetch(`${settingsApiBaseUrl}/api/settings/voices`, { ttl: 60000 })
         .then((r) => (r.ok ? r.json() : []))
         .then((data: SettingsVoice[]) =>
           set({ settingsVoices: Array.isArray(data) ? data : [] }),
@@ -757,8 +766,8 @@ export const useAppStore = create<AppStore>((set, get) => ({
   loadOrders: async () => {
     try {
       const [ordersRes, pricingRes] = await Promise.all([
-        cachedFetch(`${apiBaseUrl}/api/orders`, { ttl: 10000 }),
-        cachedFetch(`${apiBaseUrl}/api/orders/pricing`, { ttl: 30000 }),
+        cachedFetch(`${ordersApiBaseUrl}/api/orders`, { ttl: 10000 }),
+        cachedFetch(`${ordersApiBaseUrl}/api/orders/pricing`, { ttl: 30000 }),
       ]);
       if (ordersRes.ok) {
         const data = (await ordersRes.json()) as Order[];
@@ -812,7 +821,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
       const results = await Promise.all(
         unique.map(async (clipName) => {
           const res = await fetch(
-            `${apiBaseUrl}/api/order-clips/${encodeURIComponent(clipName)}/transcript`,
+            `${transcriptionApiBaseUrl}/api/order-clips/${encodeURIComponent(clipName)}/transcript`,
           );
           if (!res.ok) return [clipName, null] as const;
           const data = (await res.json()) as ClipTranscriptInfo;
@@ -850,7 +859,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
   },
 
   loadOrderClips: async () => {
-    const res = await cachedFetch(`${apiBaseUrl}/api/order-clips`, { ttl: 15000 });
+    const res = await cachedFetch(`${orderClipsApiBaseUrl}/api/order-clips`, { ttl: 15000 });
     if (!res.ok) return;
     const data = (await res.json()) as ClipItem[];
     set({ orderClips: Array.isArray(data) ? data : [] });
@@ -881,13 +890,13 @@ export const useAppStore = create<AppStore>((set, get) => ({
   handleToggleVoiceEnabled: async (voiceId, enabled) => {
     set({ settingsVoicesTogglingId: voiceId });
     try {
-      const res = await fetch(`${apiBaseUrl}/api/settings/voices/${encodeURIComponent(voiceId)}`, {
+      const res = await fetch(`${settingsApiBaseUrl}/api/settings/voices/${encodeURIComponent(voiceId)}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ enabled }),
       });
       if (res.ok) {
-        clearCacheForUrl(`${apiBaseUrl}/api/settings/voices`);
+        clearCacheForUrl(`${settingsApiBaseUrl}/api/settings/voices`);
         set((state) => ({
           settingsVoices: state.settingsVoices.map((v) =>
             v.id === voiceId ? { ...v, enabled } : v,
@@ -911,7 +920,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
     if (Number.isNaN(clipAndNarrator) || clipAndNarrator < 0) return;
     set({ orderPricingSaving: true });
     try {
-      const res = await fetch(`${apiBaseUrl}/api/orders/pricing`, {
+      const res = await fetch(`${ordersApiBaseUrl}/api/orders/pricing`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -922,7 +931,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
         }),
       });
       if (res.ok) {
-        clearCacheForUrl(`${apiBaseUrl}/api/orders/pricing`);
+        clearCacheForUrl(`${ordersApiBaseUrl}/api/orders/pricing`);
         const p = (await res.json()) as OrderPricing;
         set({ orderPricing: p });
       }
@@ -941,7 +950,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
     }
     set({ deleteAllOrdersInProgress: true });
     try {
-      const res = await fetch(`${apiBaseUrl}/api/orders/delete-all`, {
+      const res = await fetch(`${ordersApiBaseUrl}/api/orders/delete-all`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ confirm: "DELETE_ALL_ORDERS" }),
@@ -966,11 +975,11 @@ export const useAppStore = create<AppStore>((set, get) => ({
     }
     set({ orderDeletingId: orderId });
     try {
-      const res = await fetch(`${apiBaseUrl}/api/orders/${encodeURIComponent(orderId)}`, {
+      const res = await fetch(`${ordersApiBaseUrl}/api/orders/${encodeURIComponent(orderId)}`, {
         method: "DELETE",
       });
       if (!res.ok) throw new Error("Delete failed");
-      clearCacheForUrl(`${apiBaseUrl}/api/orders`);
+      clearCacheForUrl(`${ordersApiBaseUrl}/api/orders`);
       clearCacheForUrl(`${apiBaseUrl}/api/reels`);
       await Promise.all([get().loadOrders(), get().loadReels()]);
     } catch (e) {
@@ -983,13 +992,13 @@ export const useAppStore = create<AppStore>((set, get) => ({
 
   handleSetOrderStatus: async (orderId, orderStatus) => {
     try {
-      const res = await fetch(`${apiBaseUrl}/api/orders/${orderId}/status`, {
+      const res = await fetch(`${ordersApiBaseUrl}/api/orders/${orderId}/status`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ orderStatus }),
       });
       if (!res.ok) throw new Error("Failed to update status");
-      clearCacheForUrl(`${apiBaseUrl}/api/orders`);
+      clearCacheForUrl(`${ordersApiBaseUrl}/api/orders`);
       await get().loadOrders();
     } catch {
       // non-fatal
@@ -1627,9 +1636,9 @@ export const useAppStore = create<AppStore>((set, get) => ({
     try {
       const formData = new FormData();
       formData.append("file", orderClipUploadFile);
-      const res = await fetch(`${apiBaseUrl}/api/order-clips`, { method: "POST", body: formData });
+      const res = await fetch(`${orderClipsApiBaseUrl}/api/order-clips`, { method: "POST", body: formData });
       if (!res.ok) throw new Error((await res.json())?.message ?? "Upload failed");
-      clearCacheForUrl(`${apiBaseUrl}/api/order-clips`);
+      clearCacheForUrl(`${orderClipsApiBaseUrl}/api/order-clips`);
       set({ orderClipUploadFile: null, clipMessage: "Order clip uploaded." });
       await get().loadOrderClips();
     } catch (err) {
@@ -1642,7 +1651,10 @@ export const useAppStore = create<AppStore>((set, get) => ({
     if (editingClipId !== id || editingClipType !== type) return;
     set({ clipMessage: "" });
     try {
-      const base = type === "game" ? `${apiBaseUrl}/api/clips` : `${apiBaseUrl}/api/order-clips`;
+      const base =
+        type === "game"
+          ? `${apiBaseUrl}/api/clips`
+          : `${orderClipsApiBaseUrl}/api/order-clips`;
       const res = await fetch(`${base}/${encodeURIComponent(id)}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -1660,7 +1672,10 @@ export const useAppStore = create<AppStore>((set, get) => ({
   handleDeleteClip: async (type, id) => {
     set({ clipMessage: "" });
     try {
-      const base = type === "game" ? `${apiBaseUrl}/api/clips` : `${apiBaseUrl}/api/order-clips`;
+      const base =
+        type === "game"
+          ? `${apiBaseUrl}/api/clips`
+          : `${orderClipsApiBaseUrl}/api/order-clips`;
       const res = await fetch(`${base}/${encodeURIComponent(id)}`, { method: "DELETE" });
       if (!res.ok) throw new Error("Delete failed");
       await Promise.all([get().loadGameClips(), get().loadOrderClips()]);

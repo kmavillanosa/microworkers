@@ -19,11 +19,15 @@ import { runGenerator, outputDir } from './run-generator.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
-const API_BASE = process.env.VPS_API_URL || process.env.API_BASE_URL || 'https://reelagad.com'
+const API_BASE = 'https://reelagad.com';
 const WORKER_SECRET = process.env.WORKER_SECRET
 const POLL_MS = parseInt(process.env.POLL_MS || '15000', 10)
 const REPO_ROOT = process.env.REPO_ROOT || path.resolve(process.cwd(), '..')
 const VERBOSE = /^(1|true|yes)$/i.test(process.env.WORKER_VERBOSE || '')
+const WORKER_LOCK_PATH = process.env.WORKER_LOCK_PATH || path.join(REPO_ROOT, '.reels-generator-worker.lock')
+
+let workerLockHandle = null
+let workerLockOwned = false
 
 /** Fetch that accepts self-signed HTTPS certs when talking to the VPS API. */
 const isHttps = /^https:\/\//i.test(API_BASE)
@@ -52,6 +56,92 @@ function formatErr(err) {
   if (err?.cause) parts.push('cause:', err.cause?.message ?? err.cause)
   if (err?.code) parts.push('code:', err.code)
   return parts.join(' ')
+}
+
+function parseLockPid(raw) {
+  if (!raw) return null
+  try {
+    const parsed = JSON.parse(raw)
+    const pid = Number(parsed?.pid)
+    return Number.isInteger(pid) && pid > 0 ? pid : null
+  } catch {
+    const match = raw.match(/\b(\d{1,10})\b/)
+    if (!match?.[1]) return null
+    const pid = Number(match[1])
+    return Number.isInteger(pid) && pid > 0 ? pid : null
+  }
+}
+
+function isPidAlive(pid) {
+  if (!Number.isInteger(pid) || pid <= 0) return false
+  try {
+    process.kill(pid, 0)
+    return true
+  } catch {
+    return false
+  }
+}
+
+async function writeWorkerLock(handle) {
+  const payload = `${JSON.stringify({
+    pid: process.pid,
+    startedAt: new Date().toISOString(),
+    apiBase: API_BASE,
+  })}\n`
+  await handle.writeFile(payload, 'utf8')
+}
+
+async function acquireWorkerLock() {
+  try {
+    workerLockHandle = await fs.promises.open(WORKER_LOCK_PATH, 'wx')
+    await writeWorkerLock(workerLockHandle)
+    workerLockOwned = true
+    return
+  } catch (err) {
+    if (err?.code !== 'EEXIST') throw err
+  }
+
+  const raw = await fs.promises.readFile(WORKER_LOCK_PATH, 'utf8').catch(() => '')
+  const existingPid = parseLockPid(raw)
+  if (existingPid && existingPid !== process.pid && isPidAlive(existingPid)) {
+    throw new Error(`Another reels worker is already running (pid=${existingPid}). Lock file: ${WORKER_LOCK_PATH}`)
+  }
+  if (raw && !existingPid) {
+    throw new Error(`Worker lock exists but PID is unreadable: ${WORKER_LOCK_PATH}. Remove this file only if no worker is running.`)
+  }
+
+  await fs.promises.unlink(WORKER_LOCK_PATH).catch(() => {})
+  workerLockHandle = await fs.promises.open(WORKER_LOCK_PATH, 'wx')
+  await writeWorkerLock(workerLockHandle)
+  workerLockOwned = true
+}
+
+async function releaseWorkerLock() {
+  if (!workerLockOwned) return
+  workerLockOwned = false
+  const handle = workerLockHandle
+  workerLockHandle = null
+  if (handle) await handle.close().catch(() => {})
+  await fs.promises.unlink(WORKER_LOCK_PATH).catch(() => {})
+}
+
+function registerLockCleanupHandlers() {
+  const gracefulExit = (signal) => {
+    releaseWorkerLock()
+      .catch(() => {})
+      .finally(() => process.exit(signal ? 0 : 1))
+  }
+  process.on('SIGINT', () => gracefulExit('SIGINT'))
+  process.on('SIGTERM', () => gracefulExit('SIGTERM'))
+  process.on('exit', () => {
+    if (!workerLockOwned) return
+    try {
+      if (workerLockHandle) workerLockHandle.close().catch(() => {})
+      fs.unlinkSync(WORKER_LOCK_PATH)
+    } catch {
+      // ignore lock cleanup failures on process exit
+    }
+  })
 }
 
 async function downloadClip(apiBase, clipName, type = 'order-clips') {
@@ -125,9 +215,13 @@ async function processOneJob(job) {
 }
 
 async function main() {
+  await acquireWorkerLock()
+  registerLockCleanupHandlers()
+
   console.log('Reels generator worker (local)')
   console.log('VPS API:', API_BASE)
   console.log('REPO_ROOT:', REPO_ROOT)
+  console.log('Lock file:', WORKER_LOCK_PATH)
   console.log('Polling every', POLL_MS / 1000, 's')
   if (VERBOSE) console.log('Verbose logging: on')
 
@@ -204,5 +298,7 @@ async function main() {
 
 main().catch((err) => {
   console.error(err)
-  process.exit(1)
+  releaseWorkerLock()
+    .catch(() => {})
+    .finally(() => process.exit(1))
 })

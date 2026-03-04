@@ -1260,6 +1260,18 @@ button { cursor: pointer; }
   margin: 0.75rem 0 0;
 }
 
+.receipt-generated-banner {
+  margin: 0.9rem 0 0;
+  padding: 0.75rem 0.9rem;
+  border-radius: 10px;
+  background: rgba(46, 125, 50, 0.16);
+  border: 1px solid rgba(46, 125, 50, 0.3);
+  color: var(--color-success);
+  font-size: 1.12rem;
+  font-weight: 800;
+  line-height: 1.35;
+}
+
 .receipt-order-status {
   display: inline-block;
   padding: 0.2rem 0.5rem;

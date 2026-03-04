@@ -450,8 +450,9 @@ export function StudioPage() {
             setStatusMessage("");
 
             try {
+                alert("HERE!!");
                 const response = await fetch(
-                    `${apiBaseUrl}/api/orders/${encodeURIComponent(selectedOrder.id)}/process`,
+                    `https://reelagad.com/api/orders/${encodeURIComponent(selectedOrder.id)}/process`,
                     {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },

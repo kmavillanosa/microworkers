@@ -83,7 +83,7 @@ When a video is generated and the worker uploads it to the VPS, the output is st
 
 ### Local (backoffice + reels worker)
 
-- **Web backoffice:** In `web/.env.local` (and .env.dev, .env.prod): **VITE_API_BASE_URL** = **Local API** (leave empty for default `http://localhost:3010`). **VITE_API_VPS_BASE_URL** = **VPS API** URL (e.g. `https://api.yourdomain.com`). The backoffice uses the Local API for orders and “Generate reel”; use the VPS URL when you need to reference the VPS (e.g. receipt links).
+- **Web backoffice:** In `web/.env.local` (and .env.dev, .env.prod), set only **VITE_API_BASE_URL** (default `https://reelagad.com`). The backoffice uses this single API base for orders, settings, transcription, and reel generation requests.
 - **Web-orders (customer site):** Built with **VPS API URL** (e.g. `VITE_API_BASE_URL_WEB_ORDERS` in root `.env.prod` for deploy) so customers hit the VPS. Reels and receipts are served from VPS; after the worker uploads output, the customer sees the reel on the receipt.
 - **Reels generator worker:** **VPS_API_URL** (or API_BASE_URL) = **VPS API URL**. Worker polls the VPS for queued jobs and uploads finished output to the VPS. **REPO_ROOT** = path to repo on your machine. Optional **WORKER_SECRET** = same as on VPS.
 

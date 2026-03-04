@@ -106,8 +106,7 @@ export class ReelsService {
       gender: v.gender,
       sample_text: v.sample_text ?? undefined,
     }));
-    const defaultVoiceId =
-      edge.length > 0 ? edge[0].id : 'en-US-AndrewNeural';
+    const defaultVoiceId = edge.length > 0 ? edge[0].id : 'en-US-AndrewNeural';
 
     return {
       defaultEngine: 'edge' as const,
@@ -133,7 +132,7 @@ export class ReelsService {
     text?: string,
   ): Promise<{ path: string; cleanup: () => Promise<void> } | null> {
     const resolvedText =
-      (text?.trim()?.slice(0, 500)) ||
+      text?.trim()?.slice(0, 500) ||
       (await this.voicesService.getSampleText(voiceId));
     if (!resolvedText) return null;
     if (!(await this.fileExists(paths.pythonExe))) return null;
@@ -258,6 +257,43 @@ export class ReelsService {
 
   async createJob(dto: CreateReelDto): Promise<ReelJob> {
     await this.ensureDirectories();
+
+    if (dto.orderId) {
+      const activeStatuses: ReelJobEntity['status'][] = [
+        'queued',
+        'processing',
+      ];
+
+      if (this.runInProcess) {
+        const existingInMemory = Array.from(this.jobs.values())
+          .filter((job) => job.orderId === dto.orderId)
+          .find((job) =>
+            activeStatuses.includes(job.status as ReelJobEntity['status']),
+          );
+        if (existingInMemory) {
+          this.logger.warn(
+            `Skipping duplicate reel job for order ${dto.orderId}; reusing active job ${existingInMemory.id} (${existingInMemory.status})`,
+          );
+          return existingInMemory;
+        }
+      } else {
+        const existing = await this.reelJobRepo.findOne({
+          where: {
+            order_id: dto.orderId,
+            status: In(activeStatuses),
+          },
+          order: { created_at: 'DESC' },
+        });
+        if (existing) {
+          const existingJob = this.entityToJob(existing);
+          this.jobs.set(existingJob.id, existingJob);
+          this.logger.warn(
+            `Skipping duplicate reel job for order ${dto.orderId}; reusing active job ${existingJob.id} (${existingJob.status})`,
+          );
+          return existingJob;
+        }
+      }
+    }
 
     const id = randomUUID();
     const now = new Date().toISOString();
@@ -1308,16 +1344,28 @@ export class ReelsService {
 
   /** Worker: claim a job (set status=processing) so only one worker processes it. */
   async claimJobForWorker(jobId: string): Promise<ReelJob> {
-    const entity = await this.reelJobRepo.findOne({ where: { id: jobId } });
-    if (!entity) throw new NotFoundException('Job not found');
-    if (entity.status !== 'queued') {
+    const updatedAt = new Date();
+    const claimResult = await this.reelJobRepo
+      .createQueryBuilder()
+      .update(ReelJobEntity)
+      .set({
+        status: 'processing',
+        updated_at: updatedAt,
+      })
+      .where('id = :jobId', { jobId })
+      .andWhere('status = :status', { status: 'queued' })
+      .execute();
+
+    if ((claimResult.affected ?? 0) === 0) {
+      const current = await this.reelJobRepo.findOne({ where: { id: jobId } });
+      if (!current) throw new NotFoundException('Job not found');
       throw new BadRequestException(
-        `Job ${jobId} is not queued (status=${entity.status})`,
+        `Job ${jobId} is not queued (status=${current.status})`,
       );
     }
-    entity.status = 'processing';
-    entity.updated_at = new Date();
-    await this.reelJobRepo.save(entity);
+
+    const entity = await this.reelJobRepo.findOne({ where: { id: jobId } });
+    if (!entity) throw new NotFoundException('Job not found');
     const job = this.entityToJob(entity);
     this.jobs.set(jobId, job);
     return job;
@@ -1336,8 +1384,48 @@ export class ReelsService {
   ): Promise<ReelJob> {
     const entity = await this.reelJobRepo.findOne({ where: { id: jobId } });
     if (!entity) throw new NotFoundException('Job not found');
-    if (patch.status != null)
-      entity.status = patch.status as ReelJobEntity['status'];
+
+    const currentStatus = entity.status;
+    if (currentStatus === 'completed' || currentStatus === 'failed') {
+      if (patch.status != null && patch.status !== currentStatus) {
+        throw new BadRequestException(
+          `Job ${jobId} is already terminal (status=${currentStatus})`,
+        );
+      }
+      return this.entityToJob(entity);
+    }
+
+    if (patch.status != null) {
+      const nextStatus = patch.status as ReelJobEntity['status'];
+      const allowedFromProcessing = new Set<ReelJobEntity['status']>([
+        'processing',
+        'completed',
+        'failed',
+      ]);
+      if (
+        currentStatus !== 'processing' ||
+        !allowedFromProcessing.has(nextStatus)
+      ) {
+        throw new BadRequestException(
+          `Invalid worker status transition: ${currentStatus} -> ${nextStatus}`,
+        );
+      }
+      entity.status = nextStatus;
+    }
+
+    if (
+      patch.status == null &&
+      (patch.progress != null ||
+        patch.stage != null ||
+        patch.outputFolder != null ||
+        patch.error != null) &&
+      currentStatus !== 'processing'
+    ) {
+      throw new BadRequestException(
+        `Job ${jobId} is not processing (status=${currentStatus})`,
+      );
+    }
+
     if (patch.progress != null) entity.progress = patch.progress;
     if (patch.stage != null) entity.stage = patch.stage;
     if (patch.outputFolder != null) entity.output_folder = patch.outputFolder;
@@ -1365,6 +1453,21 @@ export class ReelsService {
   ): Promise<ReelItem> {
     const entity = await this.reelJobRepo.findOne({ where: { id: jobId } });
     if (!entity) throw new NotFoundException('Job not found');
+
+    if (entity.status === 'completed' && entity.output_folder) {
+      const reels = await this.listReels();
+      const existing = reels.find((r) => r.id === entity.output_folder);
+      if (existing) {
+        return existing;
+      }
+    }
+
+    if (entity.status !== 'processing') {
+      throw new BadRequestException(
+        `Job ${jobId} is not processing (status=${entity.status})`,
+      );
+    }
+
     await this.ensureDirectories();
     const folderPath = join(paths.outputDir, outputFolderName);
     await mkdir(folderPath, { recursive: true });

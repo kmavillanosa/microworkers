@@ -61,7 +61,6 @@ function App() {
 
     const envLabel = useAppStore((state) => state.envLabel);
     const apiBaseUrl = useAppStore((state) => state.apiBaseUrl);
-    const apiVpsBaseUrl = useAppStore((state) => state.apiVpsBaseUrl);
     const orders = useAppStore((state) => state.orders);
     const reels = useAppStore((state) => state.reels);
     const pipelineRunningIds = useAppStore((state) => state.pipelineRunningIds);
@@ -165,7 +164,6 @@ function App() {
                                 reels={safeReels}
                                 navigate={navigate}
                                 apiBaseUrl={apiBaseUrl}
-                                apiVpsBaseUrl={apiVpsBaseUrl}
                                 onDeleteOrder={handleDeleteOrder}
                                 orderDeletingId={orderDeletingId}
                             />

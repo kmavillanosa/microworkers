@@ -4,11 +4,9 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-ARG VITE_API_BASE_URL=http://localhost:3010
-ARG VITE_API_VPS_BASE_URL=
+ARG VITE_API_BASE_URL=https://reelagad.com
 ARG VITE_APP_ENV=local
 ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
-ENV VITE_API_VPS_BASE_URL=$VITE_API_VPS_BASE_URL
 ENV VITE_APP_ENV=$VITE_APP_ENV
 
 COPY package.json package-lock.json* ./

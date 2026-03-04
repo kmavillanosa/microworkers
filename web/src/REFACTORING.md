@@ -98,7 +98,7 @@ Exports reusable React components:
 
 **OrderOutputPage**
 - Displays generated reels for a customer order
-- Props: `orders`, `reels`, `navigate`, `apiBaseUrl`, `apiVpsBaseUrl`, `onDeleteOrder`, `orderDeletingId`
+- Props: `orders`, `reels`, `navigate`, `apiBaseUrl`, `onDeleteOrder`, `orderDeletingId`
 - Features: Video player, delete order functionality
 
 **PipelineForm**
@@ -170,6 +170,5 @@ import { OrderOutputPage, PipelineForm } from "./components";
 The following are re-exported in App.tsx for backward compatibility:
 ```typescript
 const apiBaseUrl = apiConfig.apiBaseUrl;
-const apiVpsBaseUrl = apiConfig.apiVpsBaseUrl;
 const envLabel = apiConfig.envLabel;
 ```
