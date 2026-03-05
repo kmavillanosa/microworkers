@@ -40,7 +40,7 @@ export default function Landing() {
         </p>
         <div className="landing-hero-proof" role="list" aria-label="Benefits">
           <span role="listitem">Fast turnaround</span>
-          <span role="listitem">AI captions + narration</span>
+          <span role="listitem">Captions + narration</span>
           <span role="listitem">Phone, tablet, laptop, desktop</span>
         </div>
         <div className="landing-hero-actions">
@@ -98,7 +98,7 @@ export default function Landing() {
         <h2 id="landing-problem-title" className="landing-section-title">We solve the stuff that gets in the way</h2>
         <ul className="landing-list landing-problem-list">
           <li><strong>No time to edit.</strong> You have the idea and the footage; we handle the rest.</li>
-          <li><strong>Captions and narration that match your brand.</strong> Choose fonts and AI voices, or use your clip’s own audio.</li>
+          <li><strong>Captions and narration that match your brand.</strong> Choose fonts and voices, or use your clip’s own audio.</li>
           <li><strong>One format doesn’t fit all.</strong> Get your reel in phone, tablet, laptop, or desktop aspect ratio—for Reels, Shorts, TikTok, or feed.</li>
           <li><strong>No software to learn.</strong> Upload, choose options, pay—we deliver the file to you.</li>
           <li><strong>Don’t make boring corporate video.</strong> Skip the generic conference-room look—make reels your prospects actually want to watch.</li>

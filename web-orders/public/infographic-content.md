@@ -28,7 +28,7 @@ Use this copy and structure for social posts, slides, or a designed infographic.
 ## What you get
 
 - **Captions** — On-screen text that matches your words  
-- **Voiceover** — AI narrator or your clip’s own sound  
+- **Voiceover** — Narrator or your clip’s own sound  
 - **Multiple sizes** — Phone (9:16), tablet, laptop, or desktop — for Reels, Shorts, TikTok, or feed  
 - **No editing** — Upload, choose options, pay. We do the rest.
 
