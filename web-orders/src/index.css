@@ -1947,9 +1947,10 @@ button { cursor: pointer; }
 
 .landing-showcase-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 1.5rem;
   margin-bottom: 1.75rem;
+  align-items: start;
 }
 
 /* Shared showcase card style (landing + full showcase page) */
@@ -1977,6 +1978,9 @@ button { cursor: pointer; }
 .landing-showcase-card-video-wrap {
   position: relative;
   width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   overflow: hidden;
   background: var(--color-dark);
 }
@@ -1996,10 +2000,19 @@ button { cursor: pointer; }
   aspect-ratio: 9 / 16;
 }
 
+/* Keep showcase previews aligned in cards regardless of source output size. */
+.landing-showcase-card-video-wrap,
+.landing-showcase-card-video-wrap[data-output-size],
+.showcase-card-video-wrap,
+.showcase-card-video-wrap[data-output-size] {
+  aspect-ratio: 9 / 16;
+}
+
 .landing-showcase-card-video {
   width: 100%;
   height: 100%;
   object-fit: contain;
+  object-position: center;
   display: block;
 }
 .landing-showcase-card-video:fullscreen,
@@ -2010,7 +2023,7 @@ button { cursor: pointer; }
 .landing-showcase-card-body,
 .showcase-card-body {
   padding: 1rem 1.1rem 1.15rem;
-  flex: 1;
+  flex: 0 0 auto;
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
@@ -2162,14 +2175,18 @@ button { cursor: pointer; }
 
 .showcase-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 1.5rem;
   margin-bottom: 2.5rem;
+  align-items: start;
 }
 
 .showcase-card-video-wrap {
   position: relative;
   width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   overflow: hidden;
   background: var(--color-dark);
 }
@@ -2193,6 +2210,7 @@ button { cursor: pointer; }
   width: 100%;
   height: 100%;
   object-fit: contain;
+  object-position: center;
   display: block;
 }
 .showcase-card-video:fullscreen,
