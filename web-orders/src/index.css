@@ -1581,10 +1581,7 @@ button { cursor: pointer; }
   text-align: center;
   margin: 0 -1.5rem 3rem;
   padding: clamp(3rem, 10vw, 5.5rem) clamp(2rem, 5vw, 3rem) clamp(2.5rem, 7vw, 4.5rem);
-  background:
-    radial-gradient(90% 140% at 10% -10%, rgba(255, 255, 255, 0.2), transparent 55%),
-    radial-gradient(80% 120% at 95% 5%, rgba(4, 29, 60, 0.28), transparent 55%),
-    linear-gradient(135deg, #00bb77 0%, #0ca46d 55%, #0a284a 100%);
+  background: #001b3d url('/hero-background.svg') center bottom / cover no-repeat;
   color: #fff;
   border-radius: 0 0 28px 28px;
   box-shadow: 0 18px 40px rgba(4, 29, 60, 0.18);
@@ -2242,6 +2239,12 @@ button { cursor: pointer; }
   aspect-ratio: 16 / 9;
 }
 .showcase-card-video-wrap:not([data-output-size]) {
+  aspect-ratio: 9 / 16;
+}
+
+/* Keep all showcase page cards visually proportional/aligned. */
+.showcase-page .showcase-card-video-wrap,
+.showcase-page .showcase-card-video-wrap[data-output-size] {
   aspect-ratio: 9 / 16;
 }
 
