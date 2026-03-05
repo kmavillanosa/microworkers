@@ -933,13 +933,13 @@ export default function OrderPage() {
               height={280}
             />
           </div>
-          {qrPaymentConfirmed && paymongoOrderId && (
+          {paymongoOrderId && (
             <button
               type="button"
               className="btn order-form-submit-btn"
               onClick={() => navigate(`/receipt/${encodeURIComponent(paymongoOrderId)}`)}
             >
-              Check receipt
+              {qrPaymentConfirmed ? 'Check receipt' : 'Check receipt (payment may still be syncing)'}
             </button>
           )}
           <button
