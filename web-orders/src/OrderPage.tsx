@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import Joyride, { STATUS, type Step } from 'react-joyride'
 
 /** API base (no trailing slash). Empty = same origin (works with http and https when served from same host). */
@@ -206,7 +206,7 @@ const ORDER_FORM_STEPS: Step[] = [
   },
   {
     target: '#order-form-submit-wrap',
-    content: 'Choose "Continue to payment" to open the checkout page, or "Pay with QR" to scan with GCash, Maya, or your bank app (min ₱20). You’ll get your reel when it’s done.',
+    content: 'Choose "Pay with QRPH" to generate a code you can scan with GCash, Maya, or your bank app (min ₱20). You’ll get your reel when it’s done.',
     disableBeacon: true,
   },
 ]
@@ -240,6 +240,7 @@ interface OrderSnapshot {
 }
 
 export default function OrderPage() {
+  const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
   const [orderId, setOrderId] = useState<string | null>(null)
   const isImpersonating = searchParams.has('impersonate')
@@ -306,6 +307,9 @@ export default function OrderPage() {
   /** PayMongo QR Ph: after creating payment intent we show scan-to-pay page with PayMongo's QR (amount >= ₱20). */
   const [paymongoQrImageUrl, setPaymongoQrImageUrl] = useState<string | null>(null)
   const [paymongoAmountPesos, setPaymongoAmountPesos] = useState<number | null>(null)
+  const [paymongoOrderId, setPaymongoOrderId] = useState<string | null>(null)
+  const [qrPaymentConfirmed, setQrPaymentConfirmed] = useState(false)
+  const [qrPaymentStatusMessage, setQrPaymentStatusMessage] = useState('Waiting for payment confirmation…')
   /** Script/caption position on video: top, center, bottom. Center only when no title. */
   const [scriptPosition, setScriptPosition] = useState<'top' | 'center' | 'bottom'>('bottom')
   /** Script/caption style for output video. */
@@ -339,7 +343,6 @@ export default function OrderPage() {
   const canPrev = safeFrameIndex > 0
   const canNext = safeFrameIndex < previewFrames.length - 1
   const reelPricePesos = previewFrames.length * pricePerFramePesos
-  const canPayWithQr = reelPricePesos >= 20
   /** Prefer client-side duration/words (no server); fall back to API transcript data. */
   const effectiveDurationSeconds = clipDurationSeconds ?? clipTranscript?.durationSeconds ?? null
   const effectiveMaxWords = clipMaxWords ?? clipTranscript?.maxWordsForNarration ?? null
@@ -475,113 +478,14 @@ export default function OrderPage() {
     }
   }
 
-  /** Continue to payment: prepare checkout (no order yet), then redirect to PayMongo. Order is created when payment completes. */
-  async function handleContinueToPayment(e: React.FormEvent) {
-    e.preventDefault()
-    if (isImpersonating) return
-    const amountPesos = validateAndGetAmount()
-    if (amountPesos == null) return
-    const selectedVoice = voices.find((v) => v.engine === voiceEngine && v.id === voiceName)
-    const scriptWords = wordCount(effectiveScript || script)
-    const videoLabel = clipName
-      ? (uploadedClipUrl ? 'Your uploaded video' : clipName)
-      : 'No video (captions only)'
-    const audioMode = !clipName
-      ? 'Narrator only (no clip audio)'
-      : useClipAudioWithNarrator
-        ? 'Clip audio + narrator'
-        : useClipAudio
-          ? 'Clip audio only'
-          : 'Narrator only'
-    const summaryLines = [
-      'Please review your order before paying:',
-      '',
-      'Payment method: Continue to payment (checkout page)',
-      `Total: ₱${amountPesos.toLocaleString()}`,
-      `Frames: ${previewFrames.length} × ₱${pricePerFramePesos}`,
-      `Script words: ${scriptWords}`,
-      `Video: ${videoLabel}`,
-      `Narrator: ${selectedVoice ? `${selectedVoice.name} (${selectedVoice.engine})` : `${voiceEngine} / ${voiceName}`}`,
-      `Audio mode: ${audioMode}`,
-      `Name: ${customerName.trim() || '—'}`,
-      `Email: ${customerEmail.trim() || '—'}`,
-      `Address: ${deliveryAddress.trim() || '—'}`,
-      '',
-      'Do you want to proceed to payment?',
-    ]
-    if (!window.confirm(summaryLines.join('\n'))) return
-    setSubmitting(true)
-    setError('')
-    try {
-      const origin = window.location.origin
-      const res = await fetch(`${API}/api/orders/prepare-checkout`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          orderPayload: buildOrderPayload(),
-          amountPesos,
-          successUrl: `${origin}/receipt/from-payment`,
-          cancelUrl: `${origin}/order`,
-        }),
-      })
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}))
-        throw new Error((err as { message?: string }).message || 'Checkout failed')
-      }
-      const data = (await res.json()) as { checkoutUrl: string; sessionId?: string }
-      if (data.checkoutUrl) {
-        if (data.sessionId) {
-          try {
-            sessionStorage.setItem('paymongo_checkout_session_id', data.sessionId)
-            localStorage.setItem('paymongo_checkout_session_id', data.sessionId)
-          } catch {
-            // ignore
-          }
-        }
-        try {
-          const draft: OrderFormDraft = {
-            script,
-            title,
-            fontId,
-            clipName,
-            voiceEngine,
-            voiceName,
-            useClipAudio,
-            useClipAudioWithNarrator,
-            scriptPosition,
-            scriptStyle,
-            previewSize,
-            customerName,
-            customerEmail,
-            deliveryAddress,
-            uploadedClipUrl:
-              uploadedClipUrl && !uploadedClipUrl.startsWith('blob:')
-                ? uploadedClipUrl
-                : null,
-          }
-          sessionStorage.setItem(ORDER_FORM_DRAFT_KEY, JSON.stringify(draft))
-        } catch {
-          // ignore
-        }
-        window.location.href = data.checkoutUrl
-        return
-      }
-      throw new Error('No checkout URL returned')
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to open checkout. Try again.')
-    } finally {
-      setSubmitting(false)
-    }
-  }
-
-  /** Pay with QR: show QR on this page (requires at least ₱20). */
+  /** Pay with QRPH: show QR on this page (requires at least ₱20). */
   async function handlePayWithQr(e: React.FormEvent) {
     e.preventDefault()
     if (isImpersonating) return
     const amountPesos = validateAndGetAmount()
     if (amountPesos == null) return
     if (amountPesos < 20) {
-      setError('QR payment requires at least ₱20. Use "Continue to payment" for smaller amounts.')
+      setError('QRPH payment requires at least ₱20.')
       return
     }
     const selectedVoice = voices.find((v) => v.engine === voiceEngine && v.id === voiceName)
@@ -599,7 +503,7 @@ export default function OrderPage() {
     const summaryLines = [
       'Please review your order before paying:',
       '',
-      'Payment method: Pay with QR (GCash / Maya / bank app)',
+      'Payment method: Pay with QRPH (GCash / Maya / bank app)',
       `Total: ₱${amountPesos.toLocaleString()}`,
       `Frames: ${previewFrames.length} × ₱${pricePerFramePesos}`,
       `Script words: ${scriptWords}`,
@@ -610,13 +514,16 @@ export default function OrderPage() {
       `Email: ${customerEmail.trim() || '—'}`,
       `Address: ${deliveryAddress.trim() || '—'}`,
       '',
-      'Do you want to proceed and generate a QR code for payment?',
+      'Do you want to proceed and generate a QRPH code for payment?',
     ]
     if (!window.confirm(summaryLines.join('\n'))) return
     setSubmitting(true)
     setError('')
     try {
       const id = await ensureOrderId()
+      setPaymongoOrderId(id)
+      setQrPaymentConfirmed(false)
+      setQrPaymentStatusMessage('Waiting for payment confirmation…')
       const res = await fetch(`${API}/api/orders/${id}/paymongo-qr`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -624,7 +531,7 @@ export default function OrderPage() {
       })
       if (!res.ok) {
         const err = await res.json().catch(() => ({}))
-        throw new Error((err as { message?: string }).message || 'QR payment failed')
+        throw new Error((err as { message?: string }).message || 'QRPH payment failed')
       }
       const data = (await res.json()) as { qrImageUrl: string; amountPesos: number }
       if (data.qrImageUrl) {
@@ -634,11 +541,47 @@ export default function OrderPage() {
       }
       throw new Error('No QR image returned')
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'QR payment failed. Try again.')
+      setError(e instanceof Error ? e.message : 'QRPH payment failed. Try again.')
     } finally {
       setSubmitting(false)
     }
   }
+
+  useEffect(() => {
+    if (!paymongoQrImageUrl || !paymongoOrderId) return
+    let active = true
+    let timer: ReturnType<typeof window.setInterval> | null = null
+
+    const checkPayment = async () => {
+      try {
+        const res = await fetch(`${API}/api/orders/${encodeURIComponent(paymongoOrderId)}`)
+        if (!res.ok || !active) return
+        const order = (await res.json()) as { paymentStatus?: string }
+        if (order.paymentStatus === 'confirmed') {
+          setQrPaymentConfirmed(true)
+          setQrPaymentStatusMessage('Payment confirmed. You can now check your receipt.')
+          if (timer != null) {
+            window.clearInterval(timer)
+            timer = null
+          }
+        }
+      } catch {
+        // keep polling; webhook confirmation can arrive a bit later
+      }
+    }
+
+    void checkPayment()
+    timer = window.setInterval(() => {
+      void checkPayment()
+    }, 3000)
+
+    return () => {
+      active = false
+      if (timer != null) {
+        window.clearInterval(timer)
+      }
+    }
+  }, [paymongoOrderId, paymongoQrImageUrl])
 
   function handleJoyrideCallback(data: { status?: string }) {
     if (data.status === STATUS.FINISHED || data.status === STATUS.SKIPPED) {
@@ -942,7 +885,7 @@ export default function OrderPage() {
       ? 'Transcribing your clip…'
       : isImpersonating
         ? 'Saving order…'
-        : 'Redirecting to checkout…'
+        : 'Generating QRPH code…'
 
   const orderedOutputSize = impersonatedOriginalOrder?.outputSize ?? 'phone'
   const orderedOutputSizeLabel =
@@ -976,23 +919,38 @@ export default function OrderPage() {
             Amount: <strong>₱{paymongoAmountPesos.toLocaleString()}</strong>
           </p>
           <p className="payment-qr-hint">
-            Scan the QR code with GCash, Maya, or your bank app to complete payment.
+            Scan the QRPH code with GCash, Maya, or your bank app to complete payment.
+          </p>
+          <p className="payment-qr-hint" role="status" aria-live="polite">
+            {qrPaymentStatusMessage}
           </p>
           <div className="payment-qr-wrap">
             <img
               src={paymongoQrImageUrl}
-              alt="QR code: scan to pay with GCash, Maya, or bank app"
+              alt="QRPH code: scan to pay with GCash, Maya, or bank app"
               className="payment-qr-image"
               width={280}
               height={280}
             />
           </div>
+          {qrPaymentConfirmed && paymongoOrderId && (
+            <button
+              type="button"
+              className="btn order-form-submit-btn"
+              onClick={() => navigate(`/receipt/${encodeURIComponent(paymongoOrderId)}`)}
+            >
+              Check receipt
+            </button>
+          )}
           <button
             type="button"
             className="btn payment-qr-btn-back"
             onClick={() => {
               setPaymongoQrImageUrl(null)
               setPaymongoAmountPesos(null)
+              setPaymongoOrderId(null)
+              setQrPaymentConfirmed(false)
+              setQrPaymentStatusMessage('Waiting for payment confirmation…')
             }}
           >
             Back to order
@@ -1657,27 +1615,17 @@ export default function OrderPage() {
                         id="order-form-submit-btn"
                         className="btn order-form-submit-btn"
                         disabled={submitting}
-                        onClick={handleContinueToPayment}
+                        onClick={handlePayWithQr}
                       >
-                        {submitting ? 'Redirecting…' : 'Continue to payment'}
+                        {submitting ? 'Generating QRPH…' : 'Pay with QRPH'}
                       </button>
-                      {canPayWithQr && (
-                        <button
-                          type="button"
-                          className="btn btn-secondary order-form-submit-btn"
-                          disabled={submitting}
-                          onClick={handlePayWithQr}
-                        >
-                          Pay with QR
-                        </button>
-                      )}
                     </>
                   )}
                 </div>
                 <p className="order-form-submit-hint">
                   {isImpersonating
                     ? 'Save this order for the customer updates this existing order with your changes.'
-                    : 'Continue to payment opens the secure checkout page. Pay with QR shows a code to scan (GCash, Maya, bank app; min ₱20).'}
+                    : 'Pay with QRPH shows a code to scan (GCash, Maya, bank app; min ₱20).'}
                 </p>
               </div>
             </form>

@@ -76,6 +76,7 @@ export function StudioPage() {
 
     const {
         apiBaseUrl,
+        orders,
         clips,
         fonts,
         edgeVoices,
@@ -97,6 +98,7 @@ export function StudioPage() {
         handleSetOrderStatus,
     } = useAppStore(useShallow((state) => ({
         apiBaseUrl: state.apiBaseUrl,
+        orders: state.orders,
         clips: state.clips,
         fonts: state.fonts,
         edgeVoices: state.edgeVoices,
@@ -256,6 +258,33 @@ export function StudioPage() {
         setOrderUseClipAudio,
         setOrderUseClipAudioWithNarrator,
     ]);
+
+    useEffect(() => {
+        if (!selectedOrder?.id) return;
+        const latest = orders.find((order) => order.id === selectedOrder.id);
+        if (!latest) return;
+
+        const hasOrderChanged =
+            latest.script !== selectedOrder.script ||
+            latest.title !== selectedOrder.title ||
+            latest.orderStatus !== selectedOrder.orderStatus ||
+            latest.paymentStatus !== selectedOrder.paymentStatus ||
+            latest.paymentReference !== selectedOrder.paymentReference ||
+            latest.bankCode !== selectedOrder.bankCode ||
+            latest.clipName !== selectedOrder.clipName ||
+            latest.fontId !== selectedOrder.fontId ||
+            latest.voiceEngine !== selectedOrder.voiceEngine ||
+            latest.voiceName !== selectedOrder.voiceName;
+
+        if (!hasOrderChanged) return;
+
+        const shouldSyncScript = script.trim() === (selectedOrder.script ?? '').trim();
+        const shouldSyncTitle = title === (selectedOrder.title ?? '');
+
+        setSelectedOrder(latest);
+        if (shouldSyncScript) setScript(latest.script ?? '');
+        if (shouldSyncTitle) setTitle(latest.title ?? '');
+    }, [orders, script, selectedOrder, title]);
 
     const studioFrameTexts = useMemo(
         () => scriptToFrameTexts(script, orderPricing?.wordsPerFrame ?? 5),

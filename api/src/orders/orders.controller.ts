@@ -149,7 +149,7 @@ export class OrdersController {
       );
     }
     let resolvedScript = script;
-    if (clipName) {
+    if (clipName && !script) {
       const transcript = await this.clipsService.getTranscript(
         'order',
         clipName,

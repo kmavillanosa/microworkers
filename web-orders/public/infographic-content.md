@@ -30,7 +30,7 @@ Step three is **Content**. Paste or type your script and add a title if needed. 
 
 ## 1:45–2:05 — Optional customer details and checkout
 
-Before checkout, you may add your name, email, and address. These are optional, but useful for support and delivery details. Review the **Live Preview** panel for frame-by-frame text and pricing. When ready, click **Continue to payment** or **Pay with QR** when available.
+Before checkout, you may add your name, email, and address. These are optional, but useful for support and delivery details. Review the **Live Preview** panel for frame-by-frame text and pricing. When ready, click **Continue to payment** or **Pay with QRPH** when available.
 
 ## 2:05–2:25 — After payment
 
