@@ -1,4 +1,4 @@
-import { Routes, Route, Link } from 'react-router-dom'
+import { Routes, Route, Link, useLocation } from 'react-router-dom'
 import Landing from './Landing'
 import OrderPage from './OrderPage'
 import ReceiptPage from './ReceiptPage'
@@ -8,8 +8,11 @@ import PricingPage from './PricingPage'
 import FaqPage from './FaqPage'
 
 function App() {
+  const location = useLocation()
+  const isLandingRoute = location.pathname === '/'
+
   return (
-    <div className="app-wrap">
+    <div className={`app-wrap${isLandingRoute ? ' app-wrap-landing' : ''}`}>
       <nav className="app-nav">
         <Link to="/" className="app-nav-brand" aria-label="ReelAgad home">
           <img src="/logo.svg" alt="" className="app-nav-logo" width="288" height="77" />

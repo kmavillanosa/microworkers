@@ -147,6 +147,38 @@ body::after {
   background: var(--accent-muted);
 }
 
+.app-wrap-landing {
+  position: relative;
+}
+
+.app-wrap-landing .app-nav {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 20;
+  border-bottom: none;
+  background: transparent;
+}
+
+.app-wrap-landing .app-nav-link {
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.app-wrap-landing .app-nav-link:hover {
+  color: #ffffff;
+}
+
+.app-wrap-landing .app-nav-cta {
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.52);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.app-wrap-landing .app-nav-cta:hover {
+  background: rgba(255, 255, 255, 0.18);
+}
+
 /* App footer */
 .app-footer {
   margin-top: auto;
@@ -1589,6 +1621,10 @@ button { cursor: pointer; }
   position: relative;
   overflow: hidden;
   font-family: 'Comico', var(--landing-font);
+}
+
+.app-wrap-landing .landing-hero {
+  padding-top: calc(clamp(3rem, 10vw, 5.5rem) + 3.75rem);
 }
 
 .landing-hero-badge {
