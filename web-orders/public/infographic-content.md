@@ -1,58 +1,49 @@
-# ReelAgad — Infographic content
+# ReelAgad Web-Orders Customer Walkthrough (TTS Script)
 
-Use this copy and structure for social posts, slides, or a designed infographic.
+This script is written for first-time customers with no technical background.
 
----
-
-## Hero
-
-**Brand:** ReelAgad  
-**Tagline:** Captions & voiceover on demand  
-
-**Headline:** Turn your script—or your raw clip—into a polished reel in minutes.
-
-**Subline:** Pick your style, voice, and format. We add captions, narration, and delivery in the size you need. No editing skills required.
+- **Target runtime:** 3 minutes and 10 seconds
+- **Voice style:** friendly, clear, beginner-friendly
+- **Delivery tip:** natural pace with short pauses between sections
 
 ---
 
-## How it works (3 steps)
+## 0:00–0:15 — Welcome
 
-| Step | Title | Short copy |
-|------|--------|------------|
-| 1 | **Add your content** | Paste a script or upload a video. We can transcribe it for you. |
-| 2 | **Choose look & sound** | Pick font, voice, and optional background clip. See a live preview. |
-| 3 | **Get your reel** | Pay securely. We deliver video, script, SRT, and audio to your receipt. |
+Welcome to ReelAgad. In this short guide, I’ll walk you through the full ordering process from start to finish. Even if this is your first time, just follow each step and you’ll be fine.
 
----
+## 0:15–0:35 — Start on the home page
 
-## What you get
+On the home page, you can view sample videos first, or tap **Create your reel** to begin right away. If you want to check quality and style examples, watch samples first, then open the order page.
 
-- **Captions** — On-screen text that matches your words  
-- **Voiceover** — Narrator or your clip’s own sound  
-- **Multiple sizes** — Phone (9:16), tablet, laptop, or desktop — for Reels, Shorts, TikTok, or feed  
-- **No editing** — Upload, choose options, pay. We do the rest.
+## 0:35–0:55 — Step 1: Upload
 
----
+Step one is **Upload**. You can upload your own video, pick one from the library, or choose **None** for captions only. If a clip is selected, choose an audio mode: narrator only, clip sound only, or both clip sound and narrator.
 
-## Who it’s for
+## 0:55–1:20 — Step 2: Look
 
-- Creators who’d rather focus on ideas than timelines  
-- Small businesses and B2B teams that need reels prospects actually want to watch (no boring corporate stock)  
-- Educators turning long content into short clips with clear captions  
-- Anyone with a script or clip who wants a finished reel — fast and simple  
+Step two is **Look**. Choose your font and output size: phone, tablet, laptop, or desktop. Then set caption position at top, center, or bottom. Next, adjust caption style: font size, background intensity, and animation level. Watch the live preview update as you change options.
 
----
+## 1:20–1:45 — Step 3: Content and voice
 
-## CTA
+Step three is **Content**. Paste or type your script and add a title if needed. If your uploaded clip has speech, the app can detect transcript and suggest a word limit that fits the video length. Then choose your narrator voice by searching name, language, or country.
 
-**Primary:** Create your reel  
-**Secondary:** View samples  
+## 1:45–2:05 — Optional customer details and checkout
 
----
+Before checkout, you may add your name, email, and address. These are optional, but useful for support and delivery details. Review the **Live Preview** panel for frame-by-frame text and pricing. When ready, click **Continue to payment** or **Pay with QR** when available.
 
-## One-liners (for social or banners)
+## 2:05–2:25 — After payment
 
-- “Captions & voiceover on demand.”
-- “Script or clip → polished reel. No editing required.”
-- “Your words. Your style. Your reel — in minutes.”
-- “We add the captions and voice. You get the reel.”
+After you pay, a confirmation page appears with the message **Confirming your payment**. This page automatically links your checkout session to your order and redirects to your receipt. If needed, paste your checkout session ID, usually starting with **cs_**, to find your order.
+
+## 2:25–2:45 — Receipt page essentials
+
+On the receipt page, save your **Order reference**. This is the fastest way to get support. You can also see order date, status, customer details, reel settings, and payment status. Use **Print / Save as PDF** if you want a copy for records.
+
+## 2:45–3:00 — Download your files
+
+When status becomes **Ready for delivery** or **Completed**, the **Downloads** section appears. Download your video, script text file, subtitle SRT, and sometimes audio. If multiple reels exist, download each set separately.
+
+## 3:00–3:10 — Closing
+
+That’s it. A beginner-friendly workflow from idea to finished reel. Keep your receipt link and order reference for future updates.
