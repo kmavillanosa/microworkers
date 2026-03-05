@@ -4,6 +4,8 @@ import OrderPage from './OrderPage'
 import ReceiptPage from './ReceiptPage'
 import FromPaymentReceiptPage from './FromPaymentReceiptPage'
 import ShowcasePage from './ShowcasePage'
+import PricingPage from './PricingPage'
+import FaqPage from './FaqPage'
 
 function App() {
   return (
@@ -13,12 +15,16 @@ function App() {
           <img src="/logo.svg" alt="" className="app-nav-logo" width="288" height="77" />
         </Link>
         <Link to="/showcase" className="app-nav-link">See our work</Link>
+        <Link to="/pricing" className="app-nav-link">Pricing</Link>
+        <Link to="/faq" className="app-nav-link">FAQ</Link>
         <Link to="/order" className="app-nav-link app-nav-cta">Order now</Link>
       </nav>
       <main className="app-main">
         <Routes>
           <Route path="/" element={<Landing />} />
           <Route path="/showcase" element={<ShowcasePage />} />
+          <Route path="/pricing" element={<PricingPage />} />
+          <Route path="/faq" element={<FaqPage />} />
           <Route path="/order" element={<OrderPage />} />
           <Route path="/receipt/from-payment" element={<FromPaymentReceiptPage />} />
           <Route path="/receipt/:orderId" element={<ReceiptPage />} />
@@ -32,6 +38,8 @@ function App() {
           <nav className="app-footer-links" aria-label="Footer navigation">
             <Link to="/">Home</Link>
             <Link to="/showcase">Sample videos</Link>
+            <Link to="/pricing">Pricing</Link>
+            <Link to="/faq">FAQ</Link>
             <Link to="/order">Order now</Link>
           </nav>
           <p className="app-footer-copy">

@@ -1236,6 +1236,107 @@ button { cursor: pointer; }
   margin-bottom: 0.5rem;
 }
 
+/* Pricing page */
+.container.pricing-page {
+  max-width: 860px;
+}
+
+.pricing-page-card {
+  padding: 1.25rem 1.35rem;
+}
+
+.pricing-page-hero {
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.pricing-page-hero h1 {
+  margin: 0 0 0.2rem;
+  font-size: 1.5rem;
+  color: var(--color-dark);
+}
+
+.pricing-page-hero p {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+.pricing-alert {
+  margin: 0 0 0.75rem;
+  color: var(--color-error);
+  font-size: 0.9rem;
+}
+
+.pricing-page-section {
+  margin-top: 1rem;
+}
+
+.pricing-page-section-title {
+  margin: 0 0 0.6rem;
+  font-size: 1rem;
+  color: var(--color-dark);
+}
+
+.pricing-tier-cards {
+  margin-top: 0;
+}
+
+.pricing-duration-controls {
+  margin-bottom: 0;
+}
+
+.pricing-duration-range {
+  width: 100%;
+  accent-color: var(--accent);
+}
+
+.pricing-summary {
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  padding: 0.75rem 0.9rem;
+  background: var(--color-card);
+}
+
+.pricing-summary-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 1rem;
+  padding: 0.3rem 0;
+  font-size: 0.9rem;
+  color: var(--color-text-secondary);
+}
+
+.pricing-summary-row strong {
+  color: var(--color-dark);
+}
+
+.pricing-summary-row-total {
+  margin-top: 0.45rem;
+  padding-top: 0.7rem;
+  border-top: 1px solid var(--color-border);
+  font-size: 1rem;
+}
+
+.pricing-summary-row-total strong {
+  color: var(--color-primary);
+}
+
+.pricing-note {
+  margin: 0.65rem 0 0;
+  font-size: 0.82rem;
+  color: var(--color-text-secondary);
+}
+
+@media (max-width: 600px) {
+  .pricing-page-card {
+    padding: 1rem;
+  }
+}
+
 /* Receipt page */
 .receipt-container {
   max-width: 640px;
