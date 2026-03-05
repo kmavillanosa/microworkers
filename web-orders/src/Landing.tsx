@@ -133,6 +133,7 @@ export default function Landing() {
         <div className="landing-hero-proof" role="list" aria-label="Benefits">
           <span role="listitem">Fast turnaround</span>
           <span role="listitem">Captions + narration</span>
+          <span role="listitem">No watermarks — your content stays yours</span>
           <span role="listitem">Phone, tablet, laptop, desktop</span>
         </div>
         <div className="landing-hero-actions">
