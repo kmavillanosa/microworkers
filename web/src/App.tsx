@@ -1,7 +1,7 @@
 import { Component, useEffect, useMemo, type ErrorInfo, type ReactNode } from "react";
 import { Navigate, NavLink, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { OrderOutputPage } from "./components";
-import { OrdersPage, OutputsPage, SettingsPage, StudioPage } from "./pages";
+import { OrdersPage, OutputsPage, SettingsPage, StudioNewPage, StudioPage } from "./pages";
 import { useAppStore } from "./stores/useAppStore";
 import "./App.css";
 
@@ -115,6 +115,14 @@ function App() {
         <div className="studio-app">
             <header className="topbar">
                 <nav className="view-tabs" aria-label="Main">
+                    <NavLink to="/orders" className={({ isActive }) => (isActive ? "active" : "")}>
+                        Order
+                        {pendingOrdersCount > 0 && (
+                            <span className="nav-badge" aria-label={`${pendingOrdersCount} pending`}>
+                                {pendingOrdersCount}
+                            </span>
+                        )}
+                    </NavLink>
                     <NavLink
                         to="/"
                         end
@@ -122,16 +130,8 @@ function App() {
                     >
                         Studio
                     </NavLink>
-                    <NavLink to="/outputs" className={({ isActive }) => (isActive ? "active" : "")}>Outputs</NavLink>
                     <NavLink to="/settings" className={({ isActive }) => (isActive ? "active" : "")}>Settings</NavLink>
-                    <NavLink to="/orders" className={({ isActive }) => (isActive ? "active" : "")}>
-                        Orders
-                        {pendingOrdersCount > 0 && (
-                            <span className="nav-badge" aria-label={`${pendingOrdersCount} pending`}>
-                                {pendingOrdersCount}
-                            </span>
-                        )}
-                    </NavLink>
+                    <NavLink to="/outputs" className={({ isActive }) => (isActive ? "active" : "")}>Output</NavLink>
                 </nav>
 
                 <div className="topbar-right">
@@ -143,6 +143,9 @@ function App() {
                             You are running on {envLabel} environment
                         </span>
                     )}
+                    <button type="button" className="ghost-btn" onClick={() => navigate("/studio-new")}>
+                        Studio New
+                    </button>
                     <button type="button" className="ghost-btn" onClick={() => void refreshAll()}>
                         Refresh
                     </button>
@@ -153,6 +156,7 @@ function App() {
                 <Routes>
                     <Route path="/orders" element={<OrdersPage />} />
                     <Route path="/" element={<StudioPage />} />
+                    <Route path="/studio-new" element={<StudioNewPage />} />
                     <Route path="/outputs" element={<OutputsPage />} />
                     <Route path="/settings" element={<Navigate to="/settings/accounts" replace />} />
                     <Route path="/settings/:tab" element={<SettingsPage />} />

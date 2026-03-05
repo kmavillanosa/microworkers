@@ -8,6 +8,7 @@ import type {
 } from "../types";
 
 export { OrderOutputPage } from "./OrderOutputPage";
+export { StudioTwickEditor } from "./StudioTwickEditor";
 
 /**
  * PipelineForm - Form for creating or editing a pipeline

@@ -346,6 +346,25 @@
   background: #1a1a1e;
   color: #e5e7eb;
 }
+.studio-twick-shell {
+  width: 100%;
+  min-height: 0;
+  flex: 1;
+  display: flex;
+}
+.studio-twick-editor {
+  width: 100%;
+  min-height: min(56vh, 560px);
+  height: min(62vh, 620px);
+}
+.studio-twick-editor .twick-editor-main-container {
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid #27272a;
+}
+.studio-twick-editor .twick-editor-container {
+  height: min(46vh, 460px);
+}
 .studio-preview-audio-toggle {
   display: flex;
   align-items: center;
@@ -514,6 +533,13 @@
   .studio-caption-options-row {
     margin-top: 0.15rem;
   }
+  .studio-twick-editor {
+    min-height: min(62vh, 500px);
+    height: min(68vh, 540px);
+  }
+  .studio-twick-editor .twick-editor-container {
+    height: min(44vh, 340px);
+  }
 }
 
 @media (max-width: 480px) {
@@ -549,6 +575,13 @@
     font-size: 9px;
     left: 4px;
     right: 4px;
+  }
+  .studio-twick-editor {
+    min-height: min(60vh, 420px);
+    height: min(65vh, 460px);
+  }
+  .studio-twick-editor .twick-editor-container {
+    height: min(36vh, 280px);
   }
 }
 
@@ -1333,37 +1366,165 @@ input[type='file'] {
   color: #9ca3af;
 }
 
-.orders-filters {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--gap-sm);
-  align-items: center;
-  margin-bottom: var(--pad-md);
+.orders-page {
+  padding: var(--pad-md);
 }
 
-.orders-filters label {
-  display: flex;
-  align-items: center;
-  gap: 0.35rem;
+.orders-page-header {
+  margin-bottom: var(--pad-sm);
+}
+
+.orders-page-header h2 {
+  margin: 0 0 var(--space-1);
+}
+
+.orders-toolbar {
+  display: grid;
+  gap: var(--gap-sm);
+  margin-bottom: var(--pad-sm);
+}
+
+.orders-filters {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: var(--gap-sm);
+  align-items: end;
+  margin-bottom: 0;
+}
+
+.orders-filter-field {
+  display: grid;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.orders-filter-search {
+  grid-column: span 2;
+}
+
+.orders-filter-label {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: #64748b;
 }
 
 .orders-filters select,
 .orders-filters input[type='text'],
 .orders-filters input[type='date'] {
-  padding: 0.35rem 0.6rem;
-  font-size: 0.85rem;
+  padding: 0.4rem 0.55rem;
+  font-size: var(--text-sm);
 }
 
-/* Orders Kanban - light theme */
+.orders-toolbar-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--gap-sm);
+  flex-wrap: wrap;
+}
+
+.orders-toolbar-meta p {
+  margin: 0;
+}
+
+.orders-toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--gap-sm);
+  flex-wrap: wrap;
+}
+
+.orders-status-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-bottom: var(--pad-sm);
+}
+
+.orders-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border: var(--border);
+  background: #fff;
+  color: #334155;
+  border-radius: 999px;
+  padding: 0.3rem 0.6rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+.orders-status-pill:hover {
+  background: #f1f5f9;
+}
+
+.orders-status-pill.active {
+  background: #2f55ff;
+  color: #fff;
+  border-color: #2f55ff;
+}
+
+.orders-status-pill-count {
+  min-width: 1.25rem;
+  padding: 0.1rem 0.3rem;
+  border-radius: 999px;
+  text-align: center;
+  background: #e2e8f0;
+  color: #334155;
+  font-size: 0.66rem;
+  line-height: 1.2;
+}
+
+.orders-status-pill.active .orders-status-pill-count {
+  background: rgba(255, 255, 255, 0.25);
+  color: #fff;
+}
+
+.orders-summary-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-bottom: var(--pad-sm);
+}
+
+.orders-summary-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.2rem 0.5rem;
+  border: var(--border);
+  border-radius: var(--radius-sm);
+  background: #fff;
+  font-size: var(--text-xs);
+  color: #475569;
+}
+
+.orders-summary-item strong {
+  color: #1f1f1f;
+}
+
+.orders-summary-hint {
+  margin-left: auto;
+  border-style: dashed;
+}
+
+.orders-kanban-wrap {
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-bottom: var(--pad-sm);
+}
+
 .orders-kanban {
   display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
-  gap: 0;
-  overflow: hidden;
-  padding-bottom: var(--pad-sm);
-  min-height: 50vh;
+  grid-template-columns: repeat(6, minmax(260px, 1fr));
+  min-width: 1560px;
+  min-height: 52vh;
   background: #f1f5f9;
   border-radius: var(--radius-md);
+  border: 1px solid #e2e8f0;
+  overflow: hidden;
 }
 
 .orders-kanban-column {
@@ -1371,10 +1532,7 @@ input[type='file'] {
   display: flex;
   flex-direction: column;
   background: #f8fafc;
-  border-radius: 0;
-  border: none;
   border-left: 1px solid #e2e8f0;
-  box-shadow: 1px 0 0 #e2e8f0;
   transition: background 0.15s ease;
 }
 
@@ -1384,52 +1542,68 @@ input[type='file'] {
 
 .orders-kanban-column:first-child {
   border-left: none;
-  border-radius: var(--radius-md) 0 0 var(--radius-md);
-}
-
-.orders-kanban-column:last-child {
-  border-radius: 0 var(--radius-md) var(--radius-md) 0;
 }
 
 .orders-kanban-column-head {
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  padding: 0.4rem 0.5rem;
+  align-items: flex-start;
+  gap: 0.5rem;
+  padding: 0.45rem 0.55rem;
   border-bottom: 1px solid #e2e8f0;
   font-weight: 600;
   color: #334155;
+  background: #f8fafc;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.orders-kanban-column-head-left {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-width: 0;
 }
 
 .orders-kanban-column-title {
-  font-size: 0.75rem;
+  font-size: 0.72rem;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  white-space: nowrap;
 }
 
 .orders-kanban-column-count {
-  font-size: 0.7rem;
+  font-size: 0.68rem;
   color: #64748b;
   background: #e2e8f0;
   padding: 0.1rem 0.4rem;
   border-radius: var(--radius-sm);
 }
 
+.orders-kanban-column-amount {
+  font-size: 0.68rem;
+  color: #64748b;
+  white-space: nowrap;
+}
+
 .orders-kanban-column-cards {
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 0.35rem;
-  padding: 0.35rem;
+  gap: 0.45rem;
+  padding: 0.45rem;
   overflow-y: auto;
 }
 
 .orders-kanban-card {
   background: #fff;
   border: 1px solid #e2e8f0;
-  border-radius: 6px;
-  padding: 0.4rem 0.5rem;
+  border-radius: var(--radius-md);
+  padding: 0.5rem;
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
+  gap: 0.35rem;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
   cursor: grab;
 }
@@ -1445,24 +1619,59 @@ input[type='file'] {
 
 .orders-kanban-card-body {
   display: grid;
-  gap: 0.2rem;
+  gap: 0.25rem;
   min-width: 0;
 }
 
-/* Card body – hierarchy */
 .orders-kanban-card-header {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  gap: 0.5rem;
+  gap: 0.35rem;
 }
 
-.orders-kanban-card-title {
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: #1e293b;
-  flex: 1;
+.orders-kanban-card-order {
+  display: grid;
+  gap: 0.1rem;
   min-width: 0;
+}
+
+.orders-kanban-card-order-id {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: #334155;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.orders-kanban-card-order-date {
+  font-size: 0.68rem;
+}
+
+.orders-kanban-card-header-badges {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.25rem;
+  flex-wrap: wrap;
+}
+
+.orders-payment-badge {
+  display: inline-block;
+  padding: 0.15rem 0.5rem;
+  border-radius: var(--radius-sm);
+  font-size: var(--text-xs);
+  font-weight: 600;
+}
+
+.orders-payment-badge.confirmed {
+  background: rgba(34, 197, 94, 0.2);
+  color: #22c55e;
+}
+
+.orders-payment-badge.pending {
+  background: rgba(255, 193, 7, 0.2);
+  color: #e6b800;
 }
 
 .orders-kanban-card-customer-label {
@@ -1472,32 +1681,31 @@ input[type='file'] {
   letter-spacing: 0.03em;
   color: #64748b;
 }
+
 .orders-kanban-card-customer-info {
   display: flex;
   flex-direction: column;
   gap: 0.15rem;
-  margin-top: 0.25rem;
+  margin-top: 0.2rem;
   margin-bottom: 0.35rem;
   padding-bottom: 0.35rem;
   border-bottom: 1px solid #e2e8f0;
 }
+
 .orders-kanban-card-customer-name {
   font-weight: 600;
-  font-size: 0.85rem;
+  font-size: 0.84rem;
   color: #1e293b;
 }
+
 .orders-kanban-card-customer-email,
 .orders-kanban-card-customer-delivery {
   font-size: 0.7rem;
 }
 
-.orders-kanban-card-customer-size {
-  font-size: 0.7rem;
-}
-
 .orders-kanban-card-summary {
-  margin: 0.35rem 0 0;
-  font-size: 0.75rem;
+  margin: 0.2rem 0 0;
+  font-size: 0.74rem;
   color: #475569;
   line-height: 1.35;
 }
@@ -1509,20 +1717,80 @@ input[type='file'] {
   color: #1e293b;
 }
 
-.orders-kanban-card-meta {
-  margin: 0.2rem 0 0;
-  font-size: 0.7rem;
+.orders-kanban-card-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  margin-top: 0.3rem;
+}
+
+.orders-kanban-card-tag {
+  max-width: 100%;
+  display: inline-flex;
+  align-items: center;
+  padding: 0.08rem 0.35rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  color: #475569;
+  font-size: 0.66rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.orders-kanban-card-meta-grid {
+  display: grid;
+  gap: 0.15rem;
+  margin-top: 0.35rem;
+}
+
+.orders-kanban-card-meta-item {
+  margin: 0;
+  font-size: 0.69rem;
   color: #64748b;
   line-height: 1.3;
 }
 
+.orders-kanban-card-meta-item strong {
+  font-weight: 600;
+  color: #475569;
+}
+
 .orders-kanban-card-clip {
-  display: flex;
-  align-items: center;
-  gap: 0.35rem;
-  margin: 0.25rem 0 0;
+  display: grid;
+  gap: 0.3rem;
+  margin-top: 0.35rem;
+  padding: 0.35rem;
+  border: 1px solid #e2e8f0;
+  border-radius: var(--radius-sm);
+  background: #f8fafc;
   font-size: 0.7rem;
   color: #64748b;
+}
+
+.orders-kanban-card-clip-title {
+  margin: 0;
+  font-size: 0.66rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: #64748b;
+}
+
+.orders-kanban-card .orders-clip-audio-option {
+  align-items: flex-start;
+  margin: 0;
+}
+
+.orders-kanban-card .orders-clip-audio-option input[type='radio'] {
+  margin-top: 0.1rem;
+}
+
+.orders-kanban-card .orders-clip-audio-option span {
+  font-size: 0.7rem;
+  line-height: 1.3;
+  color: #475569;
 }
 
 .orders-kanban-card .muted.small {
@@ -1530,13 +1798,12 @@ input[type='file'] {
   font-size: 0.7rem;
 }
 
-/* Card actions – aligned rows */
 .orders-kanban-card-actions {
   display: flex;
   flex-direction: column;
-  gap: 0.4rem;
-  margin-top: 0.4rem;
-  padding-top: 0.4rem;
+  gap: 0.35rem;
+  margin-top: 0.45rem;
+  padding-top: 0.45rem;
   border-top: 1px solid #e2e8f0;
 }
 
@@ -1545,6 +1812,14 @@ input[type='file'] {
   flex-wrap: wrap;
   gap: 0.35rem;
   align-items: center;
+}
+
+.orders-kanban-card-actions-primary .orders-kanban-btn {
+  flex: 1 1 140px;
+}
+
+.orders-kanban-card-actions-footer .orders-kanban-btn-delete {
+  margin-left: auto;
 }
 
 .orders-kanban-approval {
@@ -1621,12 +1896,34 @@ input[type='file'] {
   color: #b91c1c;
   border-color: transparent;
 }
+
 .orders-kanban-btn-delete:hover:not(:disabled) {
   background: #fef2f2;
   color: #991b1b;
 }
+
 .orders-kanban-btn-delete:disabled {
   opacity: 0.7;
+}
+
+@media (max-width: 960px) {
+  .orders-filter-search {
+    grid-column: span 1;
+  }
+
+  .orders-summary-hint {
+    margin-left: 0;
+  }
+}
+
+@media (max-width: 640px) {
+  .orders-filters {
+    grid-template-columns: 1fr;
+  }
+
+  .orders-toolbar-meta {
+    align-items: flex-start;
+  }
 }
 
 .preview-stage {
