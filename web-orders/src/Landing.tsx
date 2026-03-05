@@ -1,10 +1,54 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { ShowcaseCard, type ShowcaseItem } from './ShowcaseCard'
 
 const API_BASE = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '')
 
 const LANDING_SHOWCASE_MAX = 6
+
+type PricingTierId = 'tts_only' | 'clip_only' | 'clip_and_narrator'
+
+interface PricingResponse {
+  wordsPerFrame: number
+  pricePerFramePesos: number
+  pricePerFramePesosByTier?: {
+    ttsOnly: number
+    clipOnly: number
+    clipAndNarrator: number
+  }
+}
+
+const WORDS_PER_SECOND = 2.5
+const DEFAULT_PRICING = {
+  wordsPerFrame: 5,
+  pricePerFramePesosByTier: {
+    ttsOnly: 3,
+    clipOnly: 5,
+    clipAndNarrator: 7,
+  },
+}
+
+function formatDuration(seconds: number): string {
+  const safeSeconds = Math.max(0, Math.floor(seconds))
+  const minutes = Math.floor(safeSeconds / 60)
+  const remainingSeconds = safeSeconds % 60
+  return remainingSeconds < 10 ? `${minutes}:0${remainingSeconds}` : `${minutes}:${remainingSeconds}`
+}
+
+function selectedTierPrice(
+  tierId: PricingTierId,
+  tiers: { ttsOnly: number; clipOnly: number; clipAndNarrator: number },
+): number {
+  if (tierId === 'clip_only') return tiers.clipOnly
+  if (tierId === 'clip_and_narrator') return tiers.clipAndNarrator
+  return tiers.ttsOnly
+}
+
+function tierLabel(tierId: PricingTierId): string {
+  if (tierId === 'clip_only') return 'Video sound only'
+  if (tierId === 'clip_and_narrator') return 'Video sound + voiceover'
+  return 'Voiceover only'
+}
 
 function BetaBadge() {
   return <span className="landing-beta-badge">BETA</span>
@@ -13,6 +57,12 @@ function BetaBadge() {
 export default function Landing() {
   const [showcaseItems, setShowcaseItems] = useState<ShowcaseItem[]>([])
   const [showcaseLoading, setShowcaseLoading] = useState(true)
+  const [pricingLoading, setPricingLoading] = useState(true)
+  const [pricingError, setPricingError] = useState('')
+  const [pricingTier, setPricingTier] = useState<PricingTierId>('tts_only')
+  const [durationSeconds, setDurationSeconds] = useState(30)
+  const [wordsPerFrame, setWordsPerFrame] = useState(DEFAULT_PRICING.wordsPerFrame)
+  const [tiers, setTiers] = useState(DEFAULT_PRICING.pricePerFramePesosByTier)
 
   useEffect(() => {
     const url = API_BASE ? `${API_BASE}/api/reels/showcase` : '/api/reels/showcase'
@@ -23,7 +73,49 @@ export default function Landing() {
       .finally(() => setShowcaseLoading(false))
   }, [])
 
+  useEffect(() => {
+    let isCancelled = false
+    const url = API_BASE ? `${API_BASE}/api/orders/pricing` : '/api/orders/pricing'
+    fetch(url)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data: PricingResponse | null) => {
+        if (!data || isCancelled) return
+
+        if (typeof data.wordsPerFrame === 'number' && data.wordsPerFrame > 0) {
+          setWordsPerFrame(data.wordsPerFrame)
+        }
+
+        const byTier = data.pricePerFramePesosByTier
+        const ttsOnly = byTier?.ttsOnly ?? (typeof data.pricePerFramePesos === 'number' ? data.pricePerFramePesos : DEFAULT_PRICING.pricePerFramePesosByTier.ttsOnly)
+        const clipOnly = byTier?.clipOnly ?? DEFAULT_PRICING.pricePerFramePesosByTier.clipOnly
+        const clipAndNarrator = byTier?.clipAndNarrator ?? DEFAULT_PRICING.pricePerFramePesosByTier.clipAndNarrator
+
+        setTiers({ ttsOnly, clipOnly, clipAndNarrator })
+      })
+      .catch(() => {
+        setPricingError('Could not load live pricing. Showing default values.')
+      })
+      .finally(() => {
+        if (!isCancelled) setPricingLoading(false)
+      })
+
+    return () => {
+      isCancelled = true
+    }
+  }, [])
+
   const displaySamples = showcaseItems.slice(0, LANDING_SHOWCASE_MAX)
+  const safeDurationSeconds = Math.max(0, Math.min(7200, Math.floor(durationSeconds || 0)))
+  const estimatedWords = useMemo(
+    () => Math.max(0, Math.floor(safeDurationSeconds * WORDS_PER_SECOND)),
+    [safeDurationSeconds],
+  )
+  const estimatedFrames = useMemo(
+    () => (wordsPerFrame > 0 ? Math.ceil(estimatedWords / wordsPerFrame) : 0),
+    [estimatedWords, wordsPerFrame],
+  )
+  const selectedPricePerFrame = selectedTierPrice(pricingTier, tiers)
+  const estimatedTotalPesos = estimatedFrames * selectedPricePerFrame
 
   return (
     <div className="landing-page">
@@ -130,6 +222,123 @@ export default function Landing() {
             Place your order
           </Link>
         </div>
+      </section>
+
+      <section className="landing-section landing-pricing" aria-labelledby="landing-pricing-title">
+        <h2 id="landing-pricing-title" className="landing-section-title">Pricing calculator</h2>
+        <p className="landing-section-intro">
+          Get a quick estimate based on your audio option and video length.
+        </p>
+
+        {pricingError && <p className="pricing-alert">{pricingError}</p>}
+
+        <div className="landing-pricing-grid">
+          <div className="landing-pricing-inputs">
+            <div className="audio-tier-cards landing-pricing-tier-cards" role="radiogroup" aria-label="Select audio option for estimate">
+              <label className={`audio-tier-card ${pricingTier === 'tts_only' ? 'audio-tier-card-selected' : ''}`}>
+                <input
+                  type="radio"
+                  name="landingPricingTier"
+                  value="tts_only"
+                  checked={pricingTier === 'tts_only'}
+                  onChange={() => setPricingTier('tts_only')}
+                  className="audio-tier-card-input"
+                />
+                <span className="audio-tier-card-title">Voiceover only</span>
+                <span className="audio-tier-card-desc">Only our narrator voice is used. Your video sound is muted.</span>
+                <span className="audio-tier-card-price">₱{tiers.ttsOnly} per frame</span>
+              </label>
+
+              <label className={`audio-tier-card ${pricingTier === 'clip_only' ? 'audio-tier-card-selected' : ''}`}>
+                <input
+                  type="radio"
+                  name="landingPricingTier"
+                  value="clip_only"
+                  checked={pricingTier === 'clip_only'}
+                  onChange={() => setPricingTier('clip_only')}
+                  className="audio-tier-card-input"
+                />
+                <span className="audio-tier-card-title">Video sound only</span>
+                <span className="audio-tier-card-desc">Only your video&apos;s original sound is used. No extra voiceover.</span>
+                <span className="audio-tier-card-price">₱{tiers.clipOnly} per frame</span>
+              </label>
+
+              <label className={`audio-tier-card ${pricingTier === 'clip_and_narrator' ? 'audio-tier-card-selected' : ''}`}>
+                <input
+                  type="radio"
+                  name="landingPricingTier"
+                  value="clip_and_narrator"
+                  checked={pricingTier === 'clip_and_narrator'}
+                  onChange={() => setPricingTier('clip_and_narrator')}
+                  className="audio-tier-card-input"
+                />
+                <span className="audio-tier-card-title">Video sound + voiceover</span>
+                <span className="audio-tier-card-desc">Keep your video sound and add a narrator voice.</span>
+                <span className="audio-tier-card-price">₱{tiers.clipAndNarrator} per frame</span>
+              </label>
+            </div>
+
+            <div className="field landing-pricing-duration">
+              <label className="label" htmlFor="landing-pricing-duration">Video length (seconds)</label>
+              <input
+                id="landing-pricing-duration"
+                type="number"
+                min={0}
+                max={7200}
+                step={1}
+                value={safeDurationSeconds}
+                onChange={(e) => {
+                  const next = Number.isFinite(e.target.valueAsNumber) ? e.target.valueAsNumber : 0
+                  setDurationSeconds(next)
+                }}
+              />
+              <input
+                type="range"
+                min={0}
+                max={600}
+                step={5}
+                value={Math.min(safeDurationSeconds, 600)}
+                onChange={(e) => setDurationSeconds(Number(e.target.value))}
+                className="pricing-duration-range"
+                aria-label="Quick video length slider"
+              />
+              <p className="field-hint">Video length: <strong>{formatDuration(safeDurationSeconds)}</strong></p>
+            </div>
+          </div>
+
+          <div className="pricing-summary" aria-live="polite">
+            <div className="pricing-summary-row">
+              <span>Selected option</span>
+              <strong>{tierLabel(pricingTier)}</strong>
+            </div>
+            <div className="pricing-summary-row">
+              <span>Estimated words for this length</span>
+              <strong>{estimatedWords.toLocaleString()}</strong>
+            </div>
+            <div className="pricing-summary-row">
+              <span>Words per frame (average)</span>
+              <strong>{wordsPerFrame}</strong>
+            </div>
+            <div className="pricing-summary-row">
+              <span>Estimated total frames</span>
+              <strong>{estimatedFrames.toLocaleString()}</strong>
+            </div>
+            <div className="pricing-summary-row">
+              <span>Price per frame</span>
+              <strong>₱{selectedPricePerFrame.toLocaleString()}</strong>
+            </div>
+            <div className="pricing-summary-row pricing-summary-row-total">
+              <span>Estimated total price</span>
+              <strong>₱{estimatedTotalPesos.toLocaleString()}</strong>
+            </div>
+          </div>
+        </div>
+
+        <p className="pricing-note">
+          {pricingLoading
+            ? 'Loading latest pricing...'
+            : 'This is a quick estimate using current pricing and normal speaking speed (~2.5 words per second). Final price may change based on your final script.'}
+        </p>
       </section>
 
       <section className="landing-footer-cta">
