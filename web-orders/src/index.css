@@ -1115,6 +1115,15 @@ button { cursor: pointer; }
   background: var(--color-card);
   border: 1px solid var(--color-border);
 }
+.payment-qr-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  align-items: stretch;
+}
+.payment-qr-actions .btn {
+  width: 100%;
+}
 .payment-qr-btn-back {
   padding: 0.75rem 1.5rem;
   font-size: 1rem;

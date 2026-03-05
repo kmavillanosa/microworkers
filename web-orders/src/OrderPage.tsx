@@ -933,28 +933,30 @@ export default function OrderPage() {
               height={280}
             />
           </div>
-          {paymongoOrderId && (
+          <div className="payment-qr-actions">
+            {paymongoOrderId && (
+              <button
+                type="button"
+                className="btn order-form-submit-btn payment-qr-btn-receipt"
+                onClick={() => navigate(`/receipt/${encodeURIComponent(paymongoOrderId)}`)}
+              >
+                {qrPaymentConfirmed ? 'Check receipt' : 'Check receipt (payment may still be syncing)'}
+              </button>
+            )}
             <button
               type="button"
-              className="btn order-form-submit-btn"
-              onClick={() => navigate(`/receipt/${encodeURIComponent(paymongoOrderId)}`)}
+              className="btn payment-qr-btn-back"
+              onClick={() => {
+                setPaymongoQrImageUrl(null)
+                setPaymongoAmountPesos(null)
+                setPaymongoOrderId(null)
+                setQrPaymentConfirmed(false)
+                setQrPaymentStatusMessage('Waiting for payment confirmation…')
+              }}
             >
-              {qrPaymentConfirmed ? 'Check receipt' : 'Check receipt (payment may still be syncing)'}
+              Back to order
             </button>
-          )}
-          <button
-            type="button"
-            className="btn payment-qr-btn-back"
-            onClick={() => {
-              setPaymongoQrImageUrl(null)
-              setPaymongoAmountPesos(null)
-              setPaymongoOrderId(null)
-              setQrPaymentConfirmed(false)
-              setQrPaymentStatusMessage('Waiting for payment confirmation…')
-            }}
-          >
-            Back to order
-          </button>
+          </div>
         </div>
       </div>
     )
