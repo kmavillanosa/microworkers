@@ -1238,7 +1238,7 @@ button { cursor: pointer; }
 
 /* Pricing page */
 .container.pricing-page {
-  max-width: 860px;
+  max-width: 1100px;
 }
 
 .pricing-page-card {
@@ -1274,6 +1274,29 @@ button { cursor: pointer; }
   margin-top: 1rem;
 }
 
+.pricing-page-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.7fr) minmax(280px, 1fr);
+  gap: 1rem;
+  align-items: start;
+}
+
+.pricing-page-left {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.pricing-page-left .pricing-page-section,
+.pricing-page-summary-section {
+  margin-top: 0;
+}
+
+.pricing-page-summary-section {
+  position: sticky;
+  top: 0.75rem;
+}
+
 .pricing-page-section-title {
   margin: 0 0 0.6rem;
   font-size: 1rem;
@@ -1282,6 +1305,13 @@ button { cursor: pointer; }
 
 .pricing-tier-cards {
   margin-top: 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.pricing-tier-cards .audio-tier-card {
+  height: 100%;
 }
 
 .pricing-duration-controls {
@@ -1334,6 +1364,27 @@ button { cursor: pointer; }
 @media (max-width: 600px) {
   .pricing-page-card {
     padding: 1rem;
+  }
+}
+
+@media (max-width: 980px) {
+  .pricing-page-grid {
+    grid-template-columns: 1fr;
+    gap: 0.9rem;
+  }
+
+  .pricing-page-summary-section {
+    position: static;
+  }
+
+  .pricing-tier-cards {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 1200px) and (min-width: 981px) {
+  .pricing-tier-cards {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
