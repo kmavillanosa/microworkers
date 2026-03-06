@@ -218,6 +218,16 @@ const ORDER_FORM_STEPS: Step[] = [
   },
 ]
 
+function ImpersonationAlert({ orderId }: { orderId: string }) {
+  return (
+    <section className="impersonation-alert" role="alert" aria-live="polite">
+      <p className="impersonation-alert-text">
+        Order <span className="impersonation-alert-order-id">{orderId}</span> is currently being impersonated.
+      </p>
+    </section>
+  )
+}
+
 /** Classify video dimensions into preview size (phone = portrait, tablet = square/portrait, laptop = landscape, desktop = ultra-wide). */
 function previewSizeFromDimensions(width: number, height: number): PreviewSize {
   if (!width || !height) return 'phone'
@@ -951,24 +961,6 @@ export default function OrderPage() {
         ? 'Saving order…'
         : 'Generating QRPH code…'
 
-  const orderedOutputSize = impersonatedOriginalOrder?.outputSize ?? 'phone'
-  const orderedOutputSizeLabel =
-    PREVIEW_SIZES.find((size) => size.id === orderedOutputSize)?.label ?? orderedOutputSize
-  const orderedAudioMode = !impersonatedOriginalOrder?.clipName
-    ? 'Narrator only'
-    : impersonatedOriginalOrder.useClipAudioWithNarrator
-      ? 'Clip audio + narrator'
-      : impersonatedOriginalOrder.useClipAudio
-        ? 'Clip audio only'
-        : 'Narrator only'
-  const orderedScriptPosition = impersonatedOriginalOrder?.scriptPosition ?? 'bottom'
-  const orderedAnimationMode = normalizeCaptionAnimationMode(
-    impersonatedOriginalOrder?.scriptStyle?.animationMode,
-  )
-  const orderedCaptionFontScale = impersonatedOriginalOrder?.scriptStyle?.fontScale ?? 1
-  const orderedCaptionBgOpacity = impersonatedOriginalOrder?.scriptStyle?.bgOpacity ?? 180
-  const orderedClipLabel = impersonatedOriginalOrder?.clipName ?? 'None — caption style only'
-
   const isTestMode = (import.meta.env.VITE_APP_ENV ?? '') !== 'production'
 
   if (paymongoQrImageUrl && paymongoAmountPesos != null) {
@@ -1084,90 +1076,7 @@ export default function OrderPage() {
         {error && <p style={{ color: '#dc2626', marginBottom: '1rem' }}>{error}</p>}
 
         {isImpersonating && impersonatedOriginalOrder && (
-          <section className="order-form-step impersonation-ordered-details" aria-labelledby="impersonation-ordered-details-heading">
-            <h2 id="impersonation-ordered-details-heading" className="order-form-step-title">
-              Customer ordered details
-            </h2>
-            <p className="order-form-step-intro">
-              Original values saved by the customer on this order (before your edits).
-            </p>
-            <div className="impersonation-summary-grid" role="list" aria-label="Original customer order details summary">
-              <div className="impersonation-summary-item" role="listitem">
-                <span className="impersonation-summary-label">order_id</span>
-                <span className="impersonation-summary-value">{impersonatedOriginalOrder.id}</span>
-              </div>
-              <div className="impersonation-summary-item" role="listitem">
-                <span className="impersonation-summary-label">output_size</span>
-                <span className="impersonation-summary-value">{orderedOutputSize} ({orderedOutputSizeLabel})</span>
-              </div>
-              <div className="impersonation-summary-item" role="listitem">
-                <span className="impersonation-summary-label">audio_mode</span>
-                <span className="impersonation-summary-value">{orderedAudioMode}</span>
-              </div>
-              <div className="impersonation-summary-item" role="listitem">
-                <span className="impersonation-summary-label">narrator_voice</span>
-                <span className="impersonation-summary-value">{impersonatedOriginalOrder.voiceName || '—'}</span>
-              </div>
-              <div className="impersonation-summary-item" role="listitem">
-                <span className="impersonation-summary-label">voice_engine</span>
-                <span className="impersonation-summary-value">{impersonatedOriginalOrder.voiceEngine || '—'}</span>
-              </div>
-              <div className="impersonation-summary-item" role="listitem">
-                <span className="impersonation-summary-label">font</span>
-                <span className="impersonation-summary-value">{impersonatedOriginalOrder.fontId || '—'}</span>
-              </div>
-              <div className="impersonation-summary-item" role="listitem">
-                <span className="impersonation-summary-label">clip</span>
-                <span className="impersonation-summary-value">{orderedClipLabel}</span>
-              </div>
-              <div className="impersonation-summary-item" role="listitem">
-                <span className="impersonation-summary-label">script_position</span>
-                <span className="impersonation-summary-value">{orderedScriptPosition}</span>
-              </div>
-              <div className="impersonation-summary-item" role="listitem">
-                <span className="impersonation-summary-label">animation_mode</span>
-                <span className="impersonation-summary-value">{orderedAnimationMode}</span>
-              </div>
-              <div className="impersonation-summary-item" role="listitem">
-                <span className="impersonation-summary-label">caption_font_scale</span>
-                <span className="impersonation-summary-value">{orderedCaptionFontScale}</span>
-              </div>
-              <div className="impersonation-summary-item" role="listitem">
-                <span className="impersonation-summary-label">caption_bg_opacity</span>
-                <span className="impersonation-summary-value">{orderedCaptionBgOpacity}</span>
-              </div>
-              <div className="impersonation-summary-item" role="listitem">
-                <span className="impersonation-summary-label">customer_name</span>
-                <span className="impersonation-summary-value">{impersonatedOriginalOrder.customerName?.trim() || '—'}</span>
-              </div>
-              <div className="impersonation-summary-item" role="listitem">
-                <span className="impersonation-summary-label">customer_email</span>
-                <span className="impersonation-summary-value">{impersonatedOriginalOrder.customerEmail?.trim() || '—'}</span>
-              </div>
-              <div className="impersonation-summary-item impersonation-summary-item-wide" role="listitem">
-                <span className="impersonation-summary-label">delivery_address</span>
-                <span className="impersonation-summary-value">{impersonatedOriginalOrder.deliveryAddress?.trim() || '—'}</span>
-              </div>
-            </div>
-            <div className="field impersonation-original-field">
-              <label className="label" htmlFor="impersonation-original-title">Original title</label>
-              <input
-                id="impersonation-original-title"
-                type="text"
-                value={impersonatedOriginalOrder.title ?? ''}
-                readOnly
-              />
-            </div>
-            <div className="field impersonation-original-field">
-              <label className="label" htmlFor="impersonation-original-script">Original script</label>
-              <textarea
-                id="impersonation-original-script"
-                value={impersonatedOriginalOrder.script ?? ''}
-                rows={6}
-                readOnly
-              />
-            </div>
-          </section>
+          <ImpersonationAlert orderId={impersonatedOriginalOrder.id} />
         )}
 
         <>

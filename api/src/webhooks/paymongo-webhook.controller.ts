@@ -156,7 +156,14 @@ export class PaymongoWebhookController {
       const attrs = paymentData?.attributes;
       const transactionRef =
         attrs?.external_reference_number ?? paymentData?.id ?? 'paymongo';
-      const descriptor = attrs?.statement_descriptor?.trim() ?? null;
+      const metadataDescriptorRaw =
+        paymentIntent?.attributes?.metadata?.order_descriptor;
+      const metadataDescriptor =
+        typeof metadataDescriptorRaw === 'string'
+          ? metadataDescriptorRaw.trim()
+          : '';
+      const descriptor =
+        metadataDescriptor || attrs?.statement_descriptor?.trim() || null;
       const billing = attrs?.billing;
       const customerName = billing?.name?.trim() ?? '';
       const customerEmail = billing?.email?.trim() ?? '';

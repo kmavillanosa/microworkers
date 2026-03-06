@@ -214,6 +214,7 @@ export class PaymongoService {
     amountPesos: number;
     description: string;
     billing?: { name?: string; email?: string };
+    metadata?: Record<string, string>;
   }): Promise<{
     paymentIntentId: string;
     qrImageUrl: string;
@@ -226,6 +227,12 @@ export class PaymongoService {
     if (amountCentavos < 2000) {
       throw new Error('Amount must be at least ₱20.00 for QR Ph payment');
     }
+
+    const metadata: Record<string, string> = {
+      ...(params.metadata ?? {}),
+      ...(params.orderId && { order_id: params.orderId }),
+    };
+    const hasMetadata = Object.keys(metadata).length > 0;
 
     // 1. Create Payment Intent with qrph allowed
     const piRes = await fetch(`${PAYMONGO_API}/payment_intents`, {
@@ -241,7 +248,7 @@ export class PaymongoService {
             currency: 'PHP',
             payment_method_allowed: ['qrph'],
             description: params.description.slice(0, 255),
-            ...(params.orderId && { metadata: { order_id: params.orderId } }),
+            ...(hasMetadata && { metadata }),
           },
         },
       }),
@@ -433,6 +440,28 @@ export interface PaymentIntentResource {
   id?: string;
   attributes?: {
     status?: string;
-    metadata?: { order_id?: string };
+    amount?: number;
+    next_action?: {
+      type?: string;
+      expires_at?: string | number;
+      expired_at?: string | number;
+      expiresAt?: string | number;
+      expiry?: string | number;
+      qrph?: {
+        expires_at?: string | number;
+        expired_at?: string | number;
+      };
+      display_qrph?: {
+        expires_at?: string | number;
+        expired_at?: string | number;
+      };
+      code?: {
+        image_url?: string;
+      };
+    };
+    metadata?: {
+      order_id?: string;
+      [key: string]: string | number | boolean | null | undefined;
+    };
   };
 }

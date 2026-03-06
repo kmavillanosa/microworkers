@@ -155,6 +155,7 @@ export type Order = {
   useClipAudioWithNarrator?: boolean
   bankCode: string | null
   paymentReference: string | null
+  paymentDescriptor?: string | null
   paymentSessionId?: string | null
   paymentStatus: 'pending' | 'confirmed'
   orderStatus: OrderStatus

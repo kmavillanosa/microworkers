@@ -346,7 +346,7 @@ export function OrdersPage({
                                 setSearchInput(event.target.value)
                                 setPage(1)
                             }}
-                            placeholder="Order ID, name, email, script..."
+                            placeholder="Order ID, name, email, script, payment ref/descriptor..."
                             className="w-full rounded-md border border-gray-300 bg-white px-2 py-1.5 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
                         />
                     </label>
@@ -469,6 +469,7 @@ export function OrdersPage({
                                     <tr>
                                         <th className="px-3 py-2 text-left font-semibold">Order</th>
                                         <th className="px-3 py-2 text-left font-semibold">Customer</th>
+                                        <th className="px-3 py-2 text-left font-semibold">Payment</th>
                                         <th className="px-3 py-2 text-left font-semibold">Status</th>
                                         <th className="px-3 py-2 text-left font-semibold">Audio</th>
                                         <th className="px-3 py-2 text-left font-semibold">Frames</th>
@@ -555,6 +556,26 @@ export function OrdersPage({
                                                 <td className="px-3 py-2">
                                                     <p className="font-medium text-gray-900 dark:text-white">{order.customerName}</p>
                                                     <p className="text-xs text-gray-500 dark:text-gray-400">{order.customerEmail}</p>
+                                                </td>
+                                                <td className="px-3 py-2">
+                                                    <div className="space-y-1">
+                                                        <Badge color={order.paymentStatus === 'confirmed' ? 'success' : 'warning'}>
+                                                            {order.paymentStatus === 'confirmed' ? 'Confirmed' : 'Pending'}
+                                                        </Badge>
+                                                        {order.bankCode ? (
+                                                            <p className="text-xs text-gray-600 dark:text-gray-300">Bank: {order.bankCode}</p>
+                                                        ) : null}
+                                                        {order.paymentReference ? (
+                                                            <p className="max-w-xs truncate text-xs text-gray-600 dark:text-gray-300" title={order.paymentReference}>
+                                                                Ref: {order.paymentReference}
+                                                            </p>
+                                                        ) : null}
+                                                        {order.paymentDescriptor ? (
+                                                            <p className="max-w-xs truncate text-xs text-gray-600 dark:text-gray-300" title={order.paymentDescriptor}>
+                                                                Desc: {order.paymentDescriptor}
+                                                            </p>
+                                                        ) : null}
+                                                    </div>
                                                 </td>
                                                 <td className="px-3 py-2">
                                                     <Badge color="info">{formatStatusLabel(order.orderStatus)}</Badge>

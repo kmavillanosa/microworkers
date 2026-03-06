@@ -148,6 +148,180 @@ export class OrdersController {
     };
   }
 
+  private parseTimestampToIso(value: unknown): string | null {
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      const millis = value > 1_000_000_000_000 ? value : value * 1000;
+      const parsed = new Date(millis);
+      return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString();
+    }
+
+    if (typeof value === 'string') {
+      const trimmed = value.trim();
+      if (!trimmed) return null;
+
+      const numeric = Number(trimmed);
+      if (Number.isFinite(numeric)) {
+        const millis = numeric > 1_000_000_000_000 ? numeric : numeric * 1000;
+        const parsedNumeric = new Date(millis);
+        if (!Number.isNaN(parsedNumeric.getTime())) {
+          return parsedNumeric.toISOString();
+        }
+      }
+
+      const parsed = new Date(trimmed);
+      return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString();
+    }
+
+    return null;
+  }
+
+  private resolveQrExpiryFromNextAction(
+    nextAction: Record<string, unknown> | undefined,
+  ): string | null {
+    if (!nextAction) return null;
+
+    const code =
+      typeof nextAction.code === 'object' && nextAction.code
+        ? (nextAction.code as Record<string, unknown>)
+        : undefined;
+    const qrph =
+      typeof nextAction.qrph === 'object' && nextAction.qrph
+        ? (nextAction.qrph as Record<string, unknown>)
+        : undefined;
+    const displayQrph =
+      typeof nextAction.display_qrph === 'object' && nextAction.display_qrph
+        ? (nextAction.display_qrph as Record<string, unknown>)
+        : undefined;
+
+    const candidates: unknown[] = [
+      nextAction.expires_at,
+      nextAction.expired_at,
+      nextAction.expiresAt,
+      nextAction.expiry,
+      code?.expires_at,
+      code?.expired_at,
+      code?.expiresAt,
+      code?.expiry,
+      qrph?.expires_at,
+      qrph?.expired_at,
+      displayQrph?.expires_at,
+      displayQrph?.expired_at,
+    ];
+
+    for (const candidate of candidates) {
+      const parsed = this.parseTimestampToIso(candidate);
+      if (parsed) {
+        return parsed;
+      }
+    }
+
+    return null;
+  }
+
+  private extractPendingQrData(payload: Record<string, unknown> | null): {
+    qrImageUrl: string | null;
+    amountPesos: number | null;
+    qrExpiresAt: string | null;
+  } | null {
+    if (!payload || typeof payload !== 'object') return null;
+
+    const qrRaw = payload.__qr;
+    if (!qrRaw || typeof qrRaw !== 'object') return null;
+    const qr = qrRaw as Record<string, unknown>;
+
+    const qrImageUrl =
+      typeof qr.qrImageUrl === 'string' && qr.qrImageUrl.trim()
+        ? qr.qrImageUrl.trim()
+        : null;
+    const amountPesos =
+      typeof qr.amountPesos === 'number' && Number.isFinite(qr.amountPesos)
+        ? qr.amountPesos
+        : null;
+    const qrExpiresAt = this.parseTimestampToIso(qr.qrExpiresAt);
+
+    if (!qrImageUrl && amountPesos == null && !qrExpiresAt) {
+      return null;
+    }
+
+    return {
+      qrImageUrl,
+      amountPesos,
+      qrExpiresAt,
+    };
+  }
+
+  private normalizeDescriptorPart(
+    value: string | undefined,
+    maxLength: number,
+  ): string {
+    return (value ?? '')
+      .replace(/\s+/g, ' ')
+      .replace(/[|]+/g, ' ')
+      .trim()
+      .slice(0, maxLength);
+  }
+
+  private buildQrPaymentDescriptor(payload: CreateOrderDto): string {
+    const customerName = this.normalizeDescriptorPart(payload.customerName, 48);
+    const customerEmail = this.normalizeDescriptorPart(
+      payload.customerEmail,
+      64,
+    );
+    const customerTag = customerName || customerEmail || 'Guest';
+    const voiceTag =
+      this.normalizeDescriptorPart(payload.voiceName, 32) ||
+      this.normalizeDescriptorPart(payload.voiceEngine, 24) ||
+      'voice';
+    const clipTag = payload.clipName?.trim() ? 'clip' : 'no-clip';
+
+    return `QRPH | ${customerTag} | ${voiceTag} | ${clipTag}`.slice(0, 255);
+  }
+
+  private buildQrPaymongoDescription(
+    amountPesos: number,
+    payload: CreateOrderDto,
+    descriptor: string,
+  ): string {
+    const titleTag = this.normalizeDescriptorPart(payload.title, 48);
+    const parts = ['Reel order', `₱${amountPesos}`, descriptor];
+    if (titleTag) {
+      parts.push(`Title:${titleTag}`);
+    }
+    return parts.join(' | ').slice(0, 255);
+  }
+
+  private buildQrPaymentMetadata(
+    payload: CreateOrderDto,
+    descriptor: string,
+  ): Record<string, string> {
+    const customerName = this.normalizeDescriptorPart(payload.customerName, 80);
+    const customerEmail = this.normalizeDescriptorPart(
+      payload.customerEmail,
+      120,
+    );
+    const title = this.normalizeDescriptorPart(payload.title, 80);
+    const clipName = this.normalizeDescriptorPart(payload.clipName, 80);
+    const voiceName = this.normalizeDescriptorPart(payload.voiceName, 60);
+    const voiceEngine = this.normalizeDescriptorPart(payload.voiceEngine, 24);
+    const outputSize =
+      this.normalizeDescriptorPart(payload.outputSize, 16) || 'phone';
+    const scriptWords = payload.script?.trim()
+      ? payload.script.trim().split(/\s+/).filter(Boolean).length
+      : 0;
+
+    return {
+      order_descriptor: descriptor,
+      customer_name: customerName || 'Guest',
+      ...(customerEmail && { customer_email: customerEmail }),
+      ...(title && { order_title: title }),
+      ...(clipName && { clip_name: clipName }),
+      ...(voiceName && { voice_name: voiceName }),
+      ...(voiceEngine && { voice_engine: voiceEngine }),
+      output_size: outputSize,
+      script_words: String(scriptWords),
+    };
+  }
+
   @Post('upload-clip')
   @UseInterceptors(
     FileInterceptor('file', {
@@ -419,7 +593,12 @@ export class OrdersController {
       body.orderPayload as Record<string, unknown>,
     );
     const amountPesos = body.amountPesos;
-    const description = `Reel order · ₱${amountPesos}`;
+    const paymentDescriptor = this.buildQrPaymentDescriptor(resolvedPayload);
+    const description = this.buildQrPaymongoDescription(
+      amountPesos,
+      resolvedPayload,
+      paymentDescriptor,
+    );
     const customerName = resolvedPayload.customerName?.trim() ?? '';
     const customerEmail = resolvedPayload.customerEmail?.trim() ?? '';
     const billing =
@@ -434,11 +613,22 @@ export class OrdersController {
       amountPesos,
       description,
       billing,
+      metadata: this.buildQrPaymentMetadata(resolvedPayload, paymentDescriptor),
     });
+
+    const pendingPayload: Record<string, unknown> = {
+      ...(resolvedPayload as unknown as Record<string, unknown>),
+      __qr: {
+        paymentIntentId: result.paymentIntentId,
+        qrImageUrl: result.qrImageUrl,
+        qrExpiresAt: result.qrExpiresAt,
+        amountPesos: result.amountPesos,
+      },
+    };
 
     await this.ordersService.savePendingCheckout(
       result.paymentIntentId,
-      resolvedPayload as unknown as Record<string, unknown>,
+      pendingPayload,
     );
     this.logger.log(
       `Saved pending QR payload for payment intent ${result.paymentIntentId}`,
@@ -509,6 +699,66 @@ export class OrdersController {
     return this.ordersService.updatePricing(body);
   }
 
+  @Get('payment-qr/:paymentIntentId')
+  async getPaymentQrSession(@Param('paymentIntentId') paymentIntentId: string) {
+    const intentId = paymentIntentId?.trim();
+    if (!intentId) {
+      throw new BadRequestException('Payment intent ID is required');
+    }
+
+    const [paymentIntent, pendingPayload] = await Promise.all([
+      this.paymongoService.getPaymentIntent(intentId),
+      this.ordersService.findPendingByCheckoutSessionId(intentId),
+    ]);
+
+    if (!paymentIntent) {
+      throw new NotFoundException('Payment session not found');
+    }
+
+    const pendingQr = this.extractPendingQrData(pendingPayload);
+    const attrs = paymentIntent.attributes;
+    const amountPesosFromIntent =
+      typeof attrs?.amount === 'number' && Number.isFinite(attrs.amount)
+        ? Math.round(attrs.amount) / 100
+        : null;
+    const qrImageUrlFromIntent =
+      attrs?.next_action?.code?.image_url?.trim() || null;
+    const qrExpiresAtFromIntent = this.resolveQrExpiryFromNextAction(
+      (attrs?.next_action ?? undefined) as unknown as
+        | Record<string, unknown>
+        | undefined,
+    );
+
+    const metadataOrderIdRaw = attrs?.metadata?.order_id;
+    const metadataOrderId =
+      typeof metadataOrderIdRaw === 'string' && metadataOrderIdRaw.trim()
+        ? metadataOrderIdRaw.trim()
+        : null;
+
+    let order = await this.ordersService.findOrderByPaymentSessionId(intentId);
+    if (!order && metadataOrderId) {
+      try {
+        order = await this.ordersService.getById(metadataOrderId);
+      } catch {
+        order = null;
+      }
+    }
+
+    const paymongoStatus = attrs?.status ?? null;
+    const isPaid =
+      order?.paymentStatus === 'confirmed' || paymongoStatus === 'succeeded';
+
+    return {
+      paymentIntentId: intentId,
+      qrImageUrl: qrImageUrlFromIntent ?? pendingQr?.qrImageUrl ?? null,
+      amountPesos: amountPesosFromIntent ?? pendingQr?.amountPesos ?? null,
+      qrExpiresAt: pendingQr?.qrExpiresAt ?? qrExpiresAtFromIntent,
+      paymongoStatus,
+      isPaid,
+      orderId: order?.id ?? null,
+    };
+  }
+
   @Get('payment-ping/:paymentIntentId')
   async pingPaymentStatusByIntent(
     @Param('paymentIntentId') paymentIntentId: string,
@@ -551,6 +801,12 @@ export class OrdersController {
     }
 
     const paymongoStatus = paymentIntent.attributes?.status ?? null;
+    const metadataDescriptorRaw =
+      paymentIntent.attributes?.metadata?.order_descriptor;
+    const metadataDescriptor =
+      typeof metadataDescriptorRaw === 'string'
+        ? metadataDescriptorRaw.trim()
+        : '';
     if (paymongoStatus !== 'succeeded') {
       return {
         isPaid: false,
@@ -592,6 +848,9 @@ export class OrdersController {
     const updated = await this.ordersService.confirmPaymentByPayMongo(
       order.id,
       intentId,
+      {
+        paymentDescriptor: metadataDescriptor || undefined,
+      },
     );
     await this.ordersService.deletePendingCheckout(intentId);
     return {

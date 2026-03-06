@@ -314,6 +314,12 @@ export class OrdersService {
                 search: likeSearch,
               },
             )
+            .orWhere(
+              `LOWER(COALESCE(order.payment_descriptor, '')) LIKE :search`,
+              {
+                search: likeSearch,
+              },
+            )
             .orWhere(`LOWER(COALESCE(order.bank_code, '')) LIKE :search`, {
               search: likeSearch,
             });
@@ -391,9 +397,9 @@ export class OrdersService {
   ): Promise<Order> {
     const order = await this.ordersRepo.findOne({ where: { id: orderId } });
     if (!order) throw new NotFoundException(`Order "${orderId}" not found`);
+    const paymentReference = paymongoTransactionRef?.trim() || 'paymongo';
     order.bank_code = 'paymongo';
-    order.payment_reference = paymongoTransactionRef ?? 'paymongo';
-    order.payment_descriptor = opts?.paymentDescriptor?.trim() ?? null;
+    order.payment_reference = paymentReference;
     order.payment_status = 'confirmed';
     const payer = opts?.payer;
     if (payer?.customerName?.trim())
@@ -402,10 +408,65 @@ export class OrdersService {
       order.customer_email = payer.customerEmail.trim();
     if (payer?.deliveryAddress !== undefined)
       order.delivery_address = payer.deliveryAddress?.trim() ?? '';
+    order.payment_descriptor = this.buildPaymongoPaymentDescriptor({
+      order,
+      paymentReference,
+      incomingDescriptor: opts?.paymentDescriptor,
+    });
     await this.ordersRepo.save(order);
     const mapped = this.mapEntity(order);
     void this.notifySlackIfConfigured(mapped);
     return mapped;
+  }
+
+  private normalizeDescriptorPart(value: string, maxLength: number): string {
+    return value
+      .replace(/\s+/g, ' ')
+      .replace(/[|]+/g, ' ')
+      .trim()
+      .slice(0, maxLength);
+  }
+
+  private buildPaymongoPaymentDescriptor(params: {
+    order: OrderEntity;
+    paymentReference: string;
+    incomingDescriptor?: string;
+  }): string {
+    const customerName = this.normalizeDescriptorPart(
+      params.order.customer_name ?? '',
+      48,
+    );
+    const customerEmail = this.normalizeDescriptorPart(
+      params.order.customer_email ?? '',
+      64,
+    );
+    const customerTag = customerName || customerEmail || 'unknown-customer';
+
+    const incoming = this.normalizeDescriptorPart(
+      params.incomingDescriptor?.trim() ?? '',
+      80,
+    );
+    const incomingLower = incoming.toLowerCase();
+    const incomingIsGeneric =
+      !incoming ||
+      incomingLower === 'reel order' ||
+      incomingLower === 'reel order.';
+
+    const orderTag = params.order.id.slice(-8);
+    const reference = this.normalizeDescriptorPart(params.paymentReference, 24);
+    const hasReference = reference && reference.toLowerCase() !== 'paymongo';
+
+    if (!incomingIsGeneric) {
+      return `QRPH | ${incoming} | ORD:${orderTag} | ${customerTag}`.slice(
+        0,
+        255,
+      );
+    }
+
+    return `QRPH | ORD:${orderTag} | ${customerTag}${hasReference ? ` | REF:${reference.slice(-10)}` : ''}`.slice(
+      0,
+      255,
+    );
   }
 
   async updateStatus(id: string, orderStatus: OrderStatus): Promise<Order> {
