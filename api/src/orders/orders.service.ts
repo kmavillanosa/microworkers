@@ -789,6 +789,7 @@ export class OrdersService {
         : `/receipt/${order.id}`;
       await this.slackService.notifyOrder({
         receiptLink,
+        paymentReference: order.paymentReference?.trim() || '—',
         customerName: order.customerName ?? '',
         customerEmail: order.customerEmail ?? '',
         amountPesos,
