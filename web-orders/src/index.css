@@ -1196,6 +1196,32 @@ button { cursor: pointer; }
   margin-bottom: 1.5rem;
   line-height: 1.4;
 }
+.payment-qr-mobile-guide {
+  text-align: left;
+  margin: -0.45rem 0 1rem;
+  padding: 0.75rem 0.85rem;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: var(--color-surface);
+}
+.payment-qr-mobile-guide-title {
+  margin: 0 0 0.35rem;
+  font-size: 0.84rem;
+  font-weight: 700;
+  color: var(--color-dark);
+}
+.payment-qr-mobile-guide-list {
+  margin: 0;
+  padding-left: 1.1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.28rem;
+}
+.payment-qr-mobile-guide-list li {
+  color: var(--color-text-secondary);
+  font-size: 0.82rem;
+  line-height: 1.35;
+}
 .payment-qr-expiry {
   margin-top: -0.85rem;
   margin-bottom: 1.1rem;
@@ -1245,6 +1271,23 @@ button { cursor: pointer; }
 }
 .payment-qr-actions .btn {
   width: 100%;
+}
+.payment-qr-btn-download {
+  padding: 0.75rem 1.5rem;
+  font-size: 1rem;
+  background: var(--color-primary);
+  color: var(--color-card);
+  border: 1px solid var(--color-primary);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: opacity 0.2s, filter 0.2s;
+}
+.payment-qr-btn-download:hover:not(:disabled) {
+  filter: brightness(0.96);
+}
+.payment-qr-btn-download:disabled {
+  opacity: 0.72;
+  cursor: not-allowed;
 }
 .payment-qr-btn-back {
   padding: 0.75rem 1.5rem;

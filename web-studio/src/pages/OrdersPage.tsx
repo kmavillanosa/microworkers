@@ -78,13 +78,9 @@ function formatCurrency(value: number): string {
     return `₱${value.toLocaleString()}`
 }
 
-function canProcessVideo(orderStatus: OrderStatus, hasProcessedOutput: boolean): boolean {
+function canProcessVideo(orderStatus: OrderStatus, _hasProcessedOutput: boolean): boolean {
     if (orderStatus === 'processing' || orderStatus === 'ready_for_sending') {
         return false
-    }
-
-    if (orderStatus === 'closed') {
-        return !hasProcessedOutput
     }
 
     return true
@@ -615,14 +611,15 @@ export function OrdersPage({
                                         const showProcessVideo = !hasActiveJob && canProcessVideo(order.orderStatus, hasProcessedBefore)
                                         const audioMode = resolveAudioMode(order)
                                         const shouldShowProgress =
-                                            !hasProcessedBefore &&
-                                            (hasActiveJob ||
-                                                isProcessing ||
-                                                order.orderStatus === 'processing' ||
-                                                order.orderStatus === 'accepted' ||
-                                                order.orderStatus === 'ready_for_sending' ||
-                                                order.orderStatus === 'closed' ||
-                                                order.orderStatus === 'declined')
+                                            hasActiveJob ||
+                                            (!hasProcessedBefore &&
+                                                (
+                                                    isProcessing ||
+                                                    order.orderStatus === 'processing' ||
+                                                    order.orderStatus === 'accepted' ||
+                                                    order.orderStatus === 'ready_for_sending' ||
+                                                    order.orderStatus === 'closed' ||
+                                                    order.orderStatus === 'declined'))
                                         const orderProgress = shouldShowProgress
                                             ? resolveOrderProgress(order, isProcessing, hasProcessedBefore, activeJob)
                                             : null

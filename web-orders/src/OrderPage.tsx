@@ -331,6 +331,7 @@ export default function OrderPage() {
   const [qrSecondsLeft, setQrSecondsLeft] = useState<number | null>(null)
   const [qrPaymentConfirmed, setQrPaymentConfirmed] = useState(false)
   const [qrPaymentStatusMessage, setQrPaymentStatusMessage] = useState('Waiting for payment confirmation…')
+  const [downloadingQr, setDownloadingQr] = useState(false)
   /** Script/caption position on video: top, center, bottom. Center only when no title. */
   const [scriptPosition, setScriptPosition] = useState<'top' | 'center' | 'bottom'>('bottom')
   /** Script/caption style for output video. */
@@ -697,6 +698,31 @@ export default function OrderPage() {
     }
   }, [paymongoPaymentIntentId, paymongoQrImageUrl])
 
+  async function handleDownloadQrCode() {
+    if (!paymongoQrImageUrl || downloadingQr) return
+    setDownloadingQr(true)
+    try {
+      const res = await fetch(paymongoQrImageUrl)
+      if (!res.ok) {
+        throw new Error('Failed to download QR code image')
+      }
+      const blob = await res.blob()
+      const objectUrl = URL.createObjectURL(blob)
+      const anchor = document.createElement('a')
+      const suffix = paymongoPaymentIntentId?.slice(-8) ?? String(Date.now())
+      anchor.href = objectUrl
+      anchor.download = `qrph-payment-${suffix}.png`
+      document.body.appendChild(anchor)
+      anchor.click()
+      anchor.remove()
+      URL.revokeObjectURL(objectUrl)
+    } catch {
+      window.open(paymongoQrImageUrl, '_blank', 'noopener,noreferrer')
+    } finally {
+      setDownloadingQr(false)
+    }
+  }
+
   function handleJoyrideCallback(data: { status?: string }) {
     if (data.status === STATUS.FINISHED || data.status === STATUS.SKIPPED) {
       setRunTour(false)
@@ -984,6 +1010,15 @@ export default function OrderPage() {
           <p className="payment-qr-hint" role="status" aria-live="polite">
             {qrStatusText}
           </p>
+          <section className="payment-qr-mobile-guide" aria-label="How to pay on mobile">
+            <p className="payment-qr-mobile-guide-title">How to pay on mobile</p>
+            <ol className="payment-qr-mobile-guide-list">
+              <li>Download or screenshot this QR code.</li>
+              <li>Open GCash, Maya, or your bank app on your phone.</li>
+              <li>Tap Scan/QR and choose the saved image from your gallery.</li>
+              <li>Confirm the amount and complete the payment.</li>
+            </ol>
+          </section>
           {!qrPaymentConfirmed && qrSecondsLeft != null && (
             <p
               className={`payment-qr-expiry${qrPaymentExpired ? ' payment-qr-expiry-expired' : ''}`}
@@ -1004,6 +1039,16 @@ export default function OrderPage() {
             {qrPaymentExpired ? <div className="payment-qr-expired-overlay">Expired</div> : null}
           </div>
           <div className="payment-qr-actions">
+            <button
+              type="button"
+              className="btn payment-qr-btn-download"
+              onClick={() => {
+                void handleDownloadQrCode()
+              }}
+              disabled={downloadingQr || !paymongoQrImageUrl}
+            >
+              {downloadingQr ? 'Preparing download…' : 'Download QR code'}
+            </button>
             {paymongoOrderId && qrPaymentConfirmed && (
               <button
                 type="button"
@@ -1025,6 +1070,7 @@ export default function OrderPage() {
                 setQrSecondsLeft(null)
                 setQrPaymentConfirmed(false)
                 setQrPaymentStatusMessage('Waiting for payment confirmation…')
+                setDownloadingQr(false)
               }}
             >
               Back to order
