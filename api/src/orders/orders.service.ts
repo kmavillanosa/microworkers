@@ -388,11 +388,16 @@ export class OrdersService {
     };
 
   async getPricing(): Promise<OrderPricing> {
-    const defaultRow = await this.pricingRepo.findOne({
-      where: { id: 'default' },
-    });
-    const wordsPerFrame = defaultRow?.words_per_frame ?? 5;
+    const [defaultRow, existingTtsRow] = await Promise.all([
+      this.pricingRepo.findOne({
+        where: { id: 'default' },
+      }),
+      this.pricingRepo.findOne({ where: { id: 'tts_only' } }),
+    ]);
+    const wordsPerFrame =
+      existingTtsRow?.words_per_frame ?? defaultRow?.words_per_frame ?? 5;
     const ttsDefaultPrice =
+      existingTtsRow?.price_per_frame_pesos ??
       defaultRow?.price_per_frame_pesos ??
       OrdersService.PRICING_TIER_DEFAULTS.tts_only;
     await this.ensurePricingRow('tts_only', wordsPerFrame, ttsDefaultPrice);
@@ -444,8 +449,20 @@ export class OrdersService {
       clipOnly = newDefaults.clip_only;
       clipAndNarrator = newDefaults.clip_and_narrator;
     }
+
+    const resolvedWordsPerFrame = tts?.words_per_frame ?? wordsPerFrame;
+    if (
+      defaultRow &&
+      (defaultRow.words_per_frame !== resolvedWordsPerFrame ||
+        defaultRow.price_per_frame_pesos !== ttsOnly)
+    ) {
+      defaultRow.words_per_frame = resolvedWordsPerFrame;
+      defaultRow.price_per_frame_pesos = ttsOnly;
+      await this.pricingRepo.save(defaultRow);
+    }
+
     return {
-      wordsPerFrame,
+      wordsPerFrame: resolvedWordsPerFrame,
       pricePerFramePesos: ttsOnly,
       pricePerFramePesosByTier: { ttsOnly, clipOnly, clipAndNarrator },
     };
@@ -476,8 +493,19 @@ export class OrdersService {
     if (dto.pricePerFramePesos != null && dto.pricePerFramePesos < 0) {
       throw new BadRequestException('pricePerFramePesos must be non-negative');
     }
+    if (dto.clipOnly != null && dto.clipOnly < 0) {
+      throw new BadRequestException('clipOnly must be non-negative');
+    }
+    if (dto.clipAndNarrator != null && dto.clipAndNarrator < 0) {
+      throw new BadRequestException('clipAndNarrator must be non-negative');
+    }
     const ttsPrice =
       dto.pricePerFramePesos ?? current.pricePerFramePesosByTier.ttsOnly;
+    const clipOnlyPrice =
+      dto.clipOnly ?? current.pricePerFramePesosByTier.clipOnly;
+    const clipAndNarratorPrice =
+      dto.clipAndNarrator ?? current.pricePerFramePesosByTier.clipAndNarrator;
+
     let ttsRow = await this.pricingRepo.findOne({ where: { id: 'tts_only' } });
     if (!ttsRow) {
       ttsRow = this.pricingRepo.create({
@@ -490,30 +518,52 @@ export class OrdersService {
       ttsRow.price_per_frame_pesos = ttsPrice;
     }
     await this.pricingRepo.save(ttsRow);
-    if (dto.clipOnly != null && dto.clipOnly >= 0) {
-      let r = await this.pricingRepo.findOne({ where: { id: 'clip_only' } });
-      if (!r)
-        r = this.pricingRepo.create({
-          id: 'clip_only',
-          words_per_frame: wordsPerFrame,
-          price_per_frame_pesos: dto.clipOnly,
-        });
-      else r.price_per_frame_pesos = dto.clipOnly;
-      await this.pricingRepo.save(r);
-    }
-    if (dto.clipAndNarrator != null && dto.clipAndNarrator >= 0) {
-      let r = await this.pricingRepo.findOne({
-        where: { id: 'clip_and_narrator' },
+
+    let defaultRow = await this.pricingRepo.findOne({
+      where: { id: 'default' },
+    });
+    if (!defaultRow) {
+      defaultRow = this.pricingRepo.create({
+        id: 'default',
+        words_per_frame: wordsPerFrame,
+        price_per_frame_pesos: ttsPrice,
       });
-      if (!r)
-        r = this.pricingRepo.create({
-          id: 'clip_and_narrator',
-          words_per_frame: wordsPerFrame,
-          price_per_frame_pesos: dto.clipAndNarrator,
-        });
-      else r.price_per_frame_pesos = dto.clipAndNarrator;
-      await this.pricingRepo.save(r);
+    } else {
+      defaultRow.words_per_frame = wordsPerFrame;
+      defaultRow.price_per_frame_pesos = ttsPrice;
     }
+    await this.pricingRepo.save(defaultRow);
+
+    let clipOnlyRow = await this.pricingRepo.findOne({
+      where: { id: 'clip_only' },
+    });
+    if (!clipOnlyRow) {
+      clipOnlyRow = this.pricingRepo.create({
+        id: 'clip_only',
+        words_per_frame: wordsPerFrame,
+        price_per_frame_pesos: clipOnlyPrice,
+      });
+    } else {
+      clipOnlyRow.words_per_frame = wordsPerFrame;
+      clipOnlyRow.price_per_frame_pesos = clipOnlyPrice;
+    }
+    await this.pricingRepo.save(clipOnlyRow);
+
+    let clipAndNarratorRow = await this.pricingRepo.findOne({
+      where: { id: 'clip_and_narrator' },
+    });
+    if (!clipAndNarratorRow) {
+      clipAndNarratorRow = this.pricingRepo.create({
+        id: 'clip_and_narrator',
+        words_per_frame: wordsPerFrame,
+        price_per_frame_pesos: clipAndNarratorPrice,
+      });
+    } else {
+      clipAndNarratorRow.words_per_frame = wordsPerFrame;
+      clipAndNarratorRow.price_per_frame_pesos = clipAndNarratorPrice;
+    }
+    await this.pricingRepo.save(clipAndNarratorRow);
+
     return this.getPricing();
   }
 
