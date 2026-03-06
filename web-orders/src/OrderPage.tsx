@@ -282,6 +282,7 @@ export default function OrderPage() {
   } | null>(null)
 
   const [script, setScript] = useState('')
+  const scriptValueRef = useRef('')
   const [title, setTitle] = useState('')
   const [fontId, setFontId] = useState('')
   const [clipName, setClipName] = useState('')
@@ -360,6 +361,10 @@ export default function OrderPage() {
     scriptStyle.fontScale !== 1 ||
     scriptStyle.bgOpacity !== 180 ||
     (scriptStyle.animationMode ?? 'normal') !== 'normal'
+
+  useEffect(() => {
+    scriptValueRef.current = script
+  }, [script])
 
   useEffect(() => {
     Promise.all([
@@ -530,17 +535,17 @@ export default function OrderPage() {
     setSubmitting(true)
     setError('')
     try {
-      const id = await ensureOrderId()
-      setPaymongoOrderId(id)
+      const orderPayload = buildOrderPayload()
+      setPaymongoOrderId(null)
       setPaymongoPaymentIntentId(null)
       setPaymongoQrExpiresAt(null)
       setQrSecondsLeft(null)
       setQrPaymentConfirmed(false)
       setQrPaymentStatusMessage('Waiting for payment confirmation…')
-      const res = await fetch(`${API}/api/orders/${id}/paymongo-qr`, {
+      const res = await fetch(`${API}/api/orders/paymongo-qr`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ amountPesos }),
+        body: JSON.stringify({ amountPesos, orderPayload }),
       })
       if (!res.ok) {
         const err = await res.json().catch(() => ({}))
@@ -603,19 +608,13 @@ export default function OrderPage() {
     : qrPaymentStatusMessage
 
   useEffect(() => {
-    if (!paymongoQrImageUrl || !paymongoOrderId) return
+    if (!paymongoQrImageUrl || !paymongoPaymentIntentId) return
     let active = true
     let timer: ReturnType<typeof window.setInterval> | null = null
 
     const checkPayment = async () => {
       try {
-        const query = new URLSearchParams()
-        if (paymongoPaymentIntentId) {
-          query.set('paymentIntentId', paymongoPaymentIntentId)
-        }
-
-        const pingUrl = `${API}/api/orders/${encodeURIComponent(paymongoOrderId)}/payment-ping${query.toString() ? `?${query.toString()}` : ''
-          }`
+        const pingUrl = `${API}/api/orders/payment-ping/${encodeURIComponent(paymongoPaymentIntentId)}`
 
         const res = await fetch(pingUrl)
         if (!res.ok || !active) return
@@ -623,20 +622,48 @@ export default function OrderPage() {
           isPaid?: boolean
           paymentStatus?: string
           paymongoStatus?: string | null
+          orderId?: string | null
         }
 
         if (paymentPing.isPaid || paymentPing.paymentStatus === 'confirmed') {
-          setQrPaymentConfirmed(true)
-          setQrPaymentStatusMessage('Payment confirmed. You can now proceed to receipt page.')
-          if (timer != null) {
-            window.clearInterval(timer)
-            timer = null
+          if (paymentPing.orderId) {
+            setPaymongoOrderId(paymentPing.orderId)
+            setQrPaymentConfirmed(true)
+            setQrPaymentStatusMessage('Payment confirmed. You can now proceed to receipt page.')
+            if (timer != null) {
+              window.clearInterval(timer)
+              timer = null
+            }
+            return
           }
+
+          setQrPaymentStatusMessage('Payment confirmed. Finalizing your order…')
+          return
+        }
+
+        if (paymentPing.paymongoStatus === 'awaiting_next_action') {
+          setQrPaymentStatusMessage('Waiting for payment. Please complete payment in your app.')
           return
         }
 
         if (paymentPing.paymongoStatus === 'processing') {
           setQrPaymentStatusMessage('Payment is processing. Waiting for confirmation…')
+          return
+        }
+
+        if (paymentPing.paymongoStatus === 'failed') {
+          setQrPaymentStatusMessage('Payment failed. Please go back and generate a new QR code.')
+          return
+        }
+
+        if (paymentPing.paymongoStatus === 'canceled') {
+          setQrPaymentStatusMessage('Payment was cancelled. Please go back and generate a new QR code.')
+          return
+        }
+
+        if (paymentPing.paymongoStatus === 'expired') {
+          setQrPaymentStatusMessage('QR payment expired. Please go back and generate a new QR code.')
+          return
         }
       } catch {
         // keep polling; webhook confirmation can arrive a bit later
@@ -654,7 +681,7 @@ export default function OrderPage() {
         window.clearInterval(timer)
       }
     }
-  }, [paymongoOrderId, paymongoPaymentIntentId, paymongoQrImageUrl])
+  }, [paymongoPaymentIntentId, paymongoQrImageUrl])
 
   function handleJoyrideCallback(data: { status?: string }) {
     if (data.status === STATUS.FINISHED || data.status === STATUS.SKIPPED) {
@@ -778,6 +805,7 @@ export default function OrderPage() {
         setImpersonatedOriginalOrder(isImpersonating ? order : null)
         setOrderId(order.id)
         setScript(order.script ?? '')
+        scriptValueRef.current = order.script ?? ''
         setTitle(order.title ?? '')
         setCustomerName(order.customerName ?? '')
         setCustomerEmail(order.customerEmail ?? '')
@@ -790,12 +818,16 @@ export default function OrderPage() {
         }
         if (order.clipName) {
           setClipName(order.clipName)
+          scriptFilledForClipRef.current = (order.script ?? '').trim()
+            ? order.clipName
+            : null
           setClipDurationSeconds(null)
           setClipMaxWords(null)
           if (order.clipName.startsWith('order-')) {
             setUploadedClipUrl(`${API}/media/order-clips/${encodeURIComponent(order.clipName)}`)
           }
         } else {
+          scriptFilledForClipRef.current = null
           setClipDurationSeconds(null)
           setClipMaxWords(null)
         }
@@ -855,7 +887,10 @@ export default function OrderPage() {
         if (!isCancelled) {
           setClipTranscript(data)
           if (data?.status === 'completed' && data?.text && scriptFilledForClipRef.current !== clipName) {
-            setScript(data.text)
+            if (!scriptValueRef.current.trim()) {
+              setScript(data.text)
+              scriptValueRef.current = data.text
+            }
             scriptFilledForClipRef.current = clipName
           }
         }
@@ -870,50 +905,6 @@ export default function OrderPage() {
       window.clearInterval(interval)
     }
   }, [clipName])
-
-  async function ensureOrderId(): Promise<string> {
-    const hasTitle = Boolean(title.trim())
-    const position = hasTitle && scriptPosition === 'center' ? 'bottom' : scriptPosition
-    const payload = {
-      script: script.trim() || clipTranscript?.text || '',
-      title: title.trim() || undefined,
-      customerName: customerName.trim(),
-      customerEmail: customerEmail.trim(),
-      deliveryAddress: deliveryAddress.trim(),
-      outputSize: previewSize,
-      scriptPosition: position,
-      scriptStyle: hasCustomScriptStyle ? scriptStyle : undefined,
-      ...(clipName && {
-        useClipAudio: useClipAudio || useClipAudioWithNarrator,
-        useClipAudioWithNarrator: useClipAudioWithNarrator || undefined,
-      }),
-    }
-    if (orderId) {
-      const patchRes = await fetch(`${API}/api/orders/${orderId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      })
-      if (!patchRes.ok) throw new Error('Failed to update order')
-      return orderId
-    }
-    const createRes = await fetch(`${API}/api/orders`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        ...payload,
-        fontId,
-        clipName: clipName || undefined,
-        voiceEngine,
-        voiceName,
-      }),
-    })
-    if (!createRes.ok) throw new Error('Order failed')
-    const created = await createRes.json()
-    const id = created.id as string
-    setOrderId(id)
-    return id
-  }
 
   async function handleSaveForCustomer(e: React.FormEvent) {
     e.preventDefault()
@@ -1093,36 +1084,72 @@ export default function OrderPage() {
         {error && <p style={{ color: '#dc2626', marginBottom: '1rem' }}>{error}</p>}
 
         {isImpersonating && impersonatedOriginalOrder && (
-          <section className="order-form-step" aria-labelledby="impersonation-ordered-details-heading">
+          <section className="order-form-step impersonation-ordered-details" aria-labelledby="impersonation-ordered-details-heading">
             <h2 id="impersonation-ordered-details-heading" className="order-form-step-title">
               Customer ordered details
             </h2>
             <p className="order-form-step-intro">
               Original values saved by the customer on this order (before your edits).
             </p>
-            <p className="order-form-submit-hint">
-              order_id: {impersonatedOriginalOrder.id}
-              <> · output_size: {orderedOutputSize} ({orderedOutputSizeLabel})</>
-              <> · audio_mode: {orderedAudioMode}</>
-              <> · narrator_voice: {impersonatedOriginalOrder.voiceName || '—'}</>
-            </p>
-            <p className="order-form-submit-hint">
-              voice_engine: {impersonatedOriginalOrder.voiceEngine || '—'}
-              <> · font: {impersonatedOriginalOrder.fontId || '—'}</>
-              <> · clip: {orderedClipLabel}</>
-              <> · script_position: {orderedScriptPosition}</>
-              <> · animation_mode: {orderedAnimationMode}</>
-            </p>
-            <p className="order-form-submit-hint">
-              caption_font_scale: {orderedCaptionFontScale}
-              <> · caption_bg_opacity: {orderedCaptionBgOpacity}</>
-              <> · customer_name: {impersonatedOriginalOrder.customerName?.trim() || '—'}</>
-              <> · customer_email: {impersonatedOriginalOrder.customerEmail?.trim() || '—'}</>
-            </p>
-            <p className="order-form-submit-hint">
-              delivery_address: {impersonatedOriginalOrder.deliveryAddress?.trim() || '—'}
-            </p>
-            <div className="field">
+            <div className="impersonation-summary-grid" role="list" aria-label="Original customer order details summary">
+              <div className="impersonation-summary-item" role="listitem">
+                <span className="impersonation-summary-label">order_id</span>
+                <span className="impersonation-summary-value">{impersonatedOriginalOrder.id}</span>
+              </div>
+              <div className="impersonation-summary-item" role="listitem">
+                <span className="impersonation-summary-label">output_size</span>
+                <span className="impersonation-summary-value">{orderedOutputSize} ({orderedOutputSizeLabel})</span>
+              </div>
+              <div className="impersonation-summary-item" role="listitem">
+                <span className="impersonation-summary-label">audio_mode</span>
+                <span className="impersonation-summary-value">{orderedAudioMode}</span>
+              </div>
+              <div className="impersonation-summary-item" role="listitem">
+                <span className="impersonation-summary-label">narrator_voice</span>
+                <span className="impersonation-summary-value">{impersonatedOriginalOrder.voiceName || '—'}</span>
+              </div>
+              <div className="impersonation-summary-item" role="listitem">
+                <span className="impersonation-summary-label">voice_engine</span>
+                <span className="impersonation-summary-value">{impersonatedOriginalOrder.voiceEngine || '—'}</span>
+              </div>
+              <div className="impersonation-summary-item" role="listitem">
+                <span className="impersonation-summary-label">font</span>
+                <span className="impersonation-summary-value">{impersonatedOriginalOrder.fontId || '—'}</span>
+              </div>
+              <div className="impersonation-summary-item" role="listitem">
+                <span className="impersonation-summary-label">clip</span>
+                <span className="impersonation-summary-value">{orderedClipLabel}</span>
+              </div>
+              <div className="impersonation-summary-item" role="listitem">
+                <span className="impersonation-summary-label">script_position</span>
+                <span className="impersonation-summary-value">{orderedScriptPosition}</span>
+              </div>
+              <div className="impersonation-summary-item" role="listitem">
+                <span className="impersonation-summary-label">animation_mode</span>
+                <span className="impersonation-summary-value">{orderedAnimationMode}</span>
+              </div>
+              <div className="impersonation-summary-item" role="listitem">
+                <span className="impersonation-summary-label">caption_font_scale</span>
+                <span className="impersonation-summary-value">{orderedCaptionFontScale}</span>
+              </div>
+              <div className="impersonation-summary-item" role="listitem">
+                <span className="impersonation-summary-label">caption_bg_opacity</span>
+                <span className="impersonation-summary-value">{orderedCaptionBgOpacity}</span>
+              </div>
+              <div className="impersonation-summary-item" role="listitem">
+                <span className="impersonation-summary-label">customer_name</span>
+                <span className="impersonation-summary-value">{impersonatedOriginalOrder.customerName?.trim() || '—'}</span>
+              </div>
+              <div className="impersonation-summary-item" role="listitem">
+                <span className="impersonation-summary-label">customer_email</span>
+                <span className="impersonation-summary-value">{impersonatedOriginalOrder.customerEmail?.trim() || '—'}</span>
+              </div>
+              <div className="impersonation-summary-item impersonation-summary-item-wide" role="listitem">
+                <span className="impersonation-summary-label">delivery_address</span>
+                <span className="impersonation-summary-value">{impersonatedOriginalOrder.deliveryAddress?.trim() || '—'}</span>
+              </div>
+            </div>
+            <div className="field impersonation-original-field">
               <label className="label" htmlFor="impersonation-original-title">Original title</label>
               <input
                 id="impersonation-original-title"
@@ -1131,12 +1158,12 @@ export default function OrderPage() {
                 readOnly
               />
             </div>
-            <div className="field">
+            <div className="field impersonation-original-field">
               <label className="label" htmlFor="impersonation-original-script">Original script</label>
               <textarea
                 id="impersonation-original-script"
                 value={impersonatedOriginalOrder.script ?? ''}
-                rows={4}
+                rows={6}
                 readOnly
               />
             </div>

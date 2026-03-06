@@ -210,7 +210,7 @@ export class PaymongoService {
    * Minimum amount per PayMongo is 20 PHP (2000 centavos) for Payment Intents.
    */
   async createPaymentIntentQrPh(params: {
-    orderId: string;
+    orderId?: string;
     amountPesos: number;
     description: string;
     billing?: { name?: string; email?: string };
@@ -241,7 +241,7 @@ export class PaymongoService {
             currency: 'PHP',
             payment_method_allowed: ['qrph'],
             description: params.description.slice(0, 255),
-            metadata: { order_id: params.orderId },
+            ...(params.orderId && { metadata: { order_id: params.orderId } }),
           },
         },
       }),

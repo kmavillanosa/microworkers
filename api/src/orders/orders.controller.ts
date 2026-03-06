@@ -118,6 +118,36 @@ export class OrdersController {
     private readonly settingsService: SettingsService,
   ) {}
 
+  private async resolveOrderPayloadScript(
+    payload: Record<string, unknown>,
+  ): Promise<CreateOrderDto> {
+    const script = (payload.script as string | undefined)?.trim() ?? '';
+    const clipName = (payload.clipName as string | undefined)?.trim();
+
+    if (!script && !clipName) {
+      throw new BadRequestException(
+        'Script is required when no clip is uploaded',
+      );
+    }
+
+    let resolvedScript = script;
+    if (clipName && !script) {
+      const transcript = await this.clipsService.getTranscript(
+        'order',
+        clipName,
+      );
+      if (transcript) {
+        resolvedScript = transcript;
+      }
+    }
+
+    return {
+      ...(payload as unknown as CreateOrderDto),
+      script: resolvedScript,
+      clipName: clipName || undefined,
+    };
+  }
+
   @Post('upload-clip')
   @UseInterceptors(
     FileInterceptor('file', {
@@ -174,27 +204,10 @@ export class OrdersController {
 
   @Post()
   async create(@Body() body: CreateOrderDto) {
-    const script = body.script?.trim() ?? '';
-    const clipName = body.clipName?.trim();
-    if (!script && !clipName) {
-      throw new BadRequestException(
-        'Script is required when no clip is uploaded',
-      );
-    }
-    let resolvedScript = script;
-    if (clipName && !script) {
-      const transcript = await this.clipsService.getTranscript(
-        'order',
-        clipName,
-      );
-      if (transcript) {
-        resolvedScript = transcript;
-      }
-    }
-    return this.ordersService.create({
-      ...body,
-      script: resolvedScript,
-    });
+    const resolvedPayload = await this.resolveOrderPayloadScript(
+      body as unknown as Record<string, unknown>,
+    );
+    return this.ordersService.create(resolvedPayload);
   }
 
   @Post('delete-all')
@@ -352,33 +365,16 @@ export class OrdersController {
 
   @Post('prepare-checkout')
   async prepareCheckout(@Body() body: PrepareCheckoutDto) {
-    const payload = body.orderPayload as Record<string, unknown>;
-    const script = (payload.script as string)?.trim() ?? '';
-    const clipName = (payload.clipName as string)?.trim();
-    if (!script && !clipName) {
-      throw new BadRequestException(
-        'Script is required when no clip is uploaded',
-      );
-    }
-    let resolvedPayload = { ...payload };
-    if (clipName && !script) {
-      const transcript = await this.clipsService.getTranscript(
-        'order',
-        clipName,
-      );
-      if (transcript) {
-        resolvedPayload = { ...payload, script: transcript };
-      }
-    }
+    const resolvedPayload = await this.resolveOrderPayloadScript(
+      body.orderPayload as Record<string, unknown>,
+    );
     const amountPesos = body.amountPesos;
     const description = `Reel order · ₱${amountPesos}`;
     const paymentMethodTypes =
       await this.settingsService.getPaymentMethodTypes();
-    const customerName = (resolvedPayload.customerName as string)?.trim() ?? '';
-    const customerEmail =
-      (resolvedPayload.customerEmail as string)?.trim() ?? '';
-    const deliveryAddress =
-      (resolvedPayload.deliveryAddress as string)?.trim() ?? '';
+    const customerName = resolvedPayload.customerName?.trim() ?? '';
+    const customerEmail = resolvedPayload.customerEmail?.trim() ?? '';
+    const deliveryAddress = resolvedPayload.deliveryAddress?.trim() ?? '';
     const billing =
       customerName || customerEmail || deliveryAddress
         ? {
@@ -400,12 +396,14 @@ export class OrdersController {
       throw new BadRequestException('PayMongo did not return a session id');
     }
     // Persist pending checkout first so by-checkout-session can always find or create the order
-    await this.ordersService.savePendingCheckout(sessionId, resolvedPayload);
+    await this.ordersService.savePendingCheckout(
+      sessionId,
+      resolvedPayload as unknown as Record<string, unknown>,
+    );
     this.logger.log(`Saved pending checkout for session ${sessionId}`);
     // Create order now with payment_session_id so by-checkout-session finds it when user returns
     try {
-      const dto = resolvedPayload as unknown as CreateOrderDto;
-      await this.ordersService.create(dto, sessionId);
+      await this.ordersService.create(resolvedPayload, sessionId);
       this.logger.log(`Created order for checkout session ${sessionId}`);
     } catch (err) {
       this.logger.warn(
@@ -413,6 +411,45 @@ export class OrdersController {
       );
     }
     return { checkoutUrl, sessionId };
+  }
+
+  @Post('paymongo-qr')
+  async createPaymongoQr(@Body() body: PaymongoQrDto) {
+    const resolvedPayload = await this.resolveOrderPayloadScript(
+      body.orderPayload as Record<string, unknown>,
+    );
+    const amountPesos = body.amountPesos;
+    const description = `Reel order · ₱${amountPesos}`;
+    const customerName = resolvedPayload.customerName?.trim() ?? '';
+    const customerEmail = resolvedPayload.customerEmail?.trim() ?? '';
+    const billing =
+      customerName || customerEmail
+        ? {
+            ...(customerName && { name: customerName }),
+            ...(customerEmail && { email: customerEmail }),
+          }
+        : undefined;
+
+    const result = await this.paymongoService.createPaymentIntentQrPh({
+      amountPesos,
+      description,
+      billing,
+    });
+
+    await this.ordersService.savePendingCheckout(
+      result.paymentIntentId,
+      resolvedPayload as unknown as Record<string, unknown>,
+    );
+    this.logger.log(
+      `Saved pending QR payload for payment intent ${result.paymentIntentId}`,
+    );
+
+    return {
+      qrImageUrl: result.qrImageUrl,
+      amountPesos: result.amountPesos,
+      paymentIntentId: result.paymentIntentId,
+      qrExpiresAt: result.qrExpiresAt,
+    };
   }
 
   @Get()
@@ -470,6 +507,100 @@ export class OrdersController {
   @Patch('pricing')
   updatePricing(@Body() body: UpdateOrderPricingDto) {
     return this.ordersService.updatePricing(body);
+  }
+
+  @Get('payment-ping/:paymentIntentId')
+  async pingPaymentStatusByIntent(
+    @Param('paymentIntentId') paymentIntentId: string,
+  ) {
+    const intentId = paymentIntentId?.trim();
+    if (!intentId) {
+      throw new BadRequestException('Payment intent ID is required');
+    }
+
+    let order = await this.ordersService.findOrderByPaymentSessionId(intentId);
+    if (order?.paymentStatus === 'confirmed') {
+      return {
+        isPaid: true,
+        paymentStatus: order.paymentStatus,
+        source: 'order',
+        paymongoStatus: 'succeeded',
+        orderId: order.id,
+      };
+    }
+
+    const paymentIntent = await this.paymongoService.getPaymentIntent(intentId);
+    if (!paymentIntent) {
+      return {
+        isPaid: false,
+        paymentStatus: order?.paymentStatus ?? 'pending',
+        source: order ? 'order' : 'paymongo',
+        paymongoStatus: null,
+        orderId: order?.id ?? null,
+      };
+    }
+
+    const metadataOrderId =
+      paymentIntent.attributes?.metadata?.order_id?.trim();
+    if (!order && metadataOrderId) {
+      try {
+        order = await this.ordersService.getById(metadataOrderId);
+      } catch {
+        order = null;
+      }
+    }
+
+    const paymongoStatus = paymentIntent.attributes?.status ?? null;
+    if (paymongoStatus !== 'succeeded') {
+      return {
+        isPaid: false,
+        paymentStatus: order?.paymentStatus ?? 'pending',
+        source: order ? 'order' : 'paymongo',
+        paymongoStatus,
+        orderId: order?.id ?? null,
+      };
+    }
+
+    if (!order) {
+      const pendingPayload =
+        await this.ordersService.findPendingByCheckoutSessionId(intentId);
+      if (pendingPayload && typeof pendingPayload === 'object') {
+        try {
+          const dto = pendingPayload as unknown as CreateOrderDto;
+          order = await this.ordersService.create(dto, intentId);
+        } catch (err) {
+          this.logger.warn(
+            `Failed creating order from QR payment intent ${intentId}: ${err instanceof Error ? err.message : String(err)}`,
+          );
+        }
+      }
+    }
+
+    if (!order) {
+      this.logger.warn(
+        `Payment intent ${intentId} succeeded but no order payload was available`,
+      );
+      return {
+        isPaid: false,
+        paymentStatus: 'pending',
+        source: 'pending',
+        paymongoStatus,
+        orderId: null,
+      };
+    }
+
+    const updated = await this.ordersService.confirmPaymentByPayMongo(
+      order.id,
+      intentId,
+    );
+    await this.ordersService.deletePendingCheckout(intentId);
+    return {
+      isPaid: true,
+      paymentStatus: updated.paymentStatus,
+      source: 'paymongo',
+      paymongoStatus,
+      orderId: updated.id,
+    };
   }
 
   @Get(':id/reels')
@@ -601,36 +732,6 @@ export class OrdersController {
       paymentMethodTypes,
     });
     return { checkoutUrl };
-  }
-
-  @Post(':id/paymongo-qr')
-  async createPaymongoQr(@Param('id') id: string, @Body() body: PaymongoQrDto) {
-    const order = await this.ordersService.getById(id);
-    const amountPesos = body.amountPesos;
-    const description = `Reel order · ₱${amountPesos}`;
-    const billing =
-      order.customerName?.trim() || order.customerEmail?.trim()
-        ? {
-            ...(order.customerName?.trim() && {
-              name: order.customerName.trim(),
-            }),
-            ...(order.customerEmail?.trim() && {
-              email: order.customerEmail.trim(),
-            }),
-          }
-        : undefined;
-    const result = await this.paymongoService.createPaymentIntentQrPh({
-      orderId: id,
-      amountPesos,
-      description,
-      billing,
-    });
-    return {
-      qrImageUrl: result.qrImageUrl,
-      amountPesos: result.amountPesos,
-      paymentIntentId: result.paymentIntentId,
-      qrExpiresAt: result.qrExpiresAt,
-    };
   }
 
   @Patch(':id/status')
