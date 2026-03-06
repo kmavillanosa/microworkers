@@ -82,6 +82,10 @@ export type ReelItem = {
   youtubeUrl?: string
   uploadLog?: UploadRecord[]
   orderId?: string
+  showcase?: boolean
+  showcaseTitle?: string
+  showcaseDescription?: string
+  outputSize?: StudioOutputSize
 }
 
 export type ReelJob = {

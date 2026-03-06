@@ -3,8 +3,10 @@ import { Alert } from 'flowbite-react'
 import { Navigate, NavLink, Route, Routes, useLocation } from 'react-router-dom'
 import { loadStudioBootstrap, studioApi } from './api/studioApi'
 import type { StudioBootstrap } from './api/types'
+import { CreateOrderPage } from './pages/CreateOrderPage'
 import { OrderOutputPage } from './pages/OrderOutputPage'
 import { OrdersPage } from './pages/OrdersPage'
+import { OutputsPage } from './pages/OutputsPage'
 import { StudioPage } from './pages/StudioPage'
 import {
     SettingsAccountsPage,
@@ -688,14 +690,20 @@ function App() {
                         <NavLink to="/orders" end className={({ isActive }) => topTabClass(isActive)}>
                             Orders
                         </NavLink>
+                        <NavLink to="/orders/create" className={({ isActive }) => topTabClass(isActive)}>
+                            Create order
+                        </NavLink>
+                        <NavLink to="/outputs" className={({ isActive }) => topTabClass(isActive)}>
+                            Outputs
+                        </NavLink>
                         <NavLink to="/settings" className={({ isActive }) => topTabClass(isActive)}>
                             Settings
                         </NavLink>
 
                         <span
                             className={`ml-auto inline-flex items-center rounded-md px-2 py-1 text-[11px] font-semibold ${isMaintainanceModeOn
-                                    ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300'
-                                    : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300'
+                                ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300'
+                                : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300'
                                 }`}
                             title="Customer site maintenance mode status"
                             aria-live="polite"
@@ -721,7 +729,19 @@ function App() {
                             />
                         }
                     />
+                    <Route
+                        path="/orders/create"
+                        element={
+                            <CreateOrderPage
+                                fonts={studioData?.fonts ?? null}
+                                orderClips={studioData?.orderClips ?? []}
+                                voices={studioData?.voices ?? null}
+                                orderPricing={studioData?.orderPricing ?? null}
+                            />
+                        }
+                    />
                     <Route path="/orders/:orderId/output" element={<OrderOutputPage />} />
+                    <Route path="/outputs" element={<OutputsPage />} />
                     <Route path="/settings" element={<SettingsLayout />}>
                         <Route index element={<Navigate to="accounts" replace />} />
                         <Route path="accounts" element={<SettingsAccountsPage studioData={studioData} />} />

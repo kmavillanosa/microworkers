@@ -1010,15 +1010,6 @@ export default function OrderPage() {
           <p className="payment-qr-hint" role="status" aria-live="polite">
             {qrStatusText}
           </p>
-          <section className="payment-qr-mobile-guide" aria-label="How to pay on mobile">
-            <p className="payment-qr-mobile-guide-title">How to pay on mobile</p>
-            <ol className="payment-qr-mobile-guide-list">
-              <li>Download or screenshot this QR code.</li>
-              <li>Open GCash, Maya, or your bank app on your phone.</li>
-              <li>Tap Scan/QR and choose the saved image from your gallery.</li>
-              <li>Confirm the amount and complete the payment.</li>
-            </ol>
-          </section>
           {!qrPaymentConfirmed && qrSecondsLeft != null && (
             <p
               className={`payment-qr-expiry${qrPaymentExpired ? ' payment-qr-expiry-expired' : ''}`}
@@ -1028,15 +1019,26 @@ export default function OrderPage() {
               {qrPaymentExpired ? 'Expired' : `QR expires in ${formatCountdown(qrSecondsLeft)}`}
             </p>
           )}
-          <div className="payment-qr-wrap">
-            <img
-              src={paymongoQrImageUrl}
-              alt="QRPH code: scan to pay with GCash, Maya, or bank app"
-              className={`payment-qr-image${qrPaymentExpired ? ' payment-qr-image-expired' : ''}`}
-              width={280}
-              height={280}
-            />
-            {qrPaymentExpired ? <div className="payment-qr-expired-overlay">Expired</div> : null}
+          <div className="payment-qr-main">
+            <div className="payment-qr-wrap">
+              <img
+                src={paymongoQrImageUrl}
+                alt="QRPH code: scan to pay with GCash, Maya, or bank app"
+                className={`payment-qr-image${qrPaymentExpired ? ' payment-qr-image-expired' : ''}`}
+                width={280}
+                height={280}
+              />
+              {qrPaymentExpired ? <div className="payment-qr-expired-overlay">Expired</div> : null}
+            </div>
+            <section className="payment-qr-mobile-guide" aria-label="How to pay on mobile">
+              <p className="payment-qr-mobile-guide-title">How to pay on mobile</p>
+              <ol className="payment-qr-mobile-guide-list">
+                <li>Download or screenshot this QR code.</li>
+                <li>Open GCash, Maya, or your bank app on your phone.</li>
+                <li>Tap Scan/QR and choose the saved image from your gallery.</li>
+                <li>Confirm the amount and complete the payment.</li>
+              </ol>
+            </section>
           </div>
           <div className="payment-qr-actions">
             <button

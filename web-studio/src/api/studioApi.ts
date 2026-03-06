@@ -111,6 +111,22 @@ export const studioApi = {
     ),
   deleteFont: (fontId: string) => apiClient.remove(`/api/fonts/${encodeURIComponent(fontId)}`),
   listOrders: () => apiClient.get<Order[]>('/api/orders'),
+  createOrder: (payload: {
+    script?: string
+    title?: string
+    customerName?: string
+    customerEmail?: string
+    deliveryAddress?: string
+    outputSize?: 'phone' | 'tablet' | 'laptop' | 'desktop'
+    fontId: string
+    clipName?: string
+    voiceEngine: string
+    voiceName: string
+    useClipAudio?: boolean
+    useClipAudioWithNarrator?: boolean
+    scriptPosition?: 'top' | 'center' | 'bottom'
+    scriptStyle?: Record<string, unknown>
+  }) => apiClient.post<Order>('/api/orders', payload),
   listOrdersPaged: (params?: {
     page?: number
     pageSize?: number
@@ -156,6 +172,14 @@ export const studioApi = {
     }),
   listOrderReels: (orderId: string) =>
     apiClient.get<ReelItem[]>(`/api/orders/${encodeURIComponent(orderId)}/reels`),
+  updateReelShowcase: (
+    reelId: string,
+    payload: {
+      showcase: boolean
+      showcaseTitle?: string
+      showcaseDescription?: string
+    },
+  ) => apiClient.patch<{ ok: true }>(`/api/reels/${encodeURIComponent(reelId)}/showcase`, payload),
   getOrderPricing: () => apiClient.get<OrderPricing>('/api/orders/pricing'),
   updateOrderPricing: (payload: {
     wordsPerFrame: number

@@ -7,6 +7,7 @@ import FromPaymentReceiptPage from './FromPaymentReceiptPage'
 import ShowcasePage from './ShowcasePage'
 import PricingPage from './PricingPage'
 import FaqPage from './FaqPage'
+import { SeoManager } from './SeoManager'
 
 const API = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '')
 
@@ -53,22 +54,26 @@ function App() {
 
   if (isOnMaintainanceMode) {
     return (
-      <div className="maintenance-mode-screen" role="alert" aria-live="assertive">
-        <div className="maintenance-mode-card">
-          <h1 className="maintenance-mode-title">We&rsquo;re under maintenance</h1>
-          <p className="maintenance-mode-message">
-            ReelAgad is temporarily unavailable while we perform system maintenance.
-          </p>
-          <p className="maintenance-mode-message">
-            Please check back again in a few minutes.
-          </p>
+      <>
+        <SeoManager />
+        <div className="maintenance-mode-screen" role="alert" aria-live="assertive">
+          <div className="maintenance-mode-card">
+            <h1 className="maintenance-mode-title">We&rsquo;re under maintenance</h1>
+            <p className="maintenance-mode-message">
+              ReelAgad is temporarily unavailable while we perform system maintenance.
+            </p>
+            <p className="maintenance-mode-message">
+              Please check back again in a few minutes.
+            </p>
+          </div>
         </div>
-      </div>
+      </>
     )
   }
 
   return (
     <div className={`app-wrap${isLandingRoute ? ' app-wrap-landing' : ''}`}>
+      <SeoManager />
       <nav className="app-nav">
         <Link to="/" className="app-nav-brand" aria-label="ReelAgad home">
           <img src="/logo.svg" alt="" className="app-nav-logo" width="288" height="77" />

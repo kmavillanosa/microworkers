@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Alert, Badge, Card, Dropdown, DropdownItem, Spinner } from 'flowbite-react'
 import { Eye as EyeIcon, Terminal as TerminalIcon } from 'flowbite-react-icons/outline'
+import { apiBaseUrl } from '../api/client'
 import { studioApi } from '../api/studioApi'
 import type {
     Order,
     OrderAudioFilter,
+    ReelItem,
     ReelJob,
     OrdersPageResponse,
     OrderStatus,
@@ -76,6 +78,22 @@ function formatStatusLabel(status: OrderStatus): string {
 
 function formatCurrency(value: number): string {
     return `₱${value.toLocaleString()}`
+}
+
+function toMediaUrl(path: string): string {
+    if (path.startsWith('http://') || path.startsWith('https://')) {
+        return path
+    }
+
+    return `${apiBaseUrl}${path}`
+}
+
+function formatPaymentStatusShort(status: Order['paymentStatus']): string {
+    if (status === 'confirmed') {
+        return 'Paid'
+    }
+
+    return 'Pend'
 }
 
 function canProcessVideo(orderStatus: OrderStatus, _hasProcessedOutput: boolean): boolean {
@@ -356,6 +374,23 @@ export function OrdersPage({
         return ids
     }, [reels])
 
+    const latestReelByOrderId = useMemo(() => {
+        const next: Record<string, ReelItem> = {}
+
+        reels.forEach((reel) => {
+            if (!reel.orderId) {
+                return
+            }
+
+            const existing = next[reel.orderId]
+            if (!existing || new Date(reel.createdAt).getTime() > new Date(existing.createdAt).getTime()) {
+                next[reel.orderId] = reel
+            }
+        })
+
+        return next
+    }, [reels])
+
     const handleClearFilters = useCallback(() => {
         setSearchInput('')
         setSearchQuery('')
@@ -501,8 +536,8 @@ export function OrdersPage({
                             className="w-full rounded-md border border-gray-300 bg-white px-2 py-1.5 text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
                         >
                             <option value="all">All payment</option>
-                            <option value="pending">Pending</option>
-                            <option value="confirmed">Confirmed</option>
+                            <option value="pending">Pend</option>
+                            <option value="confirmed">Paid</option>
                         </select>
                     </label>
 
@@ -588,6 +623,7 @@ export function OrdersPage({
                                 <thead className="bg-gray-100 dark:bg-gray-900">
                                     <tr>
                                         <th className="px-3 py-2 text-left font-semibold">Order</th>
+                                        <th className="px-3 py-2 text-left font-semibold">Preview</th>
                                         <th className="px-3 py-2 text-left font-semibold">Customer</th>
                                         <th className="px-3 py-2 text-left font-semibold">Payment</th>
                                         <th className="px-3 py-2 text-left font-semibold">Status</th>
@@ -608,6 +644,7 @@ export function OrdersPage({
                                         const isProcessing = processingOrderIds[order.id] === true || hasActiveJob
                                         const isUpdatingOrderStatus = statusUpdatingOrderIds[order.id] === true
                                         const hasProcessedBefore = processedOrderIds.has(order.id)
+                                        const latestReel = latestReelByOrderId[order.id]
                                         const showProcessVideo = !hasActiveJob && canProcessVideo(order.orderStatus, hasProcessedBefore)
                                         const audioMode = resolveAudioMode(order)
                                         const shouldShowProgress =
@@ -682,13 +719,34 @@ export function OrdersPage({
                                                     </div>
                                                 </td>
                                                 <td className="px-3 py-2">
+                                                    {latestReel ? (
+                                                        <a
+                                                            href={`/orders/${encodeURIComponent(order.id)}/output`}
+                                                            className="inline-flex rounded-md border border-gray-300 p-0.5 hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800"
+                                                            title="Open outputs"
+                                                        >
+                                                            <video
+                                                                src={toMediaUrl(latestReel.videoUrl)}
+                                                                muted
+                                                                playsInline
+                                                                preload="metadata"
+                                                                className="h-14 w-20 rounded bg-black object-cover"
+                                                            />
+                                                        </a>
+                                                    ) : (
+                                                        <div className="inline-flex h-14 w-20 items-center justify-center rounded-md border border-dashed border-gray-300 text-[10px] text-gray-500 dark:border-gray-700 dark:text-gray-400">
+                                                            No output
+                                                        </div>
+                                                    )}
+                                                </td>
+                                                <td className="px-3 py-2">
                                                     <p className="font-medium text-gray-900 dark:text-white">{order.customerName}</p>
                                                     <p className="text-xs text-gray-500 dark:text-gray-400">{order.customerEmail}</p>
                                                 </td>
                                                 <td className="px-3 py-2">
                                                     <div className="space-y-1">
                                                         <Badge color={order.paymentStatus === 'confirmed' ? 'success' : 'warning'}>
-                                                            {order.paymentStatus === 'confirmed' ? 'Confirmed' : 'Pending'}
+                                                            {formatPaymentStatusShort(order.paymentStatus)}
                                                         </Badge>
                                                         {order.bankCode ? (
                                                             <p className="text-xs text-gray-600 dark:text-gray-300">Bank: {order.bankCode}</p>

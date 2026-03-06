@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /
+Disallow: /receipt/
+
+Sitemap: https://reelagad.com/sitemap.xml
