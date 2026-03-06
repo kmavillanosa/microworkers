@@ -477,6 +477,68 @@ export class OrdersController {
     return this.reelsService.listReelsByOrderId(id);
   }
 
+  @Get(':id/payment-ping')
+  async pingPaymentStatus(
+    @Param('id') id: string,
+    @Query('paymentIntentId') paymentIntentId?: string,
+  ) {
+    const order = await this.ordersService.getById(id);
+
+    if (order.paymentStatus === 'confirmed') {
+      return {
+        isPaid: true,
+        paymentStatus: order.paymentStatus,
+        source: 'order',
+      };
+    }
+
+    const intentId = paymentIntentId?.trim();
+    if (!intentId) {
+      return {
+        isPaid: false,
+        paymentStatus: order.paymentStatus,
+        source: 'order',
+      };
+    }
+
+    const paymentIntent = await this.paymongoService.getPaymentIntent(intentId);
+    if (!paymentIntent) {
+      return {
+        isPaid: false,
+        paymentStatus: order.paymentStatus,
+        source: 'paymongo',
+        paymongoStatus: null,
+      };
+    }
+
+    const metadataOrderId = paymentIntent.attributes?.metadata?.order_id;
+    if (metadataOrderId && metadataOrderId !== id) {
+      throw new BadRequestException('Payment intent does not match this order');
+    }
+
+    const paymongoStatus = paymentIntent.attributes?.status ?? null;
+
+    if (paymongoStatus === 'succeeded') {
+      const updated = await this.ordersService.confirmPaymentByPayMongo(
+        id,
+        intentId,
+      );
+      return {
+        isPaid: true,
+        paymentStatus: updated.paymentStatus,
+        source: 'paymongo',
+        paymongoStatus,
+      };
+    }
+
+    return {
+      isPaid: false,
+      paymentStatus: order.paymentStatus,
+      source: 'paymongo',
+      paymongoStatus,
+    };
+  }
+
   @Get(':id')
   get(@Param('id') id: string) {
     return this.ordersService.getById(id);

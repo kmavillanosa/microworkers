@@ -315,6 +315,7 @@ export default function OrderPage() {
   const [paymongoQrImageUrl, setPaymongoQrImageUrl] = useState<string | null>(null)
   const [paymongoAmountPesos, setPaymongoAmountPesos] = useState<number | null>(null)
   const [paymongoOrderId, setPaymongoOrderId] = useState<string | null>(null)
+  const [paymongoPaymentIntentId, setPaymongoPaymentIntentId] = useState<string | null>(null)
   const [paymongoQrExpiresAt, setPaymongoQrExpiresAt] = useState<string | null>(null)
   const [qrSecondsLeft, setQrSecondsLeft] = useState<number | null>(null)
   const [qrPaymentConfirmed, setQrPaymentConfirmed] = useState(false)
@@ -531,6 +532,7 @@ export default function OrderPage() {
     try {
       const id = await ensureOrderId()
       setPaymongoOrderId(id)
+      setPaymongoPaymentIntentId(null)
       setPaymongoQrExpiresAt(null)
       setQrSecondsLeft(null)
       setQrPaymentConfirmed(false)
@@ -544,10 +546,16 @@ export default function OrderPage() {
         const err = await res.json().catch(() => ({}))
         throw new Error((err as { message?: string }).message || 'QRPH payment failed')
       }
-      const data = (await res.json()) as { qrImageUrl: string; amountPesos: number; qrExpiresAt?: string }
+      const data = (await res.json()) as {
+        qrImageUrl: string
+        amountPesos: number
+        paymentIntentId?: string
+        qrExpiresAt?: string
+      }
       if (data.qrImageUrl) {
         setPaymongoQrImageUrl(data.qrImageUrl)
         setPaymongoAmountPesos(data.amountPesos)
+        setPaymongoPaymentIntentId(data.paymentIntentId ?? null)
         const fallbackExpiry = new Date(Date.now() + 15 * 60_000).toISOString()
         setPaymongoQrExpiresAt(data.qrExpiresAt ?? fallbackExpiry)
         return
@@ -601,16 +609,34 @@ export default function OrderPage() {
 
     const checkPayment = async () => {
       try {
-        const res = await fetch(`${API}/api/orders/${encodeURIComponent(paymongoOrderId)}`)
+        const query = new URLSearchParams()
+        if (paymongoPaymentIntentId) {
+          query.set('paymentIntentId', paymongoPaymentIntentId)
+        }
+
+        const pingUrl = `${API}/api/orders/${encodeURIComponent(paymongoOrderId)}/payment-ping${query.toString() ? `?${query.toString()}` : ''
+          }`
+
+        const res = await fetch(pingUrl)
         if (!res.ok || !active) return
-        const order = (await res.json()) as { paymentStatus?: string }
-        if (order.paymentStatus === 'confirmed') {
+        const paymentPing = (await res.json()) as {
+          isPaid?: boolean
+          paymentStatus?: string
+          paymongoStatus?: string | null
+        }
+
+        if (paymentPing.isPaid || paymentPing.paymentStatus === 'confirmed') {
           setQrPaymentConfirmed(true)
-          setQrPaymentStatusMessage('Payment confirmed. You can now check your receipt.')
+          setQrPaymentStatusMessage('Payment confirmed. You can now proceed to receipt page.')
           if (timer != null) {
             window.clearInterval(timer)
             timer = null
           }
+          return
+        }
+
+        if (paymentPing.paymongoStatus === 'processing') {
+          setQrPaymentStatusMessage('Payment is processing. Waiting for confirmation…')
         }
       } catch {
         // keep polling; webhook confirmation can arrive a bit later
@@ -628,7 +654,7 @@ export default function OrderPage() {
         window.clearInterval(timer)
       }
     }
-  }, [paymongoOrderId, paymongoQrImageUrl])
+  }, [paymongoOrderId, paymongoPaymentIntentId, paymongoQrImageUrl])
 
   function handleJoyrideCallback(data: { status?: string }) {
     if (data.status === STATUS.FINISHED || data.status === STATUS.SKIPPED) {
@@ -997,7 +1023,7 @@ export default function OrderPage() {
                 className="btn order-form-submit-btn payment-qr-btn-receipt"
                 onClick={() => navigate(`/receipt/${encodeURIComponent(paymongoOrderId)}`)}
               >
-                Check receipt
+                Proceed to receipt page
               </button>
             )}
             <button
@@ -1007,6 +1033,7 @@ export default function OrderPage() {
                 setPaymongoQrImageUrl(null)
                 setPaymongoAmountPesos(null)
                 setPaymongoOrderId(null)
+                setPaymongoPaymentIntentId(null)
                 setPaymongoQrExpiresAt(null)
                 setQrSecondsLeft(null)
                 setQrPaymentConfirmed(false)

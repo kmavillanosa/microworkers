@@ -432,6 +432,7 @@ export interface CheckoutSessionResource {
 export interface PaymentIntentResource {
   id?: string;
   attributes?: {
+    status?: string;
     metadata?: { order_id?: string };
   };
 }
