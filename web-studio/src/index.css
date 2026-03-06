@@ -1,0 +1,19 @@
+@import 'tailwindcss';
+@import 'flowbite-react/plugin/tailwindcss';
+@source './**/*.{ts,tsx}';
+@source '../node_modules/flowbite-react/dist/**/*.{js,mjs}';
+@custom-variant dark (&:where(.webstudio-dark-disabled, .webstudio-dark-disabled *));
+
+:root {
+  color-scheme: light;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+}
