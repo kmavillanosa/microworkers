@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Routes, Route, Link, useLocation } from 'react-router-dom'
+import { Routes, Route, Link, NavLink, useLocation } from 'react-router-dom'
 import Landing from './Landing'
 import OrderPage from './OrderPage'
 import ReceiptPage from './ReceiptPage'
@@ -74,16 +74,17 @@ function App() {
   return (
     <div className={`app-wrap${isLandingRoute ? ' app-wrap-landing' : ''}`}>
       <SeoManager />
-      <nav className="app-nav">
+      <a className="skip-link" href="#main-content">Skip to main content</a>
+      <nav className="app-nav" aria-label="Primary navigation">
         <Link to="/" className="app-nav-brand" aria-label="ReelAgad home">
           <img src="/logo.svg" alt="" className="app-nav-logo" width="288" height="77" />
         </Link>
-        <Link to="/showcase" className="app-nav-link">See our work</Link>
-        <Link to="/pricing" className="app-nav-link">Pricing</Link>
-        <Link to="/faq" className="app-nav-link">FAQ</Link>
-        <Link to="/order" className="app-nav-link app-nav-cta">Order now</Link>
+        <NavLink to="/showcase" className="app-nav-link">See our work</NavLink>
+        <NavLink to="/pricing" className="app-nav-link">Pricing</NavLink>
+        <NavLink to="/faq" className="app-nav-link">FAQ</NavLink>
+        <NavLink to="/order" className="app-nav-link app-nav-cta">Order now</NavLink>
       </nav>
-      <main className="app-main">
+      <main id="main-content" className="app-main" tabIndex={-1}>
         <Routes>
           <Route path="/" element={<Landing />} />
           <Route path="/showcase" element={<ShowcasePage />} />

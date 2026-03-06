@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import Joyride, { STATUS, type Step } from 'react-joyride'
 
@@ -270,6 +270,7 @@ export default function OrderPage() {
   const [voices, setVoices] = useState<VoiceOption[]>([])
   const [voiceSearchOpen, setVoiceSearchOpen] = useState(false)
   const [voiceSearchQuery, setVoiceSearchQuery] = useState('')
+  const [voiceHighlightIndex, setVoiceHighlightIndex] = useState(-1)
   const [voicePreviewLoading, setVoicePreviewLoading] = useState(false)
   const voiceSearchInputRef = useRef<HTMLInputElement>(null)
   const voicePickerRef = useRef<HTMLDivElement>(null)
@@ -372,6 +373,57 @@ export default function OrderPage() {
     scriptStyle.fontScale !== 1 ||
     scriptStyle.bgOpacity !== 180 ||
     (scriptStyle.animationMode ?? 'normal') !== 'normal'
+
+  const filteredVoices = useMemo(() => {
+    const q = voiceSearchQuery.trim().toLowerCase()
+    if (!q) {
+      return voices
+    }
+
+    return voices.filter((voice) => (
+      voice.name.toLowerCase().includes(q) ||
+      voice.id.toLowerCase().includes(q) ||
+      (voice.country ?? '').toLowerCase().includes(q) ||
+      (voice.language ?? '').toLowerCase().includes(q)
+    ))
+  }, [voiceSearchQuery, voices])
+
+  function getVoiceOptionId(voice: VoiceOption): string {
+    return `order-voice-option-${voice.engine}-${voice.id.replace(/[^a-z0-9_-]/gi, '-')}`
+  }
+
+  function selectVoiceOption(voice: VoiceOption): void {
+    setVoiceEngine(voice.engine)
+    setVoiceName(voice.id)
+    setVoiceSearchQuery('')
+    setVoiceSearchOpen(false)
+    setVoiceHighlightIndex(-1)
+    voiceSearchInputRef.current?.blur()
+  }
+
+  useEffect(() => {
+    if (!voiceSearchOpen) {
+      setVoiceHighlightIndex(-1)
+      return
+    }
+
+    if (filteredVoices.length === 0) {
+      setVoiceHighlightIndex(-1)
+      return
+    }
+
+    setVoiceHighlightIndex((current) => {
+      if (current >= 0 && current < filteredVoices.length) {
+        return current
+      }
+
+      const selectedIndex = filteredVoices.findIndex((voice) =>
+        voice.engine === voiceEngine && voice.id === voiceName,
+      )
+
+      return selectedIndex >= 0 ? selectedIndex : 0
+    })
+  }, [filteredVoices, voiceName, voiceEngine, voiceSearchOpen])
 
   useEffect(() => {
     scriptValueRef.current = script
@@ -1125,7 +1177,11 @@ export default function OrderPage() {
             <span aria-hidden>▶</span> Take a tour
           </button>
         </header>
-        {error && <p style={{ color: '#dc2626', marginBottom: '1rem' }}>{error}</p>}
+        {error ? (
+          <p className="order-form-error" id="order-form-error" role="alert" aria-live="assertive">
+            {error}
+          </p>
+        ) : null}
 
         {isImpersonating && impersonatedOriginalOrder && (
           <ImpersonationAlert orderId={impersonatedOriginalOrder.id} />
@@ -1139,7 +1195,11 @@ export default function OrderPage() {
               }
             `).join('')}</style>
           <div className="order-page-layout">
-            <form onSubmit={(e) => e.preventDefault()} className="order-form-column">
+            <form
+              onSubmit={(e) => e.preventDefault()}
+              className="order-form-column"
+              aria-describedby={error ? 'order-form-error' : undefined}
+            >
               {/* 1. Upload — video only */}
               <section className="order-form-step order-section-upload" aria-labelledby="order-step-upload-heading">
                 <h2 id="order-step-upload-heading" className="order-form-step-title">Upload</h2>
@@ -1473,17 +1533,68 @@ export default function OrderPage() {
                           aria-expanded={voiceSearchOpen}
                           aria-autocomplete="list"
                           aria-controls="order-voice-list"
+                          aria-activedescendant={
+                            voiceSearchOpen && voiceHighlightIndex >= 0 && filteredVoices[voiceHighlightIndex]
+                              ? getVoiceOptionId(filteredVoices[voiceHighlightIndex])
+                              : undefined
+                          }
                           aria-label="Narrator voice (search by name, country, or language)"
                           value={displayValue}
                           onChange={(e) => {
                             setVoiceSearchQuery(e.target.value)
                             setVoiceSearchOpen(true)
                           }}
-                          onFocus={() => setVoiceSearchOpen(true)}
+                          onFocus={() => {
+                            setVoiceSearchOpen(true)
+                          }}
                           onKeyDown={(e) => {
+                            if (e.key === 'ArrowDown') {
+                              e.preventDefault()
+                              if (!voiceSearchOpen) {
+                                setVoiceSearchOpen(true)
+                              }
+                              setVoiceHighlightIndex((current) => {
+                                if (filteredVoices.length === 0) {
+                                  return -1
+                                }
+                                if (current < 0) {
+                                  return 0
+                                }
+                                return Math.min(filteredVoices.length - 1, current + 1)
+                              })
+                              return
+                            }
+
+                            if (e.key === 'ArrowUp') {
+                              e.preventDefault()
+                              if (!voiceSearchOpen) {
+                                setVoiceSearchOpen(true)
+                              }
+                              setVoiceHighlightIndex((current) => {
+                                if (filteredVoices.length === 0) {
+                                  return -1
+                                }
+                                if (current < 0) {
+                                  return 0
+                                }
+                                return Math.max(0, current - 1)
+                              })
+                              return
+                            }
+
+                            if (e.key === 'Enter' && voiceSearchOpen && voiceHighlightIndex >= 0) {
+                              const highlighted = filteredVoices[voiceHighlightIndex]
+                              if (highlighted) {
+                                e.preventDefault()
+                                selectVoiceOption(highlighted)
+                                return
+                              }
+                            }
+
                             if (e.key === 'Escape') {
                               setVoiceSearchOpen(false)
                               setVoiceSearchQuery('')
+                              setVoiceHighlightIndex(-1)
                               voiceSearchInputRef.current?.blur()
                             }
                           }}
@@ -1520,41 +1631,42 @@ export default function OrderPage() {
                             zIndex: 10,
                           }}
                         >
-                          {(voiceSearchQuery.trim()
-                            ? voices.filter((v) => {
-                              const q = voiceSearchQuery.trim().toLowerCase()
-                              return (
-                                v.name.toLowerCase().includes(q) ||
-                                v.id.toLowerCase().includes(q) ||
-                                (v.country ?? '').toLowerCase().includes(q) ||
-                                (v.language ?? '').toLowerCase().includes(q)
-                              )
-                            })
-                            : voices
-                          ).map((v) => {
+                          {filteredVoices.length === 0 ? (
+                            <li
+                              role="option"
+                              aria-disabled="true"
+                              style={{
+                                padding: '0.5rem 0.75rem',
+                                color: 'var(--color-muted, #666)',
+                              }}
+                            >
+                              No voice found.
+                            </li>
+                          ) : filteredVoices.map((v, index) => {
                             const selected = v.engine === voiceEngine && v.id === voiceName
+                            const optionId = getVoiceOptionId(v)
+                            const isHighlighted = voiceHighlightIndex === index
                             return (
                               <li
                                 key={v.engine + v.id}
+                                id={optionId}
                                 role="option"
                                 aria-selected={selected}
+                                className={isHighlighted ? 'order-voice-option-highlight' : undefined}
                                 style={{
                                   padding: '0.5rem 0.75rem',
                                   cursor: 'pointer',
                                   borderBottom: '1px solid var(--color-border, #eee)',
-                                  background: selected ? 'var(--color-highlight-bg, #e8f4fc)' : undefined,
+                                  background: selected
+                                    ? 'var(--color-highlight-bg, #e8f4fc)'
+                                    : undefined,
                                   display: 'flex',
                                   alignItems: 'center',
                                   gap: '0.5rem',
                                   flexWrap: 'wrap',
                                 }}
-                                onClick={() => {
-                                  setVoiceEngine(v.engine)
-                                  setVoiceName(v.id)
-                                  setVoiceSearchQuery('')
-                                  setVoiceSearchOpen(false)
-                                  voiceSearchInputRef.current?.blur()
-                                }}
+                                onMouseEnter={() => setVoiceHighlightIndex(index)}
+                                onClick={() => selectVoiceOption(v)}
                               >
                                 <span aria-hidden style={{ fontSize: '1.2em' }}>{localeToFlag(v.locale)}</span>
                                 <strong>{v.name}</strong>

@@ -38,6 +38,7 @@ export function ShowcaseCard({ item, videoSrc, variant }: ShowcaseCardProps) {
           controls
           playsInline
           preload="metadata"
+          aria-label={`Showcase video: ${title}`}
           className={`${p}-video`}
         />
       </div>

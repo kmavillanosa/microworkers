@@ -28,7 +28,7 @@ export default function ShowcasePage() {
         <div className="showcase-page-inner">
           <header className="showcase-page-header">
             <h1 className="showcase-page-title">Sample videos we generated</h1>
-            <p className="showcase-page-intro">Loading samples…</p>
+            <p className="showcase-page-intro" role="status" aria-live="polite">Loading samples…</p>
           </header>
           <div className="showcase-grid showcase-grid-skeleton">
             {[1, 2, 3, 4, 5, 6].map((i) => (
@@ -49,7 +49,7 @@ export default function ShowcasePage() {
       <div className="showcase-page">
         <div className="showcase-page-inner">
           <div className="showcase-page-error">
-            <p className="showcase-page-error-text">{error}</p>
+            <p className="showcase-page-error-text" role="alert" aria-live="assertive">{error}</p>
             <Link to="/" className="landing-cta landing-cta-primary">
               Back to home
             </Link>

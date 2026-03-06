@@ -166,7 +166,7 @@ export default function ReceiptPage() {
     return (
       <div className="container receipt-container">
         <div className="card receipt-card">
-          <p className="muted">Loading receipt…</p>
+          <p className="muted" role="status" aria-live="polite">Loading receipt…</p>
         </div>
       </div>
     )
@@ -176,7 +176,7 @@ export default function ReceiptPage() {
     return (
       <div className="container receipt-container">
         <div className="card receipt-card">
-          <p style={{ color: '#dc2626' }}>{error || 'Invalid order reference.'}</p>
+          <p style={{ color: '#dc2626' }} role="alert" aria-live="assertive">{error || 'Invalid order reference.'}</p>
           <Link to="/" className="btn btn-secondary" style={{ display: 'inline-block', marginTop: '1rem' }}>Back to home</Link>
         </div>
       </div>

@@ -231,7 +231,7 @@ export default function Landing() {
           Get a quick estimate based on your audio option and video length.
         </p>
 
-        {pricingError && <p className="pricing-alert">{pricingError}</p>}
+        {pricingError ? <p className="pricing-alert" role="alert" aria-live="assertive">{pricingError}</p> : null}
 
         <div className="landing-pricing-grid">
           <div className="landing-pricing-inputs">
@@ -335,7 +335,7 @@ export default function Landing() {
           </div>
         </div>
 
-        <p className="pricing-note">
+        <p className="pricing-note" role="status" aria-live="polite">
           {pricingLoading
             ? 'Loading latest pricing...'
             : 'This is a quick estimate using current pricing and normal speaking speed (~2.5 words per second). Final price may change based on your final script.'}

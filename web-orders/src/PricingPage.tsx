@@ -108,7 +108,7 @@ export default function PricingPage() {
                     <p>Choose an audio option and enter your video length to get a quick price estimate.</p>
                 </header>
 
-                {error && <p className="pricing-alert">{error}</p>}
+                {error ? <p className="pricing-alert" role="alert" aria-live="assertive">{error}</p> : null}
 
                 <div className="pricing-page-grid">
                     <div className="pricing-page-left">
@@ -221,7 +221,7 @@ export default function PricingPage() {
                                 <strong>₱{estimatedTotalPesos.toLocaleString()}</strong>
                             </div>
                         </div>
-                        <p className="pricing-note">
+                        <p className="pricing-note" role="status" aria-live="polite">
                             {loading
                                 ? 'Loading latest pricing...'
                                 : 'This is a quick estimate using current pricing and normal speaking speed (~2.5 words per second). Final price may change based on your final script.'}

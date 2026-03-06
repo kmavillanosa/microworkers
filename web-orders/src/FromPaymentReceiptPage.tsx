@@ -116,7 +116,7 @@ export default function FromPaymentReceiptPage() {
         : null
       setLookupError(
         apiMessage ||
-          'Order not found for this session. Check the ID (starts with cs_) or contact support.',
+        'Order not found for this session. Check the ID (starts with cs_) or contact support.',
       )
       setError('Missing checkout session. If you just paid, your order was created; you can look it up below or check your email.')
     } catch {
@@ -129,7 +129,7 @@ export default function FromPaymentReceiptPage() {
     return (
       <div className="container receipt-container">
         <div className="card receipt-card">
-          <p className="muted">{error}</p>
+          <p className="muted" role="alert" aria-live="assertive">{error}</p>
           <form onSubmit={handleLookupBySessionId} style={{ marginTop: '1rem' }}>
             <label htmlFor="receipt-session-id" className="label">
               Have your checkout session ID? (from payment confirmation or support)
@@ -144,7 +144,16 @@ export default function FromPaymentReceiptPage() {
                 style={{ maxWidth: '320px' }}
               />
             </div>
-            {lookupError && <p className="muted" style={{ marginTop: '0.25rem', color: 'var(--color-error, #dc2626)' }}>{lookupError}</p>}
+            {lookupError ? (
+              <p
+                className="muted"
+                role="alert"
+                aria-live="assertive"
+                style={{ marginTop: '0.25rem', color: 'var(--color-error, #dc2626)' }}
+              >
+                {lookupError}
+              </p>
+            ) : null}
             <p>
               <button type="submit" className="btn btn-primary" disabled={!manualSessionId.trim()}>
                 Look up my order
@@ -162,7 +171,7 @@ export default function FromPaymentReceiptPage() {
   return (
     <div className="container receipt-container">
       <div className="card receipt-card">
-        <p className="muted">{message}</p>
+        <p className="muted" role="status" aria-live="polite">{message}</p>
       </div>
     </div>
   )
