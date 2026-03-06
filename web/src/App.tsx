@@ -102,7 +102,7 @@ function App() {
         if (pipelineRunningIds.size === 0) return;
         const timer = window.setInterval(() => {
             void loadPipelines();
-        }, 8000);
+        }, 3000);
         return () => window.clearInterval(timer);
     }, [loadPipelines, pipelineRunningIds]);
 

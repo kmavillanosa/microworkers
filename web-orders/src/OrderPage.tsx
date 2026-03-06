@@ -377,6 +377,10 @@ export default function OrderPage() {
   }, [script])
 
   useEffect(() => {
+    setProceedOverWordLimit(isImpersonating)
+  }, [isImpersonating])
+
+  useEffect(() => {
     Promise.all([
       fetch(`${API}/api/reels/fonts`).then((r) => r.ok ? r.json() : { items: [], defaultFont: 'default' }),
       fetch(`${API}/api/clips`).then((r) => r.ok ? r.json() : []),

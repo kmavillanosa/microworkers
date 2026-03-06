@@ -150,6 +150,10 @@ export const studioApi = {
     return apiClient.get<OrdersPageResponse>(`/api/orders/paged${queryString ? `?${queryString}` : ''}`)
   },
   getOrderById: (orderId: string) => apiClient.get<Order>(`/api/orders/${encodeURIComponent(orderId)}`),
+  updateOrderStatus: (orderId: string, orderStatus: Order['orderStatus']) =>
+    apiClient.patch<Order>(`/api/orders/${encodeURIComponent(orderId)}/status`, {
+      orderStatus,
+    }),
   listOrderReels: (orderId: string) =>
     apiClient.get<ReelItem[]>(`/api/orders/${encodeURIComponent(orderId)}/reels`),
   getOrderPricing: () => apiClient.get<OrderPricing>('/api/orders/pricing'),

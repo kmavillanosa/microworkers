@@ -81,6 +81,8 @@ export interface CreateCheckoutParams {
   /** When provided, stored in session metadata so webhook can find the order. Omit when creating order only after payment. */
   orderId?: string;
   amountPesos: number;
+  /** Human-readable label shown in PayMongo line item name. */
+  lineItemName?: string;
   description: string;
   successUrl: string;
   cancelUrl: string;
@@ -122,12 +124,16 @@ export class PaymongoService {
     const paymentMethodTypes = params.paymentMethodTypes?.length
       ? params.paymentMethodTypes
       : ['gcash'];
+    const lineItemName =
+      params.lineItemName?.trim() ||
+      params.description?.trim() ||
+      'Reelagad checkout';
     const attributes: Record<string, unknown> = {
       line_items: [
         {
           amount: amountCentavos,
           currency: 'PHP',
-          name: 'Reel order',
+          name: lineItemName.slice(0, 120),
           quantity: 1,
           description: params.description.slice(0, 255),
         },

@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Alert, Badge, Card, Dropdown, DropdownItem, Spinner } from 'flowbite-react'
 import { Eye as EyeIcon, Terminal as TerminalIcon } from 'flowbite-react-icons/outline'
 import { studioApi } from '../api/studioApi'
 import type {
     Order,
     OrderAudioFilter,
+    ReelJob,
     OrdersPageResponse,
     OrderStatus,
     StudioBootstrap,
@@ -24,6 +25,7 @@ const DEFAULT_WEB_ORDERS_BASE_URL = 'https://reelagad.com'
 const LOCAL_WEB_ORDERS_BASE_URL = 'https://reelagad.com'
 const PAGE_SIZE_OPTIONS = [25, 50, 100] as const
 const DEFAULT_PAGE_SIZE = PAGE_SIZE_OPTIONS[0]
+const JOB_POLL_INTERVAL_MS = 3000
 
 const ORDER_STATUS_ORDER: OrderStatus[] = [
     'pending',
@@ -150,7 +152,22 @@ function resolveOrderProgress(
     order: Order,
     isProcessing: boolean,
     hasProcessedOutput: boolean,
+    activeJob?: ReelJob,
 ): { percent: number; label: string; tone: OrderProgressTone } {
+    if (activeJob && (activeJob.status === 'queued' || activeJob.status === 'processing')) {
+        const rawProgress =
+            typeof activeJob.progress === 'number' && Number.isFinite(activeJob.progress)
+                ? activeJob.progress
+                : 0
+        const percent = Math.max(1, Math.min(99, Math.floor(rawProgress)))
+
+        if (activeJob.status === 'queued') {
+            return { percent, label: 'Queued', tone: 'normal' }
+        }
+
+        return { percent, label: `${percent}%`, tone: 'normal' }
+    }
+
     if (order.orderStatus === 'ready_for_sending') {
         return { percent: 100, label: '100%', tone: 'success' }
     }
@@ -197,7 +214,11 @@ export function OrdersPage({
     const [ordersPage, setOrdersPage] = useState<OrdersPageResponse>(EMPTY_PAGED_ORDERS)
     const [loadingOrders, setLoadingOrders] = useState(false)
     const [ordersError, setOrdersError] = useState<string | null>(null)
+    const [activeJobsByOrderId, setActiveJobsByOrderId] = useState<Record<string, ReelJob>>({})
+    const [statusActionMessage, setStatusActionMessage] = useState<string | null>(null)
+    const [statusUpdatingOrderIds, setStatusUpdatingOrderIds] = useState<Record<string, boolean>>({})
     const [reloadToken, setReloadToken] = useState(0)
+    const hadActiveOrderJobsRef = useRef(false)
 
     useEffect(() => {
         const timeoutId = window.setTimeout(() => {
@@ -212,6 +233,60 @@ export function OrdersPage({
     const refreshOrders = useCallback(() => {
         setReloadToken((current) => current + 1)
     }, [])
+
+    useEffect(() => {
+        let cancelled = false
+
+        const loadActiveJobs = async () => {
+            try {
+                const jobs = await studioApi.listReelJobs()
+                if (cancelled) {
+                    return
+                }
+
+                const next: Record<string, ReelJob> = {}
+                let hasActiveOrderJobs = false
+
+                jobs.forEach((job) => {
+                    if (!job.orderId) {
+                        return
+                    }
+
+                    if (job.status !== 'queued' && job.status !== 'processing') {
+                        return
+                    }
+
+                    hasActiveOrderJobs = true
+                    const existing = next[job.orderId]
+                    if (!existing || (job.progress ?? 0) >= (existing.progress ?? 0)) {
+                        next[job.orderId] = job
+                    }
+                })
+
+                setActiveJobsByOrderId(next)
+
+                if (hasActiveOrderJobs || hadActiveOrderJobsRef.current) {
+                    refreshOrders()
+                }
+
+                hadActiveOrderJobsRef.current = hasActiveOrderJobs
+            } catch {
+                if (!cancelled) {
+                    setActiveJobsByOrderId({})
+                }
+            }
+        }
+
+        void loadActiveJobs()
+        const timer = window.setInterval(() => {
+            void loadActiveJobs()
+        }, JOB_POLL_INTERVAL_MS)
+
+        return () => {
+            cancelled = true
+            window.clearInterval(timer)
+        }
+    }, [refreshOrders])
 
     useEffect(() => {
         let cancelled = false
@@ -314,6 +389,49 @@ export function OrdersPage({
         })()
     }, [onDeleteOrder, refreshOrders])
 
+    const handleOrderStatusChange = useCallback((orderId: string, nextStatus: OrderStatus) => {
+        const currentStatus = pageOrders.find((entry) => entry.id === orderId)?.orderStatus
+        if (!nextStatus || currentStatus === nextStatus) {
+            return
+        }
+
+        void (async () => {
+            setStatusActionMessage(null)
+            setOrdersError(null)
+            setStatusUpdatingOrderIds((current) => ({
+                ...current,
+                [orderId]: true,
+            }))
+
+            try {
+                await studioApi.updateOrderStatus(orderId, nextStatus)
+                setOrdersPage((current) => ({
+                    ...current,
+                    items: current.items.map((entry) =>
+                        entry.id === orderId
+                            ? {
+                                ...entry,
+                                orderStatus: nextStatus,
+                            }
+                            : entry,
+                    ),
+                }))
+                setStatusActionMessage(
+                    `Order ${formatOrderIdForTable(orderId)} status updated to ${formatStatusLabel(nextStatus)}.`,
+                )
+                refreshOrders()
+            } catch {
+                setOrdersError('Failed to update order status.')
+            } finally {
+                setStatusUpdatingOrderIds((current) => {
+                    const next = { ...current }
+                    delete next[orderId]
+                    return next
+                })
+            }
+        })()
+    }, [pageOrders, refreshOrders])
+
     return (
         <div>
             <Card>
@@ -327,6 +445,12 @@ export function OrdersPage({
                 {orderActionMessage ? (
                     <div className="mb-3">
                         <Alert color="info">{orderActionMessage}</Alert>
+                    </div>
+                ) : null}
+
+                {statusActionMessage ? (
+                    <div className="mb-3">
+                        <Alert color="success">{statusActionMessage}</Alert>
                     </div>
                 ) : null}
 
@@ -480,20 +604,27 @@ export function OrdersPage({
                                 <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                                     {pageOrders.map((order) => {
                                         const computed = calculateFramesAndPrice(order, orderPricing)
-                                        const isProcessing = processingOrderIds[order.id] === true
+                                        const activeJob = activeJobsByOrderId[order.id]
+                                        const hasActiveJob = Boolean(
+                                            activeJob &&
+                                            (activeJob.status === 'queued' || activeJob.status === 'processing'),
+                                        )
+                                        const isProcessing = processingOrderIds[order.id] === true || hasActiveJob
+                                        const isUpdatingOrderStatus = statusUpdatingOrderIds[order.id] === true
                                         const hasProcessedBefore = processedOrderIds.has(order.id)
-                                        const showProcessVideo = canProcessVideo(order.orderStatus, hasProcessedBefore)
+                                        const showProcessVideo = !hasActiveJob && canProcessVideo(order.orderStatus, hasProcessedBefore)
                                         const audioMode = resolveAudioMode(order)
                                         const shouldShowProgress =
                                             !hasProcessedBefore &&
-                                            (isProcessing ||
+                                            (hasActiveJob ||
+                                                isProcessing ||
                                                 order.orderStatus === 'processing' ||
                                                 order.orderStatus === 'accepted' ||
                                                 order.orderStatus === 'ready_for_sending' ||
                                                 order.orderStatus === 'closed' ||
                                                 order.orderStatus === 'declined')
                                         const orderProgress = shouldShowProgress
-                                            ? resolveOrderProgress(order, isProcessing, hasProcessedBefore)
+                                            ? resolveOrderProgress(order, isProcessing, hasProcessedBefore, activeJob)
                                             : null
                                         const progressBarFillClass =
                                             orderProgress?.tone === 'failure'
@@ -578,7 +709,29 @@ export function OrdersPage({
                                                     </div>
                                                 </td>
                                                 <td className="px-3 py-2">
-                                                    <Badge color="info">{formatStatusLabel(order.orderStatus)}</Badge>
+                                                    <div className="space-y-1">
+                                                        <label className="sr-only" htmlFor={`order-status-${order.id}`}>
+                                                            Order status
+                                                        </label>
+                                                        <select
+                                                            id={`order-status-${order.id}`}
+                                                            value={order.orderStatus}
+                                                            onChange={(event) =>
+                                                                handleOrderStatusChange(order.id, event.target.value as OrderStatus)
+                                                            }
+                                                            disabled={isUpdatingOrderStatus || loadingOrders}
+                                                            className="w-full min-w-[160px] rounded-md border border-gray-300 bg-white px-2 py-1.5 text-xs text-gray-900 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
+                                                        >
+                                                            {ORDER_STATUS_ORDER.map((status) => (
+                                                                <option key={status} value={status}>
+                                                                    {formatStatusLabel(status)}
+                                                                </option>
+                                                            ))}
+                                                        </select>
+                                                        {isUpdatingOrderStatus ? (
+                                                            <p className="text-xs text-gray-500 dark:text-gray-400">Saving status...</p>
+                                                        ) : null}
+                                                    </div>
                                                 </td>
                                                 <td className="px-3 py-2">{formatAudioMode(audioMode)}</td>
                                                 <td className="px-3 py-2">{computed.frames}</td>

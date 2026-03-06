@@ -251,7 +251,7 @@ export class OrdersController {
   }
 
   private normalizeDescriptorPart(
-    value: string | undefined,
+    value: string | null | undefined,
     maxLength: number,
   ): string {
     return (value ?? '')
@@ -284,6 +284,49 @@ export class OrdersController {
   ): string {
     const titleTag = this.normalizeDescriptorPart(payload.title, 48);
     const parts = ['Reel order', `₱${amountPesos}`, descriptor];
+    if (titleTag) {
+      parts.push(`Title:${titleTag}`);
+    }
+    return parts.join(' | ').slice(0, 255);
+  }
+
+  private buildCheckoutPaymentDescriptor(params: {
+    customerName?: string | null;
+    customerEmail?: string | null;
+    voiceName?: string | null;
+    voiceEngine?: string | null;
+    clipName?: string | null;
+    orderId?: string | null;
+  }): string {
+    const customerName = this.normalizeDescriptorPart(params.customerName, 48);
+    const customerEmail = this.normalizeDescriptorPart(
+      params.customerEmail,
+      64,
+    );
+    const customerTag = customerName || customerEmail || 'Guest';
+    const voiceTag =
+      this.normalizeDescriptorPart(params.voiceName, 32) ||
+      this.normalizeDescriptorPart(params.voiceEngine, 24) ||
+      'voice';
+    const clipTag = params.clipName?.trim() ? 'clip' : 'no-clip';
+    const orderTag = params.orderId?.trim()
+      ? `ORD:${params.orderId.trim().slice(-8)}`
+      : null;
+
+    const parts = ['Checkout', customerTag, voiceTag, clipTag];
+    if (orderTag) {
+      parts.push(orderTag);
+    }
+    return parts.join(' | ').slice(0, 255);
+  }
+
+  private buildCheckoutPaymongoDescription(
+    amountPesos: number,
+    title: string | null | undefined,
+    descriptor: string,
+  ): string {
+    const titleTag = this.normalizeDescriptorPart(title, 64);
+    const parts = ['Checkout payment', `₱${amountPesos}`, descriptor];
     if (titleTag) {
       parts.push(`Title:${titleTag}`);
     }
@@ -482,6 +525,9 @@ export class OrdersController {
         : undefined,
       scriptStyle: order.scriptStyle ?? undefined,
     });
+
+    await this.ordersService.updateStatus(order.id, 'processing');
+
     return {
       jobId: job.id,
       status: job.status,
@@ -543,7 +589,18 @@ export class OrdersController {
       body.orderPayload as Record<string, unknown>,
     );
     const amountPesos = body.amountPesos;
-    const description = `Reel order · ₱${amountPesos}`;
+    const paymentDescriptor = this.buildCheckoutPaymentDescriptor({
+      customerName: resolvedPayload.customerName,
+      customerEmail: resolvedPayload.customerEmail,
+      voiceName: resolvedPayload.voiceName,
+      voiceEngine: resolvedPayload.voiceEngine,
+      clipName: resolvedPayload.clipName,
+    });
+    const description = this.buildCheckoutPaymongoDescription(
+      amountPesos,
+      resolvedPayload.title,
+      paymentDescriptor,
+    );
     const paymentMethodTypes =
       await this.settingsService.getPaymentMethodTypes();
     const customerName = resolvedPayload.customerName?.trim() ?? '';
@@ -560,6 +617,7 @@ export class OrdersController {
     const { checkoutUrl, sessionId } =
       await this.paymongoService.createCheckoutSession({
         amountPesos,
+        lineItemName: paymentDescriptor,
         description,
         successUrl: body.successUrl,
         cancelUrl: body.cancelUrl,
@@ -962,7 +1020,19 @@ export class OrdersController {
   ) {
     const order = await this.ordersService.getById(id);
     const amountPesos = body.amountPesos;
-    const description = `Reel order · ₱${amountPesos}`;
+    const paymentDescriptor = this.buildCheckoutPaymentDescriptor({
+      customerName: order.customerName,
+      customerEmail: order.customerEmail,
+      voiceName: order.voiceName,
+      voiceEngine: order.voiceEngine,
+      clipName: order.clipName,
+      orderId: order.id,
+    });
+    const description = this.buildCheckoutPaymongoDescription(
+      amountPesos,
+      order.title,
+      paymentDescriptor,
+    );
     const paymentMethodTypes =
       await this.settingsService.getPaymentMethodTypes();
     const billing =
@@ -984,6 +1054,7 @@ export class OrdersController {
     const { checkoutUrl } = await this.paymongoService.createCheckoutSession({
       orderId: id,
       amountPesos,
+      lineItemName: paymentDescriptor,
       description,
       successUrl: body.successUrl,
       cancelUrl: body.cancelUrl,
