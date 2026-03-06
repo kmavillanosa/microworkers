@@ -103,6 +103,12 @@ jobs:
           export REELS_MAX_CONCURRENT_JOBS="${{ secrets.REELS_MAX_CONCURRENT_JOBS }}"
           export PAYMONGO_SECRET_KEY="${{ secrets.PAYMONGO_SECRET_KEY }}"
           export WORKER_SECRET="${{ secrets.WORKER_SECRET }}"
+          export SLACK_ORDER_WEBHOOK_URL="${{ secrets.SLACK_ORDER_WEBHOOK_URL }}"
+
+          if [ -z "$SLACK_ORDER_WEBHOOK_URL" ]; then
+            echo "ERROR: GitHub secret SLACK_ORDER_WEBHOOK_URL is empty or unavailable for this workflow run."
+            exit 1
+          fi
 
           # Build only what changed or is missing (transcription image is slow; rebuild only when transcription files change)
           BUILD_API=false
