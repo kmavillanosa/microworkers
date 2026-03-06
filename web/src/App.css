@@ -1656,6 +1656,24 @@ input[type='file'] {
   flex-wrap: wrap;
 }
 
+.orders-kanban-status-select {
+  min-width: 7.5rem;
+  padding: 0.15rem 0.45rem;
+  border-radius: var(--radius-sm);
+  border: var(--border);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  text-transform: capitalize;
+  color: #334155;
+  background: #fff;
+}
+
+.orders-kanban-status-select:focus {
+  outline: none;
+  border-color: #2f55ff;
+  box-shadow: 0 0 0 1px rgba(47, 85, 255, 0.35);
+}
+
 .orders-payment-badge {
   display: inline-block;
   padding: 0.15rem 0.5rem;

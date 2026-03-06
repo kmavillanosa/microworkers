@@ -92,6 +92,13 @@ function formatDuration(seconds: number): string {
   return s < 10 ? `${m}:0${s}` : `${m}:${s}`
 }
 
+function formatCountdown(totalSeconds: number): string {
+  const safeSeconds = Math.max(0, Math.floor(totalSeconds))
+  const minutes = Math.floor(safeSeconds / 60)
+  const seconds = safeSeconds % 60
+  return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
+}
+
 /** Same as API: max words that fit in duration at typical TTS pace. */
 const WORDS_PER_SECOND = 2.5
 function maxWordsForDuration(seconds: number): number {
@@ -308,6 +315,8 @@ export default function OrderPage() {
   const [paymongoQrImageUrl, setPaymongoQrImageUrl] = useState<string | null>(null)
   const [paymongoAmountPesos, setPaymongoAmountPesos] = useState<number | null>(null)
   const [paymongoOrderId, setPaymongoOrderId] = useState<string | null>(null)
+  const [paymongoQrExpiresAt, setPaymongoQrExpiresAt] = useState<string | null>(null)
+  const [qrSecondsLeft, setQrSecondsLeft] = useState<number | null>(null)
   const [qrPaymentConfirmed, setQrPaymentConfirmed] = useState(false)
   const [qrPaymentStatusMessage, setQrPaymentStatusMessage] = useState('Waiting for payment confirmation…')
   /** Script/caption position on video: top, center, bottom. Center only when no title. */
@@ -522,6 +531,8 @@ export default function OrderPage() {
     try {
       const id = await ensureOrderId()
       setPaymongoOrderId(id)
+      setPaymongoQrExpiresAt(null)
+      setQrSecondsLeft(null)
       setQrPaymentConfirmed(false)
       setQrPaymentStatusMessage('Waiting for payment confirmation…')
       const res = await fetch(`${API}/api/orders/${id}/paymongo-qr`, {
@@ -533,10 +544,12 @@ export default function OrderPage() {
         const err = await res.json().catch(() => ({}))
         throw new Error((err as { message?: string }).message || 'QRPH payment failed')
       }
-      const data = (await res.json()) as { qrImageUrl: string; amountPesos: number }
+      const data = (await res.json()) as { qrImageUrl: string; amountPesos: number; qrExpiresAt?: string }
       if (data.qrImageUrl) {
         setPaymongoQrImageUrl(data.qrImageUrl)
         setPaymongoAmountPesos(data.amountPesos)
+        const fallbackExpiry = new Date(Date.now() + 15 * 60_000).toISOString()
+        setPaymongoQrExpiresAt(data.qrExpiresAt ?? fallbackExpiry)
         return
       }
       throw new Error('No QR image returned')
@@ -546,6 +559,40 @@ export default function OrderPage() {
       setSubmitting(false)
     }
   }
+
+  useEffect(() => {
+    if (!paymongoQrImageUrl || !paymongoQrExpiresAt || qrPaymentConfirmed) {
+      setQrSecondsLeft(null)
+      return
+    }
+
+    const expiresAtMs = Date.parse(paymongoQrExpiresAt)
+    if (!Number.isFinite(expiresAtMs)) {
+      setQrSecondsLeft(null)
+      return
+    }
+
+    let isActive = true
+
+    const syncCountdown = () => {
+      if (!isActive) return
+      const remaining = Math.max(0, Math.ceil((expiresAtMs - Date.now()) / 1000))
+      setQrSecondsLeft(remaining)
+    }
+
+    syncCountdown()
+    const timer = window.setInterval(syncCountdown, 1000)
+
+    return () => {
+      isActive = false
+      window.clearInterval(timer)
+    }
+  }, [paymongoQrExpiresAt, paymongoQrImageUrl, qrPaymentConfirmed])
+
+  const qrPaymentExpired = !qrPaymentConfirmed && qrSecondsLeft != null && qrSecondsLeft <= 0
+  const qrStatusText = qrPaymentExpired
+    ? 'QR code expired. Please go back and generate a new QR code.'
+    : qrPaymentStatusMessage
 
   useEffect(() => {
     if (!paymongoQrImageUrl || !paymongoOrderId) return
@@ -922,25 +969,35 @@ export default function OrderPage() {
             Scan the QRPH code with GCash, Maya, or your bank app to complete payment.
           </p>
           <p className="payment-qr-hint" role="status" aria-live="polite">
-            {qrPaymentStatusMessage}
+            {qrStatusText}
           </p>
+          {!qrPaymentConfirmed && qrSecondsLeft != null && (
+            <p
+              className={`payment-qr-expiry${qrPaymentExpired ? ' payment-qr-expiry-expired' : ''}`}
+              role="status"
+              aria-live="polite"
+            >
+              {qrPaymentExpired ? 'Expired' : `QR expires in ${formatCountdown(qrSecondsLeft)}`}
+            </p>
+          )}
           <div className="payment-qr-wrap">
             <img
               src={paymongoQrImageUrl}
               alt="QRPH code: scan to pay with GCash, Maya, or bank app"
-              className="payment-qr-image"
+              className={`payment-qr-image${qrPaymentExpired ? ' payment-qr-image-expired' : ''}`}
               width={280}
               height={280}
             />
+            {qrPaymentExpired ? <div className="payment-qr-expired-overlay">Expired</div> : null}
           </div>
           <div className="payment-qr-actions">
-            {paymongoOrderId && (
+            {paymongoOrderId && qrPaymentConfirmed && (
               <button
                 type="button"
                 className="btn order-form-submit-btn payment-qr-btn-receipt"
                 onClick={() => navigate(`/receipt/${encodeURIComponent(paymongoOrderId)}`)}
               >
-                {qrPaymentConfirmed ? 'Check receipt' : 'Check receipt (payment may still be syncing)'}
+                Check receipt
               </button>
             )}
             <button
@@ -950,6 +1007,8 @@ export default function OrderPage() {
                 setPaymongoQrImageUrl(null)
                 setPaymongoAmountPesos(null)
                 setPaymongoOrderId(null)
+                setPaymongoQrExpiresAt(null)
+                setQrSecondsLeft(null)
                 setQrPaymentConfirmed(false)
                 setQrPaymentStatusMessage('Waiting for payment confirmation…')
               }}

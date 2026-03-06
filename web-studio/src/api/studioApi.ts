@@ -4,6 +4,7 @@ import type {
   FacebookStatusResponse,
   FontsResponse,
   NicheItem,
+  MaintainanceModeResponse,
   OrderAudioFilter,
   Order,
   OrdersPageResponse,
@@ -38,6 +39,10 @@ const EMPTY_FONTS: FontsResponse = {
 const EMPTY_PAYMENT_METHODS: PaymentMethodsResponse = {
   options: [],
   enabled: [],
+}
+
+const EMPTY_MAINTAINANCE_MODE: MaintainanceModeResponse = {
+  isOnMaintainanceMode: false,
 }
 
 const EMPTY_YOUTUBE_STATUS: YoutubeStatusResponse = {
@@ -177,6 +182,11 @@ export const studioApi = {
     apiClient.patch<{ enabled: string[] }>('/api/settings/payment-methods', {
       enabled,
     }),
+  getMaintainanceMode: () => apiClient.get<MaintainanceModeResponse>('/api/settings/maintenance-mode'),
+  updateMaintainanceMode: (isOnMaintainanceMode: boolean) =>
+    apiClient.patch<MaintainanceModeResponse>('/api/settings/maintenance-mode', {
+      isOnMaintainanceMode,
+    }),
   listSettingsVoices: () => apiClient.get<SettingsVoice[]>('/api/settings/voices'),
   updateSettingsVoiceEnabled: (voiceId: string, enabled: boolean) =>
     apiClient.patch<SettingsVoice>(`/api/settings/voices/${encodeURIComponent(voiceId)}`, {
@@ -219,6 +229,7 @@ export async function loadStudioBootstrap(): Promise<StudioBootstrap> {
     niches,
     pipelines,
     paymentMethods,
+    maintainanceMode,
     settingsVoices,
     youtubeStatus,
     facebookStatus,
@@ -234,6 +245,7 @@ export async function loadStudioBootstrap(): Promise<StudioBootstrap> {
     safeGet(studioApi.listNiches, []),
     safeGet(studioApi.listPipelines, []),
     safeGet(studioApi.getPaymentMethods, EMPTY_PAYMENT_METHODS),
+    safeGet(studioApi.getMaintainanceMode, EMPTY_MAINTAINANCE_MODE),
     safeGet(studioApi.listSettingsVoices, []),
     safeGet(studioApi.getYoutubeStatus, EMPTY_YOUTUBE_STATUS),
     safeGet(studioApi.getFacebookStatus, EMPTY_FACEBOOK_STATUS),
@@ -252,6 +264,7 @@ export async function loadStudioBootstrap(): Promise<StudioBootstrap> {
     niches,
     pipelines,
     paymentMethods,
+    isOnMaintainanceMode: maintainanceMode.isOnMaintainanceMode === true,
     settingsVoices,
     youtubeStatus,
     facebookStatus,

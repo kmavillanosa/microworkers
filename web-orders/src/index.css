@@ -96,6 +96,37 @@ body::after {
   flex: 1 1 auto;
 }
 
+.maintenance-mode-screen {
+  min-height: 100dvh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+}
+
+.maintenance-mode-card {
+  width: 100%;
+  max-width: 560px;
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+  background: var(--color-card);
+  padding: 2rem 1.5rem;
+  text-align: center;
+  box-shadow: 0 12px 28px rgba(4, 29, 60, 0.08);
+}
+
+.maintenance-mode-title {
+  margin: 0;
+  color: var(--color-dark);
+  font-size: clamp(1.3rem, 3vw, 1.8rem);
+}
+
+.maintenance-mode-message {
+  margin: 0.75rem 0 0;
+  color: var(--color-text-secondary);
+  font-size: 1rem;
+}
+
 /* App header / nav */
 .app-nav {
   display: flex;
@@ -1135,10 +1166,21 @@ button { cursor: pointer; }
   margin-bottom: 1.5rem;
   line-height: 1.4;
 }
+.payment-qr-expiry {
+  margin-top: -0.85rem;
+  margin-bottom: 1.1rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--color-info);
+}
+.payment-qr-expiry-expired {
+  color: var(--color-error);
+}
 .payment-qr-wrap {
   margin-bottom: 1.5rem;
   display: flex;
   justify-content: center;
+  position: relative;
 }
 .payment-qr-image {
   width: 280px;
@@ -1146,6 +1188,24 @@ button { cursor: pointer; }
   border-radius: 12px;
   background: var(--color-card);
   border: 1px solid var(--color-border);
+}
+.payment-qr-image-expired {
+  filter: grayscale(1);
+  opacity: 0.38;
+}
+.payment-qr-expired-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.58);
+  color: var(--color-error);
+  font-size: 1.15rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
 }
 .payment-qr-actions {
   display: flex;

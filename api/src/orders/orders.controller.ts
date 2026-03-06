@@ -567,6 +567,7 @@ export class OrdersController {
       qrImageUrl: result.qrImageUrl,
       amountPesos: result.amountPesos,
       paymentIntentId: result.paymentIntentId,
+      qrExpiresAt: result.qrExpiresAt,
     };
   }
 

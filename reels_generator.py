@@ -1101,6 +1101,92 @@ def get_audio_duration (audio_path: Path) -> float:
 		clip.close()
 
 
+def extract_audio_track_to_wav (
+	source_path: Path,
+	temp_dir: Path,
+) -> tuple[Optional[Path], str]:
+	ffmpeg_exe = imageio_ffmpeg.get_ffmpeg_exe()
+	random_token = random.randint(100000, 999999)
+	extracted_path = temp_dir / f'{source_path.stem}-audio-{random_token}.wav'
+
+	try:
+		result = subprocess.run(
+			[
+				ffmpeg_exe,
+				'-loglevel',
+				'error',
+				'-y',
+				'-i',
+				str(source_path),
+				'-vn',
+				'-ac',
+				'2',
+				'-ar',
+				'44100',
+				'-c:a',
+				'pcm_s16le',
+				str(extracted_path),
+			],
+			capture_output=True,
+			text=True,
+			check=False,
+		)
+	except Exception as exc:
+		return None, str(exc)
+
+	if result.returncode != 0 or not extracted_path.exists() or extracted_path.stat().st_size <= 0:
+		error_output = (result.stderr or result.stdout or '').strip()
+		if error_output:
+			error_output = error_output.splitlines()[-1].strip()
+		if extracted_path.exists():
+			extracted_path.unlink(missing_ok=True)
+		return None, error_output or 'ffmpeg could not extract an audio stream'
+
+	return extracted_path, ''
+
+
+def load_clip_audio_with_fallback (
+	bg_clip_path: Path,
+	temp_dir: Path,
+) -> tuple[Optional[AudioFileClip], Optional[Path]]:
+	audio_only_extensions = {
+		'.wav',
+		'.mp3',
+		'.m4a',
+		'.aac',
+		'.ogg',
+		'.flac',
+		'.opus',
+	}
+
+	if bg_clip_path.suffix.lower() in audio_only_extensions:
+		try:
+			return AudioFileClip(str(bg_clip_path)), None
+		except Exception as exc:
+			print(f'Warning: failed to load audio file "{bg_clip_path.name}": {exc}')
+
+	extracted_audio_path, error_message = extract_audio_track_to_wav(
+		source_path=bg_clip_path,
+		temp_dir=temp_dir,
+	)
+	if extracted_audio_path is None:
+		print(
+			f'Warning: could not extract clip audio from "{bg_clip_path.name}". '
+			f'Continuing without clip audio. Details: {error_message}',
+		)
+		return None, None
+
+	try:
+		return AudioFileClip(str(extracted_audio_path)), extracted_audio_path
+	except Exception as exc:
+		extracted_audio_path.unlink(missing_ok=True)
+		print(
+			f'Warning: extracted clip audio from "{bg_clip_path.name}" could not be read. '
+			f'Continuing without clip audio. Details: {exc}',
+		)
+		return None, None
+
+
 def build_reel (
 	script_text: str,
 	output_path: Path,
@@ -1299,27 +1385,38 @@ def build_reel (
 	clip_acl = None
 	narrator_raw = None
 	clip_raw = None
+	clip_audio_temp_path = None
 	if use_clip_audio_plus_narrator and has_audio and bg_clip_path is not None:
 		narrator_raw = AudioFileClip(str(audio_path))
 		narrator_dur = float(narrator_raw.duration)
 		narrator_end = min(duration, narrator_dur)
 		narrator_acl = narrator_raw.subclipped(0, narrator_end)
-		clip_raw = AudioFileClip(str(bg_clip_path))
-		clip_dur = float(clip_raw.duration)
-		clip_end = min(duration, clip_dur)  # never exceed this clip's length
-		clip_sub = clip_raw.subclipped(0, clip_end)
-		clip_acl = _volume_scale(clip_sub, 0.35)
-		audio_clip = CompositeAudioClip([narrator_acl, clip_acl])
+		clip_raw, clip_audio_temp_path = load_clip_audio_with_fallback(
+			bg_clip_path=bg_clip_path,
+			temp_dir=temp_dir,
+		)
+		if clip_raw is not None:
+			clip_dur = float(clip_raw.duration)
+			clip_end = min(duration, clip_dur)  # never exceed this clip's length
+			clip_sub = clip_raw.subclipped(0, clip_end)
+			clip_acl = _volume_scale(clip_sub, 0.35)
+			audio_clip = CompositeAudioClip([narrator_acl, clip_acl])
+		else:
+			audio_clip = narrator_acl
 		final_clip = final_clip.with_audio(audio_clip)
 	elif has_audio:
 		audio_clip = AudioFileClip(str(audio_path))
 		final_clip = final_clip.with_audio(audio_clip)
 	elif use_clip_audio and bg_clip_path is not None:
-		clip_raw = AudioFileClip(str(bg_clip_path))
-		clip_dur = float(clip_raw.duration)
-		clip_end = min(duration, clip_dur)
-		audio_clip = clip_raw.subclipped(0, clip_end)
-		final_clip = final_clip.with_audio(audio_clip)
+		clip_raw, clip_audio_temp_path = load_clip_audio_with_fallback(
+			bg_clip_path=bg_clip_path,
+			temp_dir=temp_dir,
+		)
+		if clip_raw is not None:
+			clip_dur = float(clip_raw.duration)
+			clip_end = min(duration, clip_dur)
+			audio_clip = clip_raw.subclipped(0, clip_end)
+			final_clip = final_clip.with_audio(audio_clip)
 
 	try:
 		final_clip.write_videofile(
@@ -1332,16 +1429,20 @@ def build_reel (
 		)
 	finally:
 		final_clip.close()
-		if audio_clip is not None:
-			audio_clip.close()
-		if narrator_acl is not None:
-			narrator_acl.close()
-		if clip_acl is not None:
-			clip_acl.close()
-		if narrator_raw is not None:
-			narrator_raw.close()
-		if clip_raw is not None:
-			clip_raw.close()
+		closed_clip_ids: set[int] = set()
+		for clip_obj in (audio_clip, narrator_acl, clip_acl, narrator_raw, clip_raw):
+			if clip_obj is None:
+				continue
+			clip_id = id(clip_obj)
+			if clip_id in closed_clip_ids:
+				continue
+			try:
+				clip_obj.close()
+			except Exception:
+				pass
+			closed_clip_ids.add(clip_id)
+		if clip_audio_temp_path is not None and clip_audio_temp_path.exists():
+			clip_audio_temp_path.unlink(missing_ok=True)
 
 	# Save narration audio for customer download (receipt) when we generated voiceover
 	if has_audio and audio_path.exists():

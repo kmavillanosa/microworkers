@@ -188,6 +188,10 @@ export type PaymentMethodsResponse = {
   enabled: string[]
 }
 
+export type MaintainanceModeResponse = {
+  isOnMaintainanceMode: boolean
+}
+
 export type SettingsVoice = {
   id: string
   name: string
@@ -222,6 +226,7 @@ export type StudioBootstrap = {
   niches: NicheItem[]
   pipelines: Pipeline[]
   paymentMethods: PaymentMethodsResponse
+  isOnMaintainanceMode: boolean
   settingsVoices: SettingsVoice[]
   youtubeStatus: YoutubeStatusResponse
   facebookStatus: FacebookStatusResponse

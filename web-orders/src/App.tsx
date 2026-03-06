@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react'
 import { Routes, Route, Link, useLocation } from 'react-router-dom'
 import Landing from './Landing'
 import OrderPage from './OrderPage'
@@ -7,9 +8,64 @@ import ShowcasePage from './ShowcasePage'
 import PricingPage from './PricingPage'
 import FaqPage from './FaqPage'
 
+const API = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '')
+
+type MaintainanceModeResponse = {
+  isOnMaintainanceMode?: boolean
+}
+
 function App() {
   const location = useLocation()
   const isLandingRoute = location.pathname === '/'
+  const [isOnMaintainanceMode, setIsOnMaintainanceMode] = useState(false)
+
+  useEffect(() => {
+    let active = true
+
+    const syncMaintainanceMode = async () => {
+      try {
+        const response = await fetch(`${API}/api/settings/maintenance-mode`)
+        if (!response.ok || !active) {
+          return
+        }
+
+        const data = (await response.json()) as MaintainanceModeResponse
+        if (!active) {
+          return
+        }
+
+        setIsOnMaintainanceMode(data.isOnMaintainanceMode === true)
+      } catch {
+        // keep previous state
+      }
+    }
+
+    void syncMaintainanceMode()
+    const interval = window.setInterval(() => {
+      void syncMaintainanceMode()
+    }, 15000)
+
+    return () => {
+      active = false
+      window.clearInterval(interval)
+    }
+  }, [])
+
+  if (isOnMaintainanceMode) {
+    return (
+      <div className="maintenance-mode-screen" role="alert" aria-live="assertive">
+        <div className="maintenance-mode-card">
+          <h1 className="maintenance-mode-title">We&rsquo;re under maintenance</h1>
+          <p className="maintenance-mode-message">
+            ReelAgad is temporarily unavailable while we perform system maintenance.
+          </p>
+          <p className="maintenance-mode-message">
+            Please check back again in a few minutes.
+          </p>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className={`app-wrap${isLandingRoute ? ' app-wrap-landing' : ''}`}>

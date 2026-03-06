@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Alert, Card } from 'flowbite-react'
+import { Alert } from 'flowbite-react'
 import { Navigate, NavLink, Route, Routes, useLocation } from 'react-router-dom'
 import { loadStudioBootstrap, studioApi } from './api/studioApi'
 import type { StudioBootstrap } from './api/types'
+import { OrderOutputPage } from './pages/OrderOutputPage'
 import { OrdersPage } from './pages/OrdersPage'
 import { StudioPage } from './pages/StudioPage'
 import {
@@ -25,10 +26,10 @@ type ClipType = 'game' | 'order'
 
 function topTabClass(isActive: boolean): string {
     if (isActive) {
-        return 'rounded-md border border-blue-600 bg-blue-600 px-4 py-2 text-sm font-medium text-white'
+        return 'inline-flex items-center rounded-md bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white'
     }
 
-    return 'rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200'
+    return 'inline-flex items-center rounded-md px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-800'
 }
 
 const EMPTY_PRICING_EDIT: SettingsPricingEditState = {
@@ -69,6 +70,8 @@ function App() {
     const [dangerMessage, setDangerMessage] = useState<string | null>(null)
     const [paymentMethodsSaving, setPaymentMethodsSaving] = useState(false)
     const [paymentMethodsMessage, setPaymentMethodsMessage] = useState<string | null>(null)
+    const [maintainanceModeSaving, setMaintainanceModeSaving] = useState(false)
+    const [maintainanceModeMessage, setMaintainanceModeMessage] = useState<string | null>(null)
     const [fontUploading, setFontUploading] = useState(false)
     const [fontSavingId, setFontSavingId] = useState<string | null>(null)
     const [fontDeletingId, setFontDeletingId] = useState<string | null>(null)
@@ -88,6 +91,7 @@ function App() {
     const [orderPricingMessage, setOrderPricingMessage] = useState<string | null>(null)
     const voicePreviewAudioRef = useRef<HTMLAudioElement | null>(null)
     const voicePreviewUrlRef = useRef<string | null>(null)
+    const isMaintainanceModeOn = studioData?.isOnMaintainanceMode === true
 
     const stopVoicePreview = useCallback(() => {
         if (voicePreviewAudioRef.current) {
@@ -210,6 +214,53 @@ function App() {
             setPaymentMethodsMessage('Failed to update payment methods.')
         } finally {
             setPaymentMethodsSaving(false)
+        }
+    }, [studioData])
+
+    const handleToggleMaintainanceMode = useCallback(async (isOnMaintainanceMode: boolean) => {
+        const currentMode = studioData?.isOnMaintainanceMode === true
+
+        setMaintainanceModeSaving(true)
+        setMaintainanceModeMessage(null)
+
+        setStudioData((current) => {
+            if (!current) {
+                return current
+            }
+
+            return {
+                ...current,
+                isOnMaintainanceMode,
+            }
+        })
+
+        try {
+            const updated = await studioApi.updateMaintainanceMode(isOnMaintainanceMode)
+            setStudioData((current) => {
+                if (!current) {
+                    return current
+                }
+
+                return {
+                    ...current,
+                    isOnMaintainanceMode: updated.isOnMaintainanceMode === true,
+                }
+            })
+            setMaintainanceModeMessage('Saved.')
+        } catch {
+            setStudioData((current) => {
+                if (!current) {
+                    return current
+                }
+
+                return {
+                    ...current,
+                    isOnMaintainanceMode: currentMode,
+                }
+            })
+            setMaintainanceModeMessage('Failed to update maintainance mode.')
+        } finally {
+            setMaintainanceModeSaving(false)
         }
     }, [studioData])
 
@@ -626,19 +677,34 @@ function App() {
 
     return (
         <div className="min-h-screen bg-gray-50 p-4 dark:bg-gray-950 lg:p-6">
-            <div className="mx-auto flex w-full max-w-[1800px] flex-col gap-4">
+            <div className="mx-auto flex w-full max-w-[1800px] flex-col gap-3">
                 {error ? <Alert color="failure">{error}</Alert> : null}
 
-                <Card>
-                    <div className="flex flex-wrap gap-2">
+                <nav
+                    className="sticky top-2 z-20 rounded-lg border border-gray-200 bg-white/90 p-1.5 backdrop-blur dark:border-gray-800 dark:bg-gray-900/90"
+                    aria-label="Primary"
+                >
+                    <div className="flex flex-wrap items-center gap-1">
                         <NavLink to="/orders" end className={({ isActive }) => topTabClass(isActive)}>
                             Orders
                         </NavLink>
                         <NavLink to="/settings" className={({ isActive }) => topTabClass(isActive)}>
                             Settings
                         </NavLink>
+
+                        <span
+                            className={`ml-auto inline-flex items-center rounded-md px-2 py-1 text-[11px] font-semibold ${
+                                isMaintainanceModeOn
+                                    ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300'
+                                    : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300'
+                            }`}
+                            title="Customer site maintenance mode status"
+                            aria-live="polite"
+                        >
+                            Maintenance: {isMaintainanceModeOn ? 'ON' : 'OFF'}
+                        </span>
                     </div>
-                </Card>
+                </nav>
 
                 <Routes>
                     <Route path="/" element={<Navigate to="/orders" replace />} />
@@ -648,7 +714,6 @@ function App() {
                             <OrdersPage
                                 orderPricing={studioData?.orderPricing ?? null}
                                 reels={studioData?.reels ?? []}
-                                reelJobs={studioData?.reelJobs ?? []}
                                 processingOrderIds={processingOrderIds}
                                 deletingOrderId={deletingOrderId}
                                 orderActionMessage={orderActionMessage}
@@ -657,6 +722,7 @@ function App() {
                             />
                         }
                     />
+                    <Route path="/orders/:orderId/output" element={<OrderOutputPage />} />
                     <Route path="/settings" element={<SettingsLayout />}>
                         <Route index element={<Navigate to="accounts" replace />} />
                         <Route path="accounts" element={<SettingsAccountsPage studioData={studioData} />} />
@@ -699,6 +765,9 @@ function App() {
                                     paymentMethodsSaving={paymentMethodsSaving}
                                     paymentMethodsMessage={paymentMethodsMessage}
                                     onTogglePaymentMethodEnabled={handleTogglePaymentMethodEnabled}
+                                    maintainanceModeSaving={maintainanceModeSaving}
+                                    maintainanceModeMessage={maintainanceModeMessage}
+                                    onToggleMaintainanceMode={handleToggleMaintainanceMode}
                                 />
                             }
                         />

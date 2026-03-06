@@ -1,6 +1,9 @@
-import { Body, Controller, Get, Param, Patch } from '@nestjs/common'
-import { SettingsService, PAYMONGO_PAYMENT_METHOD_OPTIONS } from './settings.service'
-import { VoicesService } from '../voices/voices.service'
+import { Body, Controller, Get, Param, Patch } from '@nestjs/common';
+import {
+  SettingsService,
+  PAYMONGO_PAYMENT_METHOD_OPTIONS,
+} from './settings.service';
+import { VoicesService } from '../voices/voices.service';
 
 @Controller('api/settings')
 export class SettingsController {
@@ -11,25 +14,51 @@ export class SettingsController {
 
   @Get('payment-methods')
   async getPaymentMethods() {
-    const enabled = await this.settingsService.getPaymentMethodTypes()
+    const enabled = await this.settingsService.getPaymentMethodTypes();
     return {
       options: PAYMONGO_PAYMENT_METHOD_OPTIONS,
       enabled,
-    }
+    };
   }
 
   @Patch('payment-methods')
-  async updatePaymentMethods(
-    @Body() body: { enabled: string[] },
+  async updatePaymentMethods(@Body() body: { enabled: string[] }) {
+    const enabled = Array.isArray(body?.enabled) ? body.enabled : [];
+    const updated = await this.settingsService.setPaymentMethodTypes(enabled);
+    return { enabled: updated };
+  }
+
+  @Get('maintenance-mode')
+  async getMaintainanceMode() {
+    return {
+      isOnMaintainanceMode:
+        await this.settingsService.getIsOnMaintainanceMode(),
+    };
+  }
+
+  @Patch('maintenance-mode')
+  async updateMaintainanceMode(
+    @Body()
+    body: {
+      isOnMaintainanceMode?: boolean;
+      isOnMaintenanceMode?: boolean;
+    },
   ) {
-    const enabled = Array.isArray(body?.enabled) ? body.enabled : []
-    const updated = await this.settingsService.setPaymentMethodTypes(enabled)
-    return { enabled: updated }
+    const requestedValue =
+      body?.isOnMaintainanceMode ?? body?.isOnMaintenanceMode ?? false;
+
+    const updated = await this.settingsService.setIsOnMaintainanceMode(
+      requestedValue === true,
+    );
+
+    return {
+      isOnMaintainanceMode: updated,
+    };
   }
 
   @Get('voices')
   async listVoices() {
-    return this.voicesService.findAll()
+    return this.voicesService.findAll();
   }
 
   @Patch('voices/:id')
@@ -40,7 +69,7 @@ export class SettingsController {
     const voice = await this.voicesService.updateEnabled(
       id,
       body.enabled === true,
-    )
-    return voice
+    );
+    return voice;
   }
 }

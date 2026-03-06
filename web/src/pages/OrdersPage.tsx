@@ -46,11 +46,6 @@ function formatOrderCreatedAt(value: string): string {
   });
 }
 
-function formatOrderStatusLabel(status: OrderStatus): string {
-  if (status === "ready_for_sending") return "Ready";
-  return status.replace(/_/g, " ");
-}
-
 function formatAudioModeLabel(mode: "clip_and_narrator" | "clip_only" | "tts_only"): string {
   if (mode === "clip_and_narrator") return "Clip + narrator";
   if (mode === "clip_only") return "Clip only";
@@ -452,14 +447,14 @@ export function OrdersPage() {
                         (useClipAudio || useClipAudioWithNarrator) &&
                         !transcriptReady;
                       const canAccept = status === "pending";
-                      const canDecline = status === "pending" || status === "accepted";
-                      const canMarkProcessing = status === "accepted" || status === "pending";
+                      const canDecline = status === "pending";
+                      const canProcess = status === "accepted" || processingOrders[order.id] === true;
                       const canMarkReady = status === "processing";
                       const canClose = status === "ready_for_sending";
                       const hasStatusActions =
-                        canAccept || canDecline || canMarkProcessing || canMarkReady || canClose;
+                        canAccept || canDecline || canProcess || canMarkReady || canClose;
                       const hasPrimaryActions =
-                        orderReelCount > 0 || status === "pending" || processingOrders[order.id] || clipAudioBlocked;
+                        orderReelCount > 0 || clipAudioBlocked;
                       return (
                         <div
                           key={order.id}
@@ -491,9 +486,20 @@ export function OrdersPage() {
                                 >
                                   {order.paymentStatus === "confirmed" ? "Paid" : "Payment pending"}
                                 </span>
-                                <span className="order-status-badge" data-status={status}>
-                                  {formatOrderStatusLabel(status)}
-                                </span>
+                                <select
+                                  className="orders-kanban-status-select"
+                                  value={status}
+                                  onChange={(event) =>
+                                    void handleSetOrderStatus(order.id, event.target.value as OrderStatus)
+                                  }
+                                  aria-label="Order status"
+                                >
+                                  {KANBAN_COLUMNS.map((column) => (
+                                    <option key={column.id} value={column.id}>
+                                      {column.label}
+                                    </option>
+                                  ))}
+                                </select>
                               </div>
                             </div>
                             <div className="orders-kanban-card-customer-info">
@@ -638,16 +644,6 @@ export function OrdersPage() {
                                     View output{orderReelCount > 1 ? ` (${orderReelCount})` : ""}
                                   </button>
                                 )}
-                                {(status === "pending" || processingOrders[order.id]) && (
-                                  <button
-                                    type="button"
-                                    className="orders-kanban-btn orders-kanban-btn-process"
-                                    onClick={() => void handleToggleOrderProcessing(order)}
-                                    disabled={clipAudioBlocked}
-                                  >
-                                    {processingOrders[order.id] ? "Cancel process" : "Process this video"}
-                                  </button>
-                                )}
                                 {clipAudioBlocked && (
                                   <span className="muted small">Transcript not ready</span>
                                 )}
@@ -673,13 +669,14 @@ export function OrdersPage() {
                                     Decline
                                   </button>
                                 )}
-                                {canMarkProcessing && (
+                                {canProcess && (
                                   <button
                                     type="button"
-                                    className="btn-secondary orders-kanban-btn"
-                                    onClick={() => void handleSetOrderStatus(order.id, "processing")}
+                                    className="orders-kanban-btn orders-kanban-btn-process"
+                                    onClick={() => void handleToggleOrderProcessing(order)}
+                                    disabled={clipAudioBlocked || processingOrders[order.id]}
                                   >
-                                    Mark processing
+                                    {processingOrders[order.id] ? "Processing…" : "Process"}
                                   </button>
                                 )}
                                 {canMarkReady && (

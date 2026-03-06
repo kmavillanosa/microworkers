@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Alert, Badge, Card } from 'flowbite-react'
+import { Alert, Badge, Card, Dropdown, DropdownItem, Spinner } from 'flowbite-react'
+import { Eye as EyeIcon, Terminal as TerminalIcon } from 'flowbite-react-icons/outline'
 import { studioApi } from '../api/studioApi'
 import type {
     Order,
@@ -12,7 +13,6 @@ import type {
 type OrdersPageProps = {
     orderPricing: StudioBootstrap['orderPricing']
     reels: StudioBootstrap['reels']
-    reelJobs: StudioBootstrap['reelJobs']
     processingOrderIds: Record<string, boolean>
     deletingOrderId: string | null
     orderActionMessage: string | null
@@ -76,8 +76,16 @@ function formatCurrency(value: number): string {
     return `₱${value.toLocaleString()}`
 }
 
-function canProcessVideo(orderStatus: OrderStatus): boolean {
-    return orderStatus !== 'closed' && orderStatus !== 'ready_for_sending' && orderStatus !== 'processing'
+function canProcessVideo(orderStatus: OrderStatus, hasProcessedOutput: boolean): boolean {
+    if (orderStatus === 'processing' || orderStatus === 'ready_for_sending') {
+        return false
+    }
+
+    if (orderStatus === 'closed') {
+        return !hasProcessedOutput
+    }
+
+    return true
 }
 
 function resolveAudioMode(order: Order): OrderAudioFilter {
@@ -136,10 +144,43 @@ function formatOrderIdForTable(orderId: string): string {
     return orderId.slice(-12)
 }
 
+type OrderProgressTone = 'normal' | 'success' | 'failure'
+
+function resolveOrderProgress(
+    order: Order,
+    isProcessing: boolean,
+    hasProcessedOutput: boolean,
+): { percent: number; label: string; tone: OrderProgressTone } {
+    if (order.orderStatus === 'ready_for_sending') {
+        return { percent: 100, label: '100%', tone: 'success' }
+    }
+
+    if (order.orderStatus === 'closed') {
+        if (hasProcessedOutput) {
+            return { percent: 100, label: '100%', tone: 'success' }
+        }
+
+        return { percent: 0, label: '0%', tone: 'normal' }
+    }
+
+    if (order.orderStatus === 'declined') {
+        return { percent: 0, label: 'Declined', tone: 'failure' }
+    }
+
+    if (isProcessing || order.orderStatus === 'processing') {
+        return { percent: 10, label: 'Processing', tone: 'normal' }
+    }
+
+    if (order.orderStatus === 'accepted') {
+        return { percent: 5, label: 'Accepted', tone: 'normal' }
+    }
+
+    return { percent: 0, label: '0%', tone: 'normal' }
+}
+
 export function OrdersPage({
     orderPricing,
     reels,
-    reelJobs,
     processingOrderIds,
     deletingOrderId,
     orderActionMessage,
@@ -226,32 +267,23 @@ export function OrdersPage({
     const pageOrders = ordersPage.items
     const totalMatchingOrders = ordersPage.total
     const totalPages = Math.max(1, ordersPage.totalPages)
+    const isInitialOrdersLoad = loadingOrders && pageOrders.length === 0
+    const isRefreshingOrders = loadingOrders && pageOrders.length > 0
 
     const hasActiveFilters =
         searchInput.trim().length > 0 || statusFilter !== 'all' || paymentFilter !== 'all' || audioFilter !== 'all'
 
-    const statusCounts = useMemo(() => {
-        const counts: Record<OrderStatus, number> = {
-            pending: 0,
-            accepted: 0,
-            declined: 0,
-            processing: 0,
-            ready_for_sending: 0,
-            closed: 0,
-        }
+    const processedOrderIds = useMemo(() => {
+        const ids = new Set<string>()
 
-        pageOrders.forEach((order) => {
-            counts[order.orderStatus] += 1
+        reels.forEach((reel) => {
+            if (reel.orderId) {
+                ids.add(reel.orderId)
+            }
         })
 
-        return counts
-    }, [pageOrders])
-
-    const totalEstimatedRevenue = useMemo(() => {
-        return pageOrders.reduce((total, order) => {
-            return total + calculateFramesAndPrice(order, orderPricing).totalPrice
-        }, 0)
-    }, [orderPricing, pageOrders])
+        return ids
+    }, [reels])
 
     const handleClearFilters = useCallback(() => {
         setSearchInput('')
@@ -283,51 +315,28 @@ export function OrdersPage({
     }, [onDeleteOrder, refreshOrders])
 
     return (
-        <>
+        <div>
             <Card>
                 <div className="mb-3">
                     <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Orders</h2>
                     <p className="text-sm text-gray-600 dark:text-gray-300">
-                        Live order data from `/api/orders` and pricing from `/api/orders/pricing`.
+                        Live order list with quick filters and actions.
                     </p>
                 </div>
 
-                {orderActionMessage ? <Alert color="info">{orderActionMessage}</Alert> : null}
+                {orderActionMessage ? (
+                    <div className="mb-3">
+                        <Alert color="info">{orderActionMessage}</Alert>
+                    </div>
+                ) : null}
 
-                <div className="grid gap-3 md:grid-cols-3 lg:grid-cols-4">
-                    <div className="rounded-md border border-gray-200 p-3 dark:border-gray-700">
-                        <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">Total orders</p>
-                        <p className="text-xl font-semibold text-gray-900 dark:text-white">{totalMatchingOrders}</p>
+                {ordersError ? (
+                    <div className="mb-3">
+                        <Alert color="failure">{ordersError}</Alert>
                     </div>
-                    <div className="rounded-md border border-gray-200 p-3 dark:border-gray-700">
-                        <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">Estimated revenue (page)</p>
-                        <p className="text-xl font-semibold text-gray-900 dark:text-white">
-                            {formatCurrency(totalEstimatedRevenue)}
-                        </p>
-                    </div>
-                    <div className="rounded-md border border-gray-200 p-3 dark:border-gray-700">
-                        <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">Generated reels</p>
-                        <p className="text-xl font-semibold text-gray-900 dark:text-white">{reels.length}</p>
-                    </div>
-                    <div className="rounded-md border border-gray-200 p-3 dark:border-gray-700">
-                        <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">Active reel jobs</p>
-                        <p className="text-xl font-semibold text-gray-900 dark:text-white">{reelJobs.length}</p>
-                    </div>
-                    {ORDER_STATUS_ORDER.map((status) => (
-                        <div key={status} className="rounded-md border border-gray-200 p-3 dark:border-gray-700">
-                            <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">
-                                {formatStatusLabel(status)}
-                            </p>
-                            <p className="text-xl font-semibold text-gray-900 dark:text-white">{statusCounts[status]}</p>
-                        </div>
-                    ))}
-                </div>
-            </Card>
+                ) : null}
 
-            <Card>
-                {ordersError ? <Alert color="failure">{ordersError}</Alert> : null}
-
-                <div className="mt-3 grid gap-3 md:grid-cols-2 lg:grid-cols-5">
+                <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-5">
                     <label className="space-y-1 rounded-md border border-gray-200 p-3 dark:border-gray-700 lg:col-span-2">
                         <span className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">Search</span>
                         <input
@@ -428,16 +437,34 @@ export function OrdersPage({
                     </div>
                 </div>
 
-                {loadingOrders ? (
-                    <p className="mt-3 text-sm text-gray-600 dark:text-gray-300">Loading orders...</p>
+                {isInitialOrdersLoad ? (
+                    <div className="mt-3 inline-flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
+                        <Spinner size="sm" />
+                        <span>Loading orders...</span>
+                    </div>
                 ) : totalMatchingOrders === 0 ? (
                     <p className="mt-3 text-sm text-gray-600 dark:text-gray-300">
                         {hasActiveFilters ? 'No orders match your current filters.' : 'No orders found.'}
                     </p>
                 ) : (
                     <>
-                        <div className="mt-3 overflow-x-auto">
-                            <table className="min-w-full divide-y divide-gray-200 text-sm dark:divide-gray-700">
+                        <div className="mt-3 flex items-center justify-end">
+                            {isRefreshingOrders ? (
+                                <div className="inline-flex items-center gap-2 text-xs text-gray-600 dark:text-gray-300">
+                                    <Spinner size="sm" />
+                                    <span>Refreshing…</span>
+                                </div>
+                            ) : null}
+                        </div>
+
+                        <div className={`mt-2 overflow-x-auto${isRefreshingOrders ? ' relative' : ''}`}>
+                            {isRefreshingOrders ? (
+                                <div className="pointer-events-none absolute inset-0 z-10 bg-white/40 dark:bg-gray-900/40" />
+                            ) : null}
+
+                            <table
+                                className={`min-w-full divide-y divide-gray-200 text-sm dark:divide-gray-700${isRefreshingOrders ? ' opacity-70' : ''}`}
+                            >
                                 <thead className="bg-gray-100 dark:bg-gray-900">
                                     <tr>
                                         <th className="px-3 py-2 text-left font-semibold">Order</th>
@@ -453,13 +480,77 @@ export function OrdersPage({
                                     {pageOrders.map((order) => {
                                         const computed = calculateFramesAndPrice(order, orderPricing)
                                         const isProcessing = processingOrderIds[order.id] === true
-                                        const showProcessVideo = canProcessVideo(order.orderStatus)
+                                        const hasProcessedBefore = processedOrderIds.has(order.id)
+                                        const showProcessVideo = canProcessVideo(order.orderStatus, hasProcessedBefore)
                                         const audioMode = resolveAudioMode(order)
+                                        const shouldShowProgress =
+                                            !hasProcessedBefore &&
+                                            (isProcessing ||
+                                                order.orderStatus === 'processing' ||
+                                                order.orderStatus === 'accepted' ||
+                                                order.orderStatus === 'ready_for_sending' ||
+                                                order.orderStatus === 'closed' ||
+                                                order.orderStatus === 'declined')
+                                        const orderProgress = shouldShowProgress
+                                            ? resolveOrderProgress(order, isProcessing, hasProcessedBefore)
+                                            : null
+                                        const progressBarFillClass =
+                                            orderProgress?.tone === 'failure'
+                                                ? 'bg-red-500 dark:bg-red-400'
+                                                : orderProgress?.tone === 'success'
+                                                    ? 'bg-green-600 dark:bg-green-500'
+                                                    : 'bg-blue-600 dark:bg-blue-500'
 
                                         return (
                                             <tr key={order.id}>
-                                                <td className="px-3 py-2 font-mono text-xs" title={order.id}>
-                                                    {formatOrderIdForTable(order.id)}
+                                                <td className="px-3 py-2">
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="font-mono text-xs" title={order.id}>
+                                                            {formatOrderIdForTable(order.id)}
+                                                        </span>
+                                                        {orderProgress ? (
+                                                            <>
+                                                                <div className="h-1.5 w-20 overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
+                                                                    <div
+                                                                        className={`h-full rounded-full transition-all ${progressBarFillClass}`}
+                                                                        style={{ width: `${orderProgress.percent}%` }}
+                                                                    />
+                                                                </div>
+                                                                <span className="text-[10px] text-gray-500 dark:text-gray-400">
+                                                                    {orderProgress.label}
+                                                                </span>
+                                                            </>
+                                                        ) : null}
+
+                                                        {showProcessVideo ? (
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => handleProcessOrderAction(order.id)}
+                                                                disabled={isProcessing}
+                                                                aria-label={isProcessing ? 'Processing' : 'Process'}
+                                                                title={isProcessing ? 'Processing…' : 'Process'}
+                                                                className="inline-flex items-center justify-center rounded-md border border-blue-600 p-1 text-blue-700 hover:bg-blue-50 disabled:cursor-not-allowed disabled:border-gray-300 disabled:text-gray-400 dark:border-blue-500 dark:text-blue-300 dark:hover:bg-blue-900/40 dark:disabled:border-gray-700 dark:disabled:text-gray-500"
+                                                            >
+                                                                <TerminalIcon className={`h-3.5 w-3.5${isProcessing ? ' animate-pulse' : ''}`} />
+                                                            </button>
+                                                        ) : null}
+
+                                                        {hasProcessedBefore ? (
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => {
+                                                                    window.location.assign(
+                                                                        `/orders/${encodeURIComponent(order.id)}/output`,
+                                                                    )
+                                                                }}
+                                                                aria-label="View output"
+                                                                title="View output"
+                                                                className="inline-flex items-center justify-center rounded-md border border-green-600 p-1 text-green-700 hover:bg-green-50 dark:border-green-500 dark:text-green-300 dark:hover:bg-green-900/40"
+                                                            >
+                                                                <EyeIcon className="h-3.5 w-3.5" />
+                                                            </button>
+                                                        ) : null}
+                                                    </div>
                                                 </td>
                                                 <td className="px-3 py-2">
                                                     <p className="font-medium text-gray-900 dark:text-white">{order.customerName}</p>
@@ -473,45 +564,6 @@ export function OrdersPage({
                                                 <td className="px-3 py-2">{formatCurrency(computed.totalPrice)}</td>
                                                 <td className="px-3 py-2">
                                                     <div className="flex flex-wrap items-center gap-2">
-                                                        {showProcessVideo ? (
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => handleProcessOrderAction(order.id)}
-                                                                disabled={isProcessing}
-                                                                className="rounded-md border border-blue-600 px-2 py-1 text-xs font-medium text-blue-700 hover:bg-blue-50 disabled:cursor-not-allowed disabled:border-gray-300 disabled:text-gray-400 dark:border-blue-500 dark:text-blue-300 dark:hover:bg-blue-900/40 dark:disabled:border-gray-700 dark:disabled:text-gray-500"
-                                                            >
-                                                                {isProcessing ? 'Processing…' : 'Process video'}
-                                                            </button>
-                                                        ) : null}
-
-                                                        <a
-                                                            href={`${WEB_ORDERS_BASE_URL}/order?orderId=${encodeURIComponent(order.id)}&impersonate`}
-                                                            target="_blank"
-                                                            rel="noreferrer"
-                                                            className="rounded-md border border-gray-300 px-2 py-1 text-xs font-medium text-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-800"
-                                                        >
-                                                            Impersonate
-                                                        </a>
-
-                                                        <a
-                                                            href={`${WEB_ORDERS_BASE_URL}/receipt/${encodeURIComponent(order.id)}`}
-                                                            target="_blank"
-                                                            rel="noreferrer"
-                                                            className="rounded-md border border-gray-300 px-2 py-1 text-xs font-medium text-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-800"
-                                                        >
-                                                            Open receipt
-                                                        </a>
-
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => handleDeleteOrderAction(order.id)}
-                                                            disabled={deletingOrderId === order.id}
-                                                            title="Delete this order and its generated videos"
-                                                            className="rounded-md border border-red-300 bg-white px-2 py-1 text-xs font-medium text-red-700 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-red-800 dark:bg-gray-900 dark:text-red-300 dark:hover:bg-red-900/30"
-                                                        >
-                                                            {deletingOrderId === order.id ? 'Deleting…' : 'Delete'}
-                                                        </button>
-
                                                         <a
                                                             href={`/studio?orderId=${encodeURIComponent(order.id)}`}
                                                             target="_blank"
@@ -520,6 +572,45 @@ export function OrdersPage({
                                                         >
                                                             Studio
                                                         </a>
+
+                                                        <div className="ml-auto">
+                                                            <Dropdown label="Manage" size="xs" placement="bottom-end" dismissOnClick>
+                                                                <DropdownItem
+                                                                    onClick={() => {
+                                                                        window.open(
+                                                                            `${WEB_ORDERS_BASE_URL}/order?orderId=${encodeURIComponent(order.id)}&impersonate`,
+                                                                            '_blank',
+                                                                            'noopener,noreferrer',
+                                                                        )
+                                                                    }}
+                                                                >
+                                                                    Impersonate
+                                                                </DropdownItem>
+                                                                <DropdownItem
+                                                                    onClick={() => {
+                                                                        window.open(
+                                                                            `${WEB_ORDERS_BASE_URL}/receipt/${encodeURIComponent(order.id)}`,
+                                                                            '_blank',
+                                                                            'noopener,noreferrer',
+                                                                        )
+                                                                    }}
+                                                                >
+                                                                    Open receipt
+                                                                </DropdownItem>
+                                                                <DropdownItem
+                                                                    onClick={() => {
+                                                                        if (deletingOrderId === order.id) {
+                                                                            return
+                                                                        }
+                                                                        handleDeleteOrderAction(order.id)
+                                                                    }}
+                                                                    disabled={deletingOrderId === order.id}
+                                                                    className="text-red-600 hover:bg-red-50! dark:text-red-400 dark:hover:bg-red-900/30!"
+                                                                >
+                                                                    {deletingOrderId === order.id ? 'Deleting…' : 'Delete order'}
+                                                                </DropdownItem>
+                                                            </Dropdown>
+                                                        </div>
                                                     </div>
                                                 </td>
                                             </tr>
@@ -555,40 +646,6 @@ export function OrdersPage({
                     </>
                 )}
             </Card>
-
-            <Card>
-                <h3 className="text-base font-semibold text-gray-900 dark:text-white">Reel jobs</h3>
-                {reelJobs.length === 0 ? (
-                    <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">No active reel jobs.</p>
-                ) : (
-                    <div className="mt-3 overflow-x-auto">
-                        <table className="min-w-full divide-y divide-gray-200 text-sm dark:divide-gray-700">
-                            <thead className="bg-gray-100 dark:bg-gray-900">
-                                <tr>
-                                    <th className="px-3 py-2 text-left font-semibold">Job</th>
-                                    <th className="px-3 py-2 text-left font-semibold">Status</th>
-                                    <th className="px-3 py-2 text-left font-semibold">Progress</th>
-                                    <th className="px-3 py-2 text-left font-semibold">Stage</th>
-                                    <th className="px-3 py-2 text-left font-semibold">Order</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                                {reelJobs.map((job) => (
-                                    <tr key={job.id}>
-                                        <td className="px-3 py-2 font-mono text-xs">{job.id}</td>
-                                        <td className="px-3 py-2">
-                                            <Badge color={job.status === 'failed' ? 'failure' : 'info'}>{job.status}</Badge>
-                                        </td>
-                                        <td className="px-3 py-2">{Math.round(job.progress)}%</td>
-                                        <td className="px-3 py-2">{job.stage || '—'}</td>
-                                        <td className="px-3 py-2">{job.orderId || '—'}</td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                )}
-            </Card>
-        </>
+        </div>
     )
 }

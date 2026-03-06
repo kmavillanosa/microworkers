@@ -28,6 +28,9 @@ type SettingsPaymentPageProps = SettingsDataProps & {
     paymentMethodsSaving: boolean
     paymentMethodsMessage: string | null
     onTogglePaymentMethodEnabled: (paymentMethodId: string, enabled: boolean) => Promise<void>
+    maintainanceModeSaving: boolean
+    maintainanceModeMessage: string | null
+    onToggleMaintainanceMode: (isOnMaintainanceMode: boolean) => Promise<void>
 }
 
 type SettingsFontsPageProps = SettingsDataProps & {
@@ -738,8 +741,12 @@ export function SettingsPaymentPage({
     paymentMethodsSaving,
     paymentMethodsMessage,
     onTogglePaymentMethodEnabled,
+    maintainanceModeSaving,
+    maintainanceModeMessage,
+    onToggleMaintainanceMode,
 }: SettingsPaymentPageProps) {
     const paymentMethods = studioData?.paymentMethods
+    const isOnMaintainanceMode = studioData?.isOnMaintainanceMode === true
 
     return (
         <Card>
@@ -747,6 +754,34 @@ export function SettingsPaymentPage({
             <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">
                 Enabled methods: {paymentMethods?.enabled.length ?? 0}
             </p>
+
+            <div className="mt-3 rounded-md border border-amber-200 bg-amber-50/60 p-3 dark:border-amber-800 dark:bg-amber-900/20">
+                <div className="flex items-center justify-between gap-3">
+                    <div>
+                        <p className="text-sm font-medium text-gray-900 dark:text-white">Maintainance mode</p>
+                        <p className="text-xs text-gray-600 dark:text-gray-300">
+                            Block the full `web-orders` customer UI and show a maintainance notice.
+                        </p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                        <ToggleSwitch
+                            checked={isOnMaintainanceMode}
+                            disabled={maintainanceModeSaving}
+                            onChange={(checked) => {
+                                void onToggleMaintainanceMode(checked)
+                            }}
+                            sizing="sm"
+                        />
+                        <Badge color={isOnMaintainanceMode ? 'warning' : 'success'}>
+                            {maintainanceModeSaving ? 'saving...' : isOnMaintainanceMode ? 'enabled' : 'disabled'}
+                        </Badge>
+                    </div>
+                </div>
+                {maintainanceModeMessage ? (
+                    <p className="mt-2 text-xs text-gray-700 dark:text-gray-300">{maintainanceModeMessage}</p>
+                ) : null}
+            </div>
+
             {paymentMethodsMessage ? (
                 <p className="mt-2 text-sm text-gray-700 dark:text-gray-300">{paymentMethodsMessage}</p>
             ) : null}
