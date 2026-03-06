@@ -4,7 +4,9 @@ import type {
   FacebookStatusResponse,
   FontsResponse,
   NicheItem,
+  OrderAudioFilter,
   Order,
+  OrdersPageResponse,
   OrderPricing,
   PaymentMethodsResponse,
   PiperInstalledVoice,
@@ -104,6 +106,44 @@ export const studioApi = {
     ),
   deleteFont: (fontId: string) => apiClient.remove(`/api/fonts/${encodeURIComponent(fontId)}`),
   listOrders: () => apiClient.get<Order[]>('/api/orders'),
+  listOrdersPaged: (params?: {
+    page?: number
+    pageSize?: number
+    search?: string
+    status?: Order['orderStatus']
+    paymentStatus?: Order['paymentStatus']
+    audio?: OrderAudioFilter
+  }) => {
+    const query = new URLSearchParams()
+
+    if (typeof params?.page === 'number' && Number.isFinite(params.page)) {
+      query.set('page', String(Math.floor(params.page)))
+    }
+
+    if (typeof params?.pageSize === 'number' && Number.isFinite(params.pageSize)) {
+      query.set('pageSize', String(Math.floor(params.pageSize)))
+    }
+
+    const search = params?.search?.trim()
+    if (search) {
+      query.set('search', search)
+    }
+
+    if (params?.status) {
+      query.set('status', params.status)
+    }
+
+    if (params?.paymentStatus) {
+      query.set('paymentStatus', params.paymentStatus)
+    }
+
+    if (params?.audio) {
+      query.set('audio', params.audio)
+    }
+
+    const queryString = query.toString()
+    return apiClient.get<OrdersPageResponse>(`/api/orders/paged${queryString ? `?${queryString}` : ''}`)
+  },
   getOrderById: (orderId: string) => apiClient.get<Order>(`/api/orders/${encodeURIComponent(orderId)}`),
   listOrderReels: (orderId: string) =>
     apiClient.get<ReelItem[]>(`/api/orders/${encodeURIComponent(orderId)}/reels`),
@@ -174,7 +214,6 @@ export async function loadStudioBootstrap(): Promise<StudioBootstrap> {
     reelJobs,
     voices,
     fonts,
-    orders,
     orderPricing,
     accounts,
     niches,
@@ -190,7 +229,6 @@ export async function loadStudioBootstrap(): Promise<StudioBootstrap> {
     safeGet(studioApi.listReelJobs, []),
     safeGet(studioApi.listVoices, EMPTY_VOICES),
     safeGet(studioApi.listFonts, EMPTY_FONTS),
-    safeGet(studioApi.listOrders, []),
     safeGet(studioApi.getOrderPricing, null),
     safeGet(studioApi.listAccounts, []),
     safeGet(studioApi.listNiches, []),
@@ -208,7 +246,7 @@ export async function loadStudioBootstrap(): Promise<StudioBootstrap> {
     reelJobs,
     voices,
     fonts,
-    orders,
+    orders: [],
     orderPricing,
     accounts,
     niches,

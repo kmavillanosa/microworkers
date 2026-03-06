@@ -161,6 +161,16 @@ export type Order = {
   createdAt: string
 }
 
+export type OrderAudioFilter = 'tts_only' | 'clip_only' | 'clip_and_narrator'
+
+export type OrdersPageResponse = {
+  items: Order[]
+  total: number
+  page: number
+  pageSize: number
+  totalPages: number
+}
+
 export type OrderPricing = {
   wordsPerFrame: number
   pricePerFramePesos: number

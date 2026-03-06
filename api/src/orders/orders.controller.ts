@@ -9,6 +9,7 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   UploadedFile,
   UseInterceptors,
 } from '@nestjs/common';
@@ -21,7 +22,11 @@ import type { FileFilterCallback } from 'multer';
 import { mkdir } from 'node:fs/promises';
 import { paths } from '../paths';
 import { ClipsService } from '../clips/clips.service';
-import { OrdersService, type OrderStatus } from './orders.service';
+import {
+  OrdersService,
+  type OrderAudioFilter,
+  type OrderStatus,
+} from './orders.service';
 import { ReelsService } from '../reels/reels.service';
 import { ConfirmPaymentDto } from './dto/confirm-payment.dto';
 import { CreateOrderDto } from './dto/create-order.dto';
@@ -38,6 +43,34 @@ import { DeleteAllOrdersDto } from './dto/delete-all-orders.dto';
 
 const allowedExt = new Set(['.mp4', '.mov', '.mkv', '.webm', '.avi']);
 const DELETE_ALL_CONFIRM = 'DELETE_ALL_ORDERS';
+const ORDER_STATUS_FILTERS = new Set<OrderStatus>([
+  'pending',
+  'accepted',
+  'declined',
+  'processing',
+  'ready_for_sending',
+  'closed',
+]);
+const PAYMENT_STATUS_FILTERS = new Set<'pending' | 'confirmed'>([
+  'pending',
+  'confirmed',
+]);
+const ORDER_AUDIO_FILTERS = new Set<OrderAudioFilter>([
+  'tts_only',
+  'clip_only',
+  'clip_and_narrator',
+]);
+
+function parseBoundedInt(
+  value: string | undefined,
+  fallback: number,
+  minimum: number,
+  maximum: number,
+): number {
+  const parsed = Number.parseInt(value ?? '', 10);
+  if (Number.isNaN(parsed)) return fallback;
+  return Math.min(maximum, Math.max(minimum, parsed));
+}
 
 type Segment = { start: number; end: number; text: string };
 
@@ -385,6 +418,48 @@ export class OrdersController {
   @Get()
   list() {
     return this.ordersService.list();
+  }
+
+  @Get('paged')
+  listPaged(
+    @Query('page') pageValue?: string,
+    @Query('pageSize') pageSizeValue?: string,
+    @Query('search') searchValue?: string,
+    @Query('status') statusValue?: string,
+    @Query('paymentStatus') paymentStatusValue?: string,
+    @Query('audio') audioValue?: string,
+  ) {
+    const page = parseBoundedInt(pageValue, 1, 1, 1_000_000);
+    const pageSize = parseBoundedInt(pageSizeValue, 25, 1, 100);
+
+    const status = statusValue?.trim() as OrderStatus | undefined;
+    if (status && !ORDER_STATUS_FILTERS.has(status)) {
+      throw new BadRequestException(`Invalid status filter: ${statusValue}`);
+    }
+
+    const paymentStatus = paymentStatusValue?.trim() as
+      | 'pending'
+      | 'confirmed'
+      | undefined;
+    if (paymentStatus && !PAYMENT_STATUS_FILTERS.has(paymentStatus)) {
+      throw new BadRequestException(
+        `Invalid paymentStatus filter: ${paymentStatusValue}`,
+      );
+    }
+
+    const audio = audioValue?.trim() as OrderAudioFilter | undefined;
+    if (audio && !ORDER_AUDIO_FILTERS.has(audio)) {
+      throw new BadRequestException(`Invalid audio filter: ${audioValue}`);
+    }
+
+    return this.ordersService.listPaged({
+      page,
+      pageSize,
+      search: searchValue?.trim() || undefined,
+      status,
+      paymentStatus,
+      audio,
+    });
   }
 
   @Get('pricing')

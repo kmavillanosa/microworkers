@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Alert, Badge, Button, Card, Spinner } from 'flowbite-react'
+import { Alert, Card } from 'flowbite-react'
 import { Navigate, NavLink, Route, Routes, useLocation } from 'react-router-dom'
-import { apiBaseUrl } from './api/client'
 import { loadStudioBootstrap, studioApi } from './api/studioApi'
 import type { StudioBootstrap } from './api/types'
 import { OrdersPage } from './pages/OrdersPage'
@@ -65,7 +64,6 @@ function App() {
     const location = useLocation()
     const isStudioRoute = location.pathname.startsWith('/studio')
     const [studioData, setStudioData] = useState<StudioBootstrap | null>(null)
-    const [loading, setLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
     const [dangerBusy, setDangerBusy] = useState(false)
     const [dangerMessage, setDangerMessage] = useState<string | null>(null)
@@ -105,7 +103,6 @@ function App() {
     }, [])
 
     const refreshStudioData = useCallback(async () => {
-        setLoading(true)
         setError(null)
 
         try {
@@ -114,8 +111,6 @@ function App() {
             setOrderPricingEdit(resolveOrderPricingEdit(nextData.orderPricing))
         } catch {
             setError('Failed to load API data from reelagad.com.')
-        } finally {
-            setLoading(false)
         }
     }, [])
 
@@ -632,28 +627,6 @@ function App() {
     return (
         <div className="min-h-screen bg-gray-50 p-4 dark:bg-gray-950 lg:p-6">
             <div className="mx-auto flex w-full max-w-[1800px] flex-col gap-4">
-                <Card>
-                    <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-                        <div>
-                            <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">web-studio</h1>
-                            <p className="text-sm text-gray-600 dark:text-gray-300">Dashboard: Orders + Settings</p>
-                        </div>
-                        <div className="flex flex-wrap items-center gap-2">
-                            <Badge color="info">API: {apiBaseUrl}</Badge>
-                            <Button color="blue" disabled={loading} onClick={() => void refreshStudioData()}>
-                                {loading ? (
-                                    <span className="inline-flex items-center gap-2">
-                                        <Spinner size="sm" />
-                                        Loading API
-                                    </span>
-                                ) : (
-                                    'Refresh API data'
-                                )}
-                            </Button>
-                        </div>
-                    </div>
-                </Card>
-
                 {error ? <Alert color="failure">{error}</Alert> : null}
 
                 <Card>
@@ -673,7 +646,6 @@ function App() {
                         path="/orders"
                         element={
                             <OrdersPage
-                                orders={studioData?.orders ?? []}
                                 orderPricing={studioData?.orderPricing ?? null}
                                 reels={studioData?.reels ?? []}
                                 reelJobs={studioData?.reelJobs ?? []}

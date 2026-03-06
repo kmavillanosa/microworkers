@@ -6,7 +6,7 @@ import {
 } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Brackets, Repository } from 'typeorm';
 import type { CreateOrderDto } from './dto/create-order.dto';
 import type { UpdateOrderPricingDto } from './dto/update-order-pricing.dto';
 import type { UpdateOrderDto } from './dto/update-order.dto';
@@ -64,6 +64,25 @@ export interface Order {
   scriptPosition?: string | null;
   /** Script style: { fontScale?, bgOpacity? }. */
   scriptStyle?: Record<string, unknown> | null;
+}
+
+export type OrderAudioFilter = 'tts_only' | 'clip_only' | 'clip_and_narrator';
+
+export interface ListOrdersOptions {
+  page: number;
+  pageSize: number;
+  search?: string;
+  status?: OrderStatus;
+  paymentStatus?: 'pending' | 'confirmed';
+  audio?: OrderAudioFilter;
+}
+
+export interface PagedOrdersResult {
+  items: Order[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
 }
 
 /** Split script into frame count (words / wordsPerFrame). */
@@ -212,6 +231,110 @@ export class OrdersService {
       order: { created_at: 'DESC' },
     });
     return rows.map((row) => this.mapEntity(row));
+  }
+
+  async listPaged(options: ListOrdersOptions): Promise<PagedOrdersResult> {
+    const page = Math.max(1, Math.floor(options.page || 1));
+    const pageSize = Math.min(
+      100,
+      Math.max(1, Math.floor(options.pageSize || 25)),
+    );
+    const search = options.search?.trim().toLowerCase() ?? '';
+
+    const query = this.ordersRepo.createQueryBuilder('order');
+
+    if (options.status) {
+      query.andWhere('order.order_status = :status', {
+        status: options.status,
+      });
+    }
+
+    if (options.paymentStatus) {
+      query.andWhere('order.payment_status = :paymentStatus', {
+        paymentStatus: options.paymentStatus,
+      });
+    }
+
+    if (options.audio === 'tts_only') {
+      query.andWhere('order.use_clip_audio = :useClipAudio', {
+        useClipAudio: false,
+      });
+    }
+
+    if (options.audio === 'clip_only') {
+      query
+        .andWhere('order.use_clip_audio = :useClipAudio', {
+          useClipAudio: true,
+        })
+        .andWhere(
+          'order.use_clip_audio_with_narrator = :useClipAudioWithNarrator',
+          {
+            useClipAudioWithNarrator: false,
+          },
+        );
+    }
+
+    if (options.audio === 'clip_and_narrator') {
+      query
+        .andWhere('order.use_clip_audio = :useClipAudio', {
+          useClipAudio: true,
+        })
+        .andWhere(
+          'order.use_clip_audio_with_narrator = :useClipAudioWithNarrator',
+          {
+            useClipAudioWithNarrator: true,
+          },
+        );
+    }
+
+    if (search) {
+      const likeSearch = `%${search}%`;
+      query.andWhere(
+        new Brackets((where) => {
+          where
+            .where('LOWER(order.id) LIKE :search', { search: likeSearch })
+            .orWhere('LOWER(order.customer_name) LIKE :search', {
+              search: likeSearch,
+            })
+            .orWhere('LOWER(order.customer_email) LIKE :search', {
+              search: likeSearch,
+            })
+            .orWhere('LOWER(order.delivery_address) LIKE :search', {
+              search: likeSearch,
+            })
+            .orWhere('LOWER(order.script) LIKE :search', {
+              search: likeSearch,
+            })
+            .orWhere(`LOWER(COALESCE(order.title, '')) LIKE :search`, {
+              search: likeSearch,
+            })
+            .orWhere(
+              `LOWER(COALESCE(order.payment_reference, '')) LIKE :search`,
+              {
+                search: likeSearch,
+              },
+            )
+            .orWhere(`LOWER(COALESCE(order.bank_code, '')) LIKE :search`, {
+              search: likeSearch,
+            });
+        }),
+      );
+    }
+
+    query.orderBy('order.created_at', 'DESC');
+    query.skip((page - 1) * pageSize);
+    query.take(pageSize);
+
+    const [rows, total] = await query.getManyAndCount();
+    const totalPages = total === 0 ? 1 : Math.ceil(total / pageSize);
+
+    return {
+      items: rows.map((row) => this.mapEntity(row)),
+      total,
+      page,
+      pageSize,
+      totalPages,
+    };
   }
 
   async getById(id: string): Promise<Order> {
