@@ -1,7 +1,18 @@
-import { Body, Controller, Delete, Get, Param, Post, Put, Query } from '@nestjs/common'
-import { CaptionsService } from './captions.service'
-import type { Lang } from './captions.service'
-import { PipelineService } from '../pipeline/pipeline.service'
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Post,
+  Put,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
+import { CaptionsService } from './captions.service';
+import type { Lang } from './captions.service';
+import { PipelineService } from '../pipeline/pipeline.service';
+import { StudioJwtAuthGuard } from '../auth/studio-jwt-auth.guard';
 
 @Controller('api/captions')
 export class CaptionsController {
@@ -20,7 +31,7 @@ export class CaptionsController {
     @Query('model') model = 'llama3',
     @Query('lang') lang: Lang = 'auto',
   ) {
-    return this.captionsService.suggestCaption(niche, model, lang)
+    return this.captionsService.suggestCaption(niche, model, lang);
   }
 
   @Get('script')
@@ -29,7 +40,7 @@ export class CaptionsController {
     @Query('model') model = 'llama3',
     @Query('lang') lang: Lang = 'auto',
   ) {
-    return this.captionsService.suggestScript(niche, model, lang)
+    return this.captionsService.suggestScript(niche, model, lang);
   }
 
   @Get('script/negative')
@@ -38,7 +49,7 @@ export class CaptionsController {
     @Query('model') model = 'llama3',
     @Query('lang') lang: Lang = 'auto',
   ) {
-    return this.captionsService.suggestNegativeScript(niche, model, lang)
+    return this.captionsService.suggestNegativeScript(niche, model, lang);
   }
 
   @Get('suggest/negative')
@@ -47,12 +58,12 @@ export class CaptionsController {
     @Query('model') model = 'llama3',
     @Query('lang') lang: Lang = 'auto',
   ) {
-    return this.captionsService.suggestNegativeCaption(niche, model, lang)
+    return this.captionsService.suggestNegativeCaption(niche, model, lang);
   }
 
   @Get('models')
   models() {
-    return this.captionsService.listOllamaModels()
+    return this.captionsService.listOllamaModels();
   }
 
   // ---------------------------------------------------------------------------
@@ -60,30 +71,43 @@ export class CaptionsController {
   // ---------------------------------------------------------------------------
 
   @Get('niches')
+  @UseGuards(StudioJwtAuthGuard)
   listNiches() {
-    return this.captionsService.listNiches()
+    return this.captionsService.listNiches();
   }
 
   @Post('niches')
+  @UseGuards(StudioJwtAuthGuard)
   async createNiche(
     @Body() body: { label: string; keywords: string; rssFeeds: string[] },
   ) {
-    const niche = await this.captionsService.createNiche(body.label, body.keywords, body.rssFeeds)
-    await this.pipelineService.ensurePipelineForNiche(niche.id, niche.label)
-    return niche
+    const niche = await this.captionsService.createNiche(
+      body.label,
+      body.keywords,
+      body.rssFeeds,
+    );
+    await this.pipelineService.ensurePipelineForNiche(niche.id, niche.label);
+    return niche;
   }
 
   @Put('niches/:id')
+  @UseGuards(StudioJwtAuthGuard)
   async updateNiche(
     @Param('id') id: string,
     @Body() body: { label?: string; keywords?: string; rssFeeds?: string[] },
   ) {
-    return this.captionsService.updateNiche(id, body.label, body.keywords, body.rssFeeds)
+    return this.captionsService.updateNiche(
+      id,
+      body.label,
+      body.keywords,
+      body.rssFeeds,
+    );
   }
 
   @Delete('niches/:id')
+  @UseGuards(StudioJwtAuthGuard)
   async deleteNiche(@Param('id') id: string) {
-    await this.captionsService.deleteNiche(id)
-    return { deleted: true }
+    await this.captionsService.deleteNiche(id);
+    return { deleted: true };
   }
 }

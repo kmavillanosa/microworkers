@@ -50,6 +50,35 @@ const EMPTY_PAGED_ORDERS: OrdersPageResponse = {
     totalPages: 1,
 }
 
+function extractActiveOrderJobs(jobs: ReelJob[]): {
+    jobsByOrderId: Record<string, ReelJob>
+    hasActiveOrderJobs: boolean
+} {
+    const jobsByOrderId: Record<string, ReelJob> = {}
+    let hasActiveOrderJobs = false
+
+    jobs.forEach((job) => {
+        if (!job.orderId) {
+            return
+        }
+
+        if (job.status !== 'queued' && job.status !== 'processing') {
+            return
+        }
+
+        hasActiveOrderJobs = true
+        const existing = jobsByOrderId[job.orderId]
+        if (!existing || (job.progress ?? 0) >= (existing.progress ?? 0)) {
+            jobsByOrderId[job.orderId] = job
+        }
+    })
+
+    return {
+        jobsByOrderId,
+        hasActiveOrderJobs,
+    }
+}
+
 function resolveWebOrdersBaseUrl(): string {
     const configured = (import.meta.env.VITE_WEB_ORDERS_BASE_URL as string | undefined)?.trim()
     if (configured) {
@@ -232,7 +261,18 @@ export function OrdersPage({
     const [statusActionMessage, setStatusActionMessage] = useState<string | null>(null)
     const [statusUpdatingOrderIds, setStatusUpdatingOrderIds] = useState<Record<string, boolean>>({})
     const [reloadToken, setReloadToken] = useState(0)
+    const [isJobPollingEnabled, setIsJobPollingEnabled] = useState(false)
     const hadActiveOrderJobsRef = useRef(false)
+
+    const hasManualProcessing = useMemo(
+        () => Object.values(processingOrderIds).some((value) => value),
+        [processingOrderIds],
+    )
+
+    const hasProcessingOrdersInPage = useMemo(
+        () => ordersPage.items.some((order) => order.orderStatus === 'processing'),
+        [ordersPage.items],
+    )
 
     useEffect(() => {
         const timeoutId = window.setTimeout(() => {
@@ -249,6 +289,26 @@ export function OrdersPage({
     }, [])
 
     useEffect(() => {
+        if (!hasManualProcessing) {
+            return
+        }
+
+        setIsJobPollingEnabled(true)
+    }, [hasManualProcessing])
+
+    useEffect(() => {
+        if (!hasProcessingOrdersInPage) {
+            return
+        }
+
+        setIsJobPollingEnabled(true)
+    }, [hasProcessingOrdersInPage])
+
+    useEffect(() => {
+        if (!isJobPollingEnabled) {
+            return
+        }
+
         let cancelled = false
 
         const loadActiveJobs = async () => {
@@ -258,35 +318,25 @@ export function OrdersPage({
                     return
                 }
 
-                const next: Record<string, ReelJob> = {}
-                let hasActiveOrderJobs = false
-
-                jobs.forEach((job) => {
-                    if (!job.orderId) {
-                        return
-                    }
-
-                    if (job.status !== 'queued' && job.status !== 'processing') {
-                        return
-                    }
-
-                    hasActiveOrderJobs = true
-                    const existing = next[job.orderId]
-                    if (!existing || (job.progress ?? 0) >= (existing.progress ?? 0)) {
-                        next[job.orderId] = job
-                    }
-                })
-
-                setActiveJobsByOrderId(next)
+                const { jobsByOrderId, hasActiveOrderJobs } = extractActiveOrderJobs(jobs)
+                setActiveJobsByOrderId(jobsByOrderId)
 
                 if (hasActiveOrderJobs || hadActiveOrderJobsRef.current) {
                     refreshOrders()
                 }
 
                 hadActiveOrderJobsRef.current = hasActiveOrderJobs
+
+                if (!hasActiveOrderJobs && !hasManualProcessing && !hasProcessingOrdersInPage) {
+                    setIsJobPollingEnabled(false)
+                }
             } catch {
                 if (!cancelled) {
                     setActiveJobsByOrderId({})
+
+                    if (!hasManualProcessing && !hasProcessingOrdersInPage) {
+                        setIsJobPollingEnabled(false)
+                    }
                 }
             }
         }
@@ -300,7 +350,7 @@ export function OrdersPage({
             cancelled = true
             window.clearInterval(timer)
         }
-    }, [refreshOrders])
+    }, [hasManualProcessing, hasProcessingOrdersInPage, isJobPollingEnabled, refreshOrders])
 
     useEffect(() => {
         let cancelled = false

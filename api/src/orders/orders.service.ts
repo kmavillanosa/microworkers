@@ -96,6 +96,9 @@ function frameCount(script: string, wordsPerFrame: number): number {
 @Injectable()
 export class OrdersService {
   private readonly logger = new Logger(OrdersService.name);
+  private static readonly IN_HOUSE_PAYMENT_REFERENCE = 'in-house';
+  private static readonly IN_HOUSE_PAYMENT_DESCRIPTOR =
+    'generated_using_inhouse';
 
   constructor(
     @InjectRepository(OrderEntity)
@@ -109,6 +112,7 @@ export class OrdersService {
 
   async create(dto: CreateOrderDto, paymentSessionId?: string): Promise<Order> {
     const id = randomUUID();
+    const isInHouseOrder = dto.isInHouse === true;
     const entity = this.ordersRepo.create({
       id,
       customer_name: dto.customerName?.trim() ?? '',
@@ -127,6 +131,12 @@ export class OrdersService {
         : 'phone',
       use_clip_audio: dto.useClipAudio ?? false,
       use_clip_audio_with_narrator: dto.useClipAudioWithNarrator ?? false,
+      payment_reference: isInHouseOrder
+        ? OrdersService.IN_HOUSE_PAYMENT_REFERENCE
+        : null,
+      payment_descriptor: isInHouseOrder
+        ? OrdersService.IN_HOUSE_PAYMENT_DESCRIPTOR
+        : null,
       payment_status: 'pending',
       order_status: 'pending',
       payment_session_id: paymentSessionId ?? null,

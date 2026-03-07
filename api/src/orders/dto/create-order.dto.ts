@@ -1,65 +1,77 @@
-import { IsBoolean, IsEmail, IsIn, IsNotEmpty, IsOptional, IsString } from 'class-validator'
+import {
+  IsBoolean,
+  IsEmail,
+  IsIn,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+} from 'class-validator';
 
 export class CreateOrderDto {
-	@IsString()
-	@IsOptional()
-	customerName?: string
+  @IsString()
+  @IsOptional()
+  customerName?: string;
 
-	@IsEmail()
-	@IsOptional()
-	customerEmail?: string
+  @IsEmail()
+  @IsOptional()
+  customerEmail?: string;
 
-	@IsString()
-	@IsOptional()
-	deliveryAddress?: string
+  @IsString()
+  @IsOptional()
+  deliveryAddress?: string;
 
-	@IsString()
-	@IsOptional()
-	script?: string
+  @IsString()
+  @IsOptional()
+  script?: string;
 
-	@IsString()
-	@IsOptional()
-	title?: string
+  @IsString()
+  @IsOptional()
+  title?: string;
 
-	@IsString()
-	@IsNotEmpty()
-	fontId: string
+  @IsString()
+  @IsNotEmpty()
+  fontId: string;
 
-	@IsString()
-	@IsOptional()
-	clipName?: string
+  @IsString()
+  @IsOptional()
+  clipName?: string;
 
-	@IsString()
-	@IsNotEmpty()
-	voiceEngine: string
+  @IsString()
+  @IsNotEmpty()
+  voiceEngine: string;
 
-	@IsString()
-	@IsNotEmpty()
-	voiceName: string
+  @IsString()
+  @IsNotEmpty()
+  voiceName: string;
 
-	/** Output video size: phone, tablet, laptop, desktop. Default phone. */
-	@IsString()
-	@IsOptional()
-	@IsIn(['phone', 'tablet', 'laptop', 'desktop'])
-	outputSize?: string
+  /** Output video size: phone, tablet, laptop, desktop. Default phone. */
+  @IsString()
+  @IsOptional()
+  @IsIn(['phone', 'tablet', 'laptop', 'desktop'])
+  outputSize?: string;
 
-	/** Use the uploaded clip's audio (with transcript) instead of TTS. */
-	@IsBoolean()
-	@IsOptional()
-	useClipAudio?: boolean
+  /** Use the uploaded clip's audio (with transcript) instead of TTS. */
+  @IsBoolean()
+  @IsOptional()
+  useClipAudio?: boolean;
 
-	/** Use clip audio and also add a TTS narrator (mixed). Requires useClipAudio. */
-	@IsBoolean()
-	@IsOptional()
-	useClipAudioWithNarrator?: boolean
+  /** Use clip audio and also add a TTS narrator (mixed). Requires useClipAudio. */
+  @IsBoolean()
+  @IsOptional()
+  useClipAudioWithNarrator?: boolean;
 
-	/** Script/caption position: top, center, bottom. Center allowed only when no title. */
-	@IsString()
-	@IsOptional()
-	@IsIn(['top', 'center', 'bottom'])
-	scriptPosition?: string
+  /** Script/caption position: top, center, bottom. Center allowed only when no title. */
+  @IsString()
+  @IsOptional()
+  @IsIn(['top', 'center', 'bottom'])
+  scriptPosition?: string;
 
-	/** Script/caption style: { fontScale?: number, bgOpacity?: number }. */
-	@IsOptional()
-	scriptStyle?: Record<string, unknown>
+  /** Script/caption style: { fontScale?: number, bgOpacity?: number }. */
+  @IsOptional()
+  scriptStyle?: Record<string, unknown>;
+
+  /** Internal studio-created order (no customer payment required). */
+  @IsBoolean()
+  @IsOptional()
+  isInHouse?: boolean;
 }

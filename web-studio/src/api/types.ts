@@ -218,6 +218,20 @@ export type FacebookStatusResponse = {
   instagramAccounts: Array<{ id: string; label: string; connected: boolean }>
 }
 
+export type StudioAuthUser = {
+  id: string
+  email: string
+  displayName: string | null
+  pictureUrl: string | null
+  createdAt: string
+  lastLoginAt: string | null
+}
+
+export type StudioAuthSession = {
+  accessToken: string
+  user: StudioAuthUser
+}
+
 export type StudioBootstrap = {
   clips: ClipItem[]
   orderClips: ClipItem[]

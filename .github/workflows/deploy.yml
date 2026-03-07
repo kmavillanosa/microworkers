@@ -1,6 +1,6 @@
 # Deploy microworkers to VPS.
-# Separate stages: API first (rebuild only if api/ or related paths changed), then web-orders (rebuild only if web-orders/ changed).
-# Required secrets: VPS_SSH_KEY, MYSQL_*, TYPEORM_*, CORS_ORIGINS, VITE_API_BASE_URL_WEB_ORDERS, etc.
+# Rebuild only changed services (api, web-orders, web-studio, transcription, reels-generator).
+# Required secrets: VPS_SSH_KEY, MYSQL_*, TYPEORM_*, CORS_ORIGINS, VITE_API_BASE_URL_WEB_ORDERS, and when enabling web-studio/reels-generator also VITE_API_BASE_URL, VITE_GOOGLE_CLIENT_ID, VPS_API_URL, STUDIO_JWT_SECRET.
 
 name: Deploy to VPS
 
@@ -15,7 +15,9 @@ jobs:
     outputs:
       api: ${{ steps.filter.outputs.api }}
       web_orders: ${{ steps.filter.outputs.web_orders }}
+      web_studio: ${{ steps.filter.outputs.web_studio }}
       transcription: ${{ steps.filter.outputs.transcription }}
+      reels_generator: ${{ steps.filter.outputs.reels_generator }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -32,9 +34,15 @@ jobs:
               - 'docker-compose.deploy.yml'
             web_orders:
               - 'web-orders/**'
+            web_studio:
+              - 'web-studio/**'
             transcription:
               - 'workers/transcription/**'
               - 'transcribe_clip.py'
+            reels_generator:
+              - 'workers/reels-generator/**'
+              - 'reels_generator.py'
+              - 'requirements.txt'
 
   deploy:
     runs-on: ubuntu-latest
@@ -49,11 +57,13 @@ jobs:
         with:
           ssh-private-key: ${{ secrets.VPS_SSH_KEY }}
 
-      - name: Deploy to VPS (API first, then web-orders)
+      - name: Deploy to VPS
         env:
           API_CHANGED: ${{ needs.detect-changes.outputs.api }}
           WEB_ORDERS_CHANGED: ${{ needs.detect-changes.outputs.web_orders }}
+          WEB_STUDIO_CHANGED: ${{ needs.detect-changes.outputs.web_studio }}
           TRANSCRIPTION_CHANGED: ${{ needs.detect-changes.outputs.transcription }}
+          REELS_GENERATOR_CHANGED: ${{ needs.detect-changes.outputs.reels_generator }}
         run: |
           VPS_HOST="88.222.245.88"
           SSH_OPTS="-o StrictHostKeyChecking=no -o ConnectTimeout=90 -o ConnectionAttempts=5 -o ServerAliveInterval=15 -o ServerAliveCountMax=60 -o TCPKeepAlive=yes"
@@ -70,7 +80,7 @@ jobs:
           done
           for attempt in $(seq 1 $MAX_ATTEMPTS); do
             echo "Attempt $attempt of $MAX_ATTEMPTS..."
-            if ssh $SSH_OPTS root@$VPS_HOST "API_CHANGED=$API_CHANGED WEB_ORDERS_CHANGED=$WEB_ORDERS_CHANGED TRANSCRIPTION_CHANGED=$TRANSCRIPTION_CHANGED bash -s" << 'REMOTE'
+            if ssh $SSH_OPTS root@$VPS_HOST "API_CHANGED=$API_CHANGED WEB_ORDERS_CHANGED=$WEB_ORDERS_CHANGED WEB_STUDIO_CHANGED=$WEB_STUDIO_CHANGED TRANSCRIPTION_CHANGED=$TRANSCRIPTION_CHANGED REELS_GENERATOR_CHANGED=$REELS_GENERATOR_CHANGED bash -s" << 'REMOTE'
           set -e
           if [ ! -d "/microworkers/.git" ]; then
             git clone https://github.com/${{ github.repository }}.git /microworkers
@@ -97,12 +107,18 @@ jobs:
           export TYPEORM_DATABASE_PASSWORD="${{ secrets.TYPEORM_DATABASE_PASSWORD }}"
           export TYPEORM_DATABASE_NAME="${{ secrets.TYPEORM_DATABASE_NAME }}"
           export CORS_ORIGINS="${{ secrets.CORS_ORIGINS }}"
+          export VITE_API_BASE_URL="${{ secrets.VITE_API_BASE_URL }}"
+          export VITE_API_BASE_URL_STUDIO="${{ secrets.VITE_API_BASE_URL_STUDIO }}"
           export VITE_API_BASE_URL_WEB_ORDERS="${{ secrets.VITE_API_BASE_URL_WEB_ORDERS }}"
+          export VITE_GOOGLE_CLIENT_ID="${{ secrets.VITE_GOOGLE_CLIENT_ID }}"
           export VITE_PAYMONGO_ENABLED="${{ secrets.VITE_PAYMONGO_ENABLED }}"
           export VITE_APP_ENV="${{ secrets.VITE_APP_ENV }}"
           export REELS_MAX_CONCURRENT_JOBS="${{ secrets.REELS_MAX_CONCURRENT_JOBS }}"
           export PAYMONGO_SECRET_KEY="${{ secrets.PAYMONGO_SECRET_KEY }}"
+          export VPS_API_URL="${{ secrets.VPS_API_URL }}"
           export WORKER_SECRET="${{ secrets.WORKER_SECRET }}"
+          export STUDIO_JWT_SECRET="${{ secrets.STUDIO_JWT_SECRET }}"
+          export STUDIO_JWT_EXPIRES_IN="${{ secrets.STUDIO_JWT_EXPIRES_IN }}"
           export SLACK_ORDER_WEBHOOK_URL="${{ secrets.SLACK_ORDER_WEBHOOK_URL }}"
 
           if [ -z "$SLACK_ORDER_WEBHOOK_URL" ]; then
@@ -113,15 +129,23 @@ jobs:
           # Build only what changed or is missing (transcription image is slow; rebuild only when transcription files change)
           BUILD_API=false
           BUILD_WEB_ORDERS=false
+          BUILD_WEB_STUDIO=false
           BUILD_TRANSCRIPTION=false
+          BUILD_REELS_GENERATOR=false
           if [ "$API_CHANGED" = "true" ] || ! docker image inspect microworkers-deploy-api 2>/dev/null; then
             BUILD_API=true
           fi
           if [ "$WEB_ORDERS_CHANGED" = "true" ] || ! docker image inspect microworkers-deploy-web-orders 2>/dev/null; then
             BUILD_WEB_ORDERS=true
           fi
+          if [ "$WEB_STUDIO_CHANGED" = "true" ] || ! docker image inspect microworkers-deploy-web-studio 2>/dev/null; then
+            BUILD_WEB_STUDIO=true
+          fi
           if [ "$TRANSCRIPTION_CHANGED" = "true" ] || ! docker image inspect microworkers-deploy-transcription 2>/dev/null; then
             BUILD_TRANSCRIPTION=true
+          fi
+          if [ "$REELS_GENERATOR_CHANGED" = "true" ] || ! docker image inspect microworkers-deploy-reels-generator 2>/dev/null; then
+            BUILD_REELS_GENERATOR=true
           fi
 
           # Stage 1: API. Rebuild only if API changed or missing.
@@ -152,6 +176,25 @@ jobs:
             docker compose -f docker-compose.deploy.yml up -d web-orders
           else
             echo "--- Skipping web-orders (no changes) ---"
+          fi
+
+          # Stage 3: Web-studio. Rebuild only if web-studio changed or missing.
+          if [ "$BUILD_WEB_STUDIO" = "true" ]; then
+            echo "--- Building and deploying web-studio ---"
+            docker compose -f docker-compose.deploy.yml build --progress=plain web-studio
+            docker compose -f docker-compose.deploy.yml up -d web-studio
+          else
+            echo "--- Skipping web-studio (no changes) ---"
+          fi
+
+          # Stage 4: Reels generator worker. Rebuild only when worker/generator files changed or image missing.
+          if [ "$BUILD_REELS_GENERATOR" = "true" ]; then
+            echo "--- Building and deploying reels-generator ---"
+            docker compose -f docker-compose.deploy.yml build --progress=plain reels-generator
+            docker compose -f docker-compose.deploy.yml up -d reels-generator
+          else
+            echo "--- Skipping reels-generator (no changes, reusing existing image) ---"
+            docker compose -f docker-compose.deploy.yml up -d reels-generator
           fi
 
           # Ensure full stack is up (start any stopped services)

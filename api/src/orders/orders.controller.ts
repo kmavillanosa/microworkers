@@ -11,6 +11,7 @@ import {
   Post,
   Query,
   UploadedFile,
+  UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
@@ -40,6 +41,7 @@ import { ProcessOrderDto } from './dto/process-order.dto';
 import { UpdateOrderPricingDto } from './dto/update-order-pricing.dto';
 import { UpdateOrderDto } from './dto/update-order.dto';
 import { DeleteAllOrdersDto } from './dto/delete-all-orders.dto';
+import { StudioJwtAuthGuard } from '../auth/studio-jwt-auth.guard';
 
 const allowedExt = new Set(['.mp4', '.mov', '.mkv', '.webm', '.avi']);
 const DELETE_ALL_CONFIRM = 'DELETE_ALL_ORDERS';
@@ -428,6 +430,7 @@ export class OrdersController {
   }
 
   @Post('delete-all')
+  @UseGuards(StudioJwtAuthGuard)
   async deleteAllOrdersAndRelated(@Body() body: DeleteAllOrdersDto) {
     if (body.confirm !== DELETE_ALL_CONFIRM) {
       throw new BadRequestException('Missing or invalid confirm value');
@@ -753,6 +756,7 @@ export class OrdersController {
   }
 
   @Patch('pricing')
+  @UseGuards(StudioJwtAuthGuard)
   updatePricing(@Body() body: UpdateOrderPricingDto) {
     return this.ordersService.updatePricing(body);
   }

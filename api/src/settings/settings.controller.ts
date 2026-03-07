@@ -1,11 +1,13 @@
-import { Body, Controller, Get, Param, Patch } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, UseGuards } from '@nestjs/common';
 import {
   SettingsService,
   PAYMONGO_PAYMENT_METHOD_OPTIONS,
 } from './settings.service';
 import { VoicesService } from '../voices/voices.service';
+import { StudioJwtAuthGuard } from '../auth/studio-jwt-auth.guard';
 
 @Controller('api/settings')
+@UseGuards(StudioJwtAuthGuard)
 export class SettingsController {
   constructor(
     private readonly settingsService: SettingsService,

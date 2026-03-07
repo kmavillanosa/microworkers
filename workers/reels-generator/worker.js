@@ -19,7 +19,11 @@ import { runGenerator, outputDir } from './run-generator.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
-const API_BASE = 'https://reelagad.com';
+const API_BASE = (
+  process.env.VPS_API_URL ||
+  process.env.API_BASE_URL ||
+  'https://reelagad.com'
+).replace(/\/+$/, '')
 const WORKER_SECRET = process.env.WORKER_SECRET
 const POLL_MS = parseInt(process.env.POLL_MS || '3000', 10)
 const REPO_ROOT = process.env.REPO_ROOT || path.resolve(process.cwd(), '..')

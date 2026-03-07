@@ -8,6 +8,7 @@ import {
   Post,
   Query,
   StreamableFile,
+  UseGuards,
 } from '@nestjs/common';
 import { CreateReelDto } from './dto/create-reel.dto';
 import { InstallPiperVoiceDto } from './dto/install-piper-voice.dto';
@@ -15,6 +16,7 @@ import { MarkReelUploadedDto } from './dto/mark-reel-uploaded.dto';
 import { UpdateShowcaseDto } from './dto/update-showcase.dto';
 import { ReelsService } from './reels.service';
 import { readFile } from 'node:fs/promises';
+import { StudioJwtAuthGuard } from '../auth/studio-jwt-auth.guard';
 
 @Controller('api/reels')
 export class ReelsController {
@@ -111,6 +113,7 @@ export class ReelsController {
   }
 
   @Post('piper/install')
+  @UseGuards(StudioJwtAuthGuard)
   async installPiperVoice(@Body() body: InstallPiperVoiceDto) {
     return this.reelsService.installPiperVoice(body.voiceId);
   }

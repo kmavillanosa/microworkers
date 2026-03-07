@@ -1,6 +1,6 @@
-# CI/CD deploy target: API + web-orders + transcription (no web backoffice, no reels generator).
+# CI/CD deploy target: API + web-orders + web-studio + transcription + reels-generator.
 # Run: docker compose -f docker-compose.deploy.yml --env-file .env.prod up -d
-# Transcription runs as a separate service (online). Video generation stays in API or run reels-generator locally.
+# Transcription runs as a separate service (online). Video generation is handled by reels-generator worker.
 
 name: microworkers-deploy
 
@@ -47,6 +47,8 @@ services:
       CORS_ORIGINS: ${CORS_ORIGINS}
       PAYMONGO_SECRET_KEY: ${PAYMONGO_SECRET_KEY}
       WORKER_SECRET: ${WORKER_SECRET}
+      STUDIO_JWT_SECRET: ${STUDIO_JWT_SECRET:-}
+      STUDIO_JWT_EXPIRES_IN: ${STUDIO_JWT_EXPIRES_IN:-7d}
       SLACK_ORDER_WEBHOOK_URL: ${SLACK_ORDER_WEBHOOK_URL}
     ports:
       - "3010:3000"
@@ -72,6 +74,21 @@ services:
       - api
     restart: always
 
+  web-studio:
+    build:
+      context: ./web-studio
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL_STUDIO:-${VITE_API_BASE_URL}}
+        VITE_APP_ENV: ${VITE_APP_ENV}
+        VITE_GOOGLE_CLIENT_ID: ${VITE_GOOGLE_CLIENT_ID:-}
+    container_name: microworkers-deploy-web-studio
+    ports:
+      - "8083:80"
+    depends_on:
+      - api
+    restart: always
+
   transcription:
     build:
       context: .
@@ -90,6 +107,25 @@ services:
     depends_on:
       mysql:
         condition: service_healthy
+    restart: always
+
+  reels-generator:
+    build:
+      context: .
+      dockerfile: workers/reels-generator/Dockerfile
+    container_name: microworkers-deploy-reels-generator
+    environment:
+      VPS_API_URL: ${VPS_API_URL:-http://api:3000}
+      API_BASE_URL: ${VPS_API_URL:-http://api:3000}
+      REPO_ROOT: /data
+      REELS_PYTHON_EXE: /usr/bin/python3
+      REELS_PYTHON_VERBOSE: "0"
+      WORKER_VERBOSE: "0"
+      WORKER_SECRET: ${WORKER_SECRET:-}
+    volumes:
+      - .:/data
+    depends_on:
+      - api
     restart: always
 
 volumes:

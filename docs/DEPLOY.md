@@ -120,12 +120,17 @@ Configure these in the repo: **Settings → Secrets and variables → Actions**.
 | **TYPEORM_DATABASE_PASSWORD** | API DB password | Same as MYSQL_PASSWORD |
 | **TYPEORM_DATABASE_NAME** | API DB name | Same as MYSQL_DATABASE |
 | **CORS_ORIGINS** | API CORS | e.g. `https://orders.yourdomain.com,http://localhost:5176` |
+| **VITE_API_BASE_URL** | web-studio build: API URL | e.g. `https://reelagad.com` |
 | **VITE_API_BASE_URL_WEB_ORDERS** | web-orders build: API URL | e.g. `https://88.222.245.88:3010` or your domain |
+| **VITE_GOOGLE_CLIENT_ID** | web-studio Google auth | Google OAuth Web client ID |
 | **VITE_PAYMONGO_ENABLED** | web-orders build | `true` or `false` |
 | **VITE_APP_ENV** | web-orders build | `production` |
 | **REELS_MAX_CONCURRENT_JOBS** | API (optional) | e.g. `5` |
 | **PAYMONGO_SECRET_KEY** | API PayMongo | From PayMongo dashboard |
+| **VPS_API_URL** | reels-generator worker target API | e.g. `https://reelagad.com` (or `http://api:3000` when same Docker network) |
 | **WORKER_SECRET** | API + reels worker (optional) | Shared secret for worker endpoints |
+| **STUDIO_JWT_SECRET** | API studio auth token signing | Strong random secret (required for web-studio auth) |
+| **STUDIO_JWT_EXPIRES_IN** | API studio auth token TTL | e.g. `7d` |
 
 The workflow **exports** these on the VPS before running `docker compose -f docker-compose.deploy.yml up -d --build`; the compose file uses `${VAR}` so no `.env.prod` file is required on the server.
 

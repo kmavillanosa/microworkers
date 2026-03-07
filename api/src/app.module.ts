@@ -45,10 +45,12 @@ import { WorkerReelJobsController } from './worker/worker-reel-jobs.controller';
 import { SlackService } from './slack/slack.service';
 import { VoiceEntity } from './voices/voice.entity';
 import { VoicesService } from './voices/voices.service';
+import { AuthModule } from './auth/auth.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot(),
+    AuthModule,
     TypeOrmModule.forRootAsync({
       useFactory: () => ormConfig,
     }),
@@ -85,7 +87,37 @@ import { VoicesService } from './voices/voices.service';
       },
     ),
   ],
-  controllers: [AccountsController, ReelsController, ClipsController, OrderClipsController, YoutubeController, FacebookController, CaptionsController, PipelineController, OrdersController, FontsController, ImageCacheController, PaymongoWebhookController, SettingsController, WorkerReelJobsController],
-  providers: [AccountsService, ReelsService, ClipsService, YoutubeService, FacebookService, CaptionsService, PipelineService, OrdersService, FontsService, ImageCacheService, PaymongoService, SettingsService, SlackService, VoicesService],
+  controllers: [
+    AccountsController,
+    ReelsController,
+    ClipsController,
+    OrderClipsController,
+    YoutubeController,
+    FacebookController,
+    CaptionsController,
+    PipelineController,
+    OrdersController,
+    FontsController,
+    ImageCacheController,
+    PaymongoWebhookController,
+    SettingsController,
+    WorkerReelJobsController,
+  ],
+  providers: [
+    AccountsService,
+    ReelsService,
+    ClipsService,
+    YoutubeService,
+    FacebookService,
+    CaptionsService,
+    PipelineService,
+    OrdersService,
+    FontsService,
+    ImageCacheService,
+    PaymongoService,
+    SettingsService,
+    SlackService,
+    VoicesService,
+  ],
 })
 export class AppModule {}

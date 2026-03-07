@@ -15,6 +15,8 @@ import type {
   ReelItem,
   ReelJob,
   SettingsVoice,
+  StudioAuthSession,
+  StudioAuthUser,
   SocialAccount,
   StudioBootstrap,
   VoicesResponse,
@@ -77,6 +79,15 @@ async function getBlob(path: string): Promise<Blob> {
 }
 
 export const studioApi = {
+  loginWithGoogle: (accessToken: string) =>
+    apiClient.post<StudioAuthSession>('/api/auth/login/google', {
+      accessToken,
+    }),
+  registerWithGoogle: (accessToken: string) =>
+    apiClient.post<StudioAuthSession>('/api/auth/register/google', {
+      accessToken,
+    }),
+  getAuthProfile: () => apiClient.get<StudioAuthUser>('/api/auth/me'),
   listClips: () => apiClient.get<ClipItem[]>('/api/clips'),
   uploadClip: (file: File) => {
     const formData = new FormData()
@@ -126,6 +137,7 @@ export const studioApi = {
     useClipAudioWithNarrator?: boolean
     scriptPosition?: 'top' | 'center' | 'bottom'
     scriptStyle?: Record<string, unknown>
+    isInHouse?: boolean
   }) => apiClient.post<Order>('/api/orders', payload),
   listOrdersPaged: (params?: {
     page?: number

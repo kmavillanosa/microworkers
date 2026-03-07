@@ -1,6 +1,6 @@
 # Local. Run: docker compose -f docker-compose.local.yml --env-file .env.local up -d
 # Includes transcription service (optional: set RUN_TRANSCRIPTION_IN_API=false in api/.env.local to use it)
-# and reels-generator (placeholder until API job queue is added). Web backoffice + heavy processing run here.
+# and reels-generator (placeholder until API job queue is added). Web-studio backoffice + heavy processing run here.
 
 services:
   mysql:
@@ -76,14 +76,15 @@ services:
       start_period: 30s
     restart: unless-stopped
 
-  web:
+  web-studio:
     build:
-      context: ./web
+      context: ./web-studio
       dockerfile: Dockerfile
       args:
         VITE_API_BASE_URL: ${VITE_API_BASE_URL:-https://reelagad.com}
         VITE_APP_ENV: ${VITE_APP_ENV:-local}
-    container_name: microworkers-web
+        VITE_GOOGLE_CLIENT_ID: ${VITE_GOOGLE_CLIENT_ID:-}
+    container_name: microworkers-web-studio
     ports:
       - "5175:80"
     restart: unless-stopped
@@ -126,6 +127,7 @@ services:
   # Polls VPS_API_URL for queued reel jobs, runs video generation locally, uploads result to same API.
   # Set VPS_API_URL in .env.local. Use https://reelagad.com when API is behind nginx (recommended);
   # or http://api:3000 when running in same Docker network as api service.
+  # Local workers profile runs a single generator instance.
   reels-generator:
     build:
       context: .

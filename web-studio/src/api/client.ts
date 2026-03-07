@@ -1,3 +1,5 @@
+import { getStoredStudioAccessToken } from '../auth/session'
+
 const DEFAULT_API_BASE_URL = 'https://reelagad.com'
 
 function normalizeApiBaseUrl(value: string | undefined, fallback: string): string {
@@ -22,14 +24,20 @@ class HttpError extends Error {
 type JsonRecord = Record<string, unknown>
 
 function resolveHeaders(init: RequestInit): HeadersInit | undefined {
+  const headers = new Headers(init.headers)
+  const accessToken = getStoredStudioAccessToken()
+
+  if (accessToken && !headers.has('Authorization')) {
+    headers.set('Authorization', `Bearer ${accessToken}`)
+  }
+
   const hasBody = init.body !== undefined && init.body !== null
   const isFormData = init.body instanceof FormData
 
   if (!hasBody || isFormData) {
-    return init.headers
+    return headers
   }
 
-  const headers = new Headers(init.headers)
   if (!headers.has('Content-Type')) {
     headers.set('Content-Type', 'application/json')
   }

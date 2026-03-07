@@ -1,5 +1,6 @@
 # Dev. Run: docker compose -f docker-compose.dev.yml --env-file .env.dev up -d
 # API uses api/.env.dev; MySQL and build args use .env.dev (root).
+# Includes web-studio and reels-generator.
 
 name: microworkers-dev
 
@@ -52,12 +53,16 @@ services:
       REELS_PYTHON_EXE: /usr/bin/python3
       REELS_PYTHON_VERBOSE: "1"
       REELS_MAX_CONCURRENT_JOBS: ${REELS_MAX_CONCURRENT_JOBS}
+      REELS_RUN_IN_PROCESS: "false"
       TYPEORM_DATABASE_HOST: mysql
       TYPEORM_DATABASE_PORT: ${TYPEORM_DATABASE_PORT}
       TYPEORM_DATABASE_USERNAME: ${TYPEORM_DATABASE_USERNAME}
       TYPEORM_DATABASE_PASSWORD: ${TYPEORM_DATABASE_PASSWORD}
       TYPEORM_DATABASE_NAME: ${TYPEORM_DATABASE_NAME}
       CORS_ORIGINS: ${CORS_ORIGINS}
+      WORKER_SECRET: ${WORKER_SECRET:-}
+      STUDIO_JWT_SECRET: ${STUDIO_JWT_SECRET:-}
+      STUDIO_JWT_EXPIRES_IN: ${STUDIO_JWT_EXPIRES_IN:-7d}
       SLACK_ORDER_WEBHOOK_URL: ${SLACK_ORDER_WEBHOOK_URL}
     ports:
       - "3010:3000"
@@ -80,6 +85,21 @@ services:
       - "5175:80"
     restart: unless-stopped
 
+  web-studio:
+    build:
+      context: ./web-studio
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL_STUDIO:-${VITE_API_BASE_URL:-https://reelagad.com}}
+        VITE_APP_ENV: ${VITE_APP_ENV}
+        VITE_GOOGLE_CLIENT_ID: ${VITE_GOOGLE_CLIENT_ID:-}
+    container_name: microworkers-dev-web-studio
+    ports:
+      - "5177:80"
+    depends_on:
+      - api
+    restart: unless-stopped
+
   web-orders:
     build:
       context: ./web-orders
@@ -91,6 +111,25 @@ services:
     container_name: microworkers-dev-web-orders
     ports:
       - "5176:80"
+    depends_on:
+      - api
+    restart: unless-stopped
+
+  reels-generator:
+    build:
+      context: .
+      dockerfile: workers/reels-generator/Dockerfile
+    container_name: microworkers-dev-reels-generator
+    environment:
+      VPS_API_URL: ${VPS_API_URL:-http://api:3000}
+      API_BASE_URL: ${VPS_API_URL:-http://api:3000}
+      REPO_ROOT: /data
+      REELS_PYTHON_EXE: /usr/bin/python3
+      REELS_PYTHON_VERBOSE: "1"
+      WORKER_VERBOSE: "1"
+      WORKER_SECRET: ${WORKER_SECRET:-}
+    volumes:
+      - .:/data
     depends_on:
       - api
     restart: unless-stopped

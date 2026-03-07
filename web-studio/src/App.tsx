@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Alert } from 'flowbite-react'
-import { Navigate, NavLink, Route, Routes, useLocation } from 'react-router-dom'
+import { Navigate, NavLink, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 import { loadStudioBootstrap, studioApi } from './api/studioApi'
-import type { StudioBootstrap } from './api/types'
+import type { StudioAuthSession, StudioBootstrap } from './api/types'
+import { clearStudioAuthSession, getStoredStudioAuthSession, saveStudioAuthSession } from './auth/session'
+import { AuthPage } from './pages/AuthPage'
 import { CreateOrderPage } from './pages/CreateOrderPage'
 import { OrderOutputPage } from './pages/OrderOutputPage'
 import { OrdersPage } from './pages/OrdersPage'
@@ -63,9 +65,29 @@ function resolveOrderPricingEdit(orderPricing: StudioBootstrap['orderPricing']):
     }
 }
 
+function resolveAuthRedirectPath(search: string, fallbackPath: string): string {
+    const nextPath = new URLSearchParams(search).get('next')?.trim() ?? ''
+
+    if (!nextPath.startsWith('/')) {
+        return fallbackPath
+    }
+
+    if (nextPath.startsWith('//')) {
+        return fallbackPath
+    }
+
+    return nextPath
+}
+
 function App() {
+    const navigate = useNavigate()
     const location = useLocation()
     const isStudioRoute = location.pathname.startsWith('/studio')
+    const isAuthRoute = location.pathname === '/login' || location.pathname === '/register'
+    const requestedPath = `${location.pathname}${location.search}`
+    const loginRedirectPath = `/login?next=${encodeURIComponent(requestedPath)}`
+    const [authSession, setAuthSession] = useState<StudioAuthSession | null>(() => getStoredStudioAuthSession())
+    const isAuthenticated = Boolean(authSession?.accessToken)
     const [studioData, setStudioData] = useState<StudioBootstrap | null>(null)
     const [error, setError] = useState<string | null>(null)
     const [dangerBusy, setDangerBusy] = useState(false)
@@ -108,6 +130,19 @@ function App() {
         }
     }, [])
 
+    const handleAuthenticated = useCallback((session: StudioAuthSession) => {
+        setAuthSession(session)
+    }, [])
+
+    const handleLogout = useCallback(() => {
+        stopVoicePreview()
+        clearStudioAuthSession()
+        setAuthSession(null)
+        setStudioData(null)
+        setError(null)
+        navigate('/login', { replace: true })
+    }, [navigate, stopVoicePreview])
+
     const refreshStudioData = useCallback(async () => {
         setError(null)
 
@@ -121,8 +156,52 @@ function App() {
     }, [])
 
     useEffect(() => {
+        if (!authSession?.accessToken) {
+            return
+        }
+
+        let isCancelled = false
+
+        const validateSession = async () => {
+            try {
+                const user = await studioApi.getAuthProfile()
+                if (isCancelled) {
+                    return
+                }
+
+                const nextSession: StudioAuthSession = {
+                    accessToken: authSession.accessToken,
+                    user,
+                }
+
+                saveStudioAuthSession(nextSession)
+                setAuthSession(nextSession)
+            } catch {
+                if (isCancelled) {
+                    return
+                }
+
+                clearStudioAuthSession()
+                setAuthSession(null)
+                setStudioData(null)
+            }
+        }
+
+        void validateSession()
+
+        return () => {
+            isCancelled = true
+        }
+    }, [authSession?.accessToken])
+
+    useEffect(() => {
+        if (!isAuthenticated) {
+            setStudioData(null)
+            return
+        }
+
         void refreshStudioData()
-    }, [refreshStudioData])
+    }, [isAuthenticated, refreshStudioData])
 
     useEffect(() => {
         return () => {
@@ -659,6 +738,30 @@ function App() {
         }
     }, [])
 
+    if (isAuthRoute) {
+        if (isAuthenticated) {
+            return <Navigate to={resolveAuthRedirectPath(location.search, '/orders')} replace />
+        }
+
+        return (
+            <Routes>
+                <Route
+                    path="/login"
+                    element={<AuthPage mode="login" onAuthenticated={handleAuthenticated} />}
+                />
+                <Route
+                    path="/register"
+                    element={<AuthPage mode="register" onAuthenticated={handleAuthenticated} />}
+                />
+                <Route path="*" element={<Navigate to="/login" replace />} />
+            </Routes>
+        )
+    }
+
+    if (!isAuthenticated) {
+        return <Navigate to={loginRedirectPath} replace />
+    }
+
     if (isStudioRoute) {
         return (
             <Routes>
@@ -710,6 +813,18 @@ function App() {
                         >
                             Maintenance: {isMaintainanceModeOn ? 'ON' : 'OFF'}
                         </span>
+
+                        <span className="inline-flex items-center rounded-md border border-gray-200 px-2 py-1 text-[11px] font-medium text-gray-700 dark:border-gray-700 dark:text-gray-200">
+                            {authSession?.user?.email || 'Authenticated'}
+                        </span>
+
+                        <button
+                            type="button"
+                            onClick={handleLogout}
+                            className="inline-flex items-center rounded-md border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-100 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200 dark:hover:bg-gray-800"
+                        >
+                            Logout
+                        </button>
                     </div>
                 </nav>
 
