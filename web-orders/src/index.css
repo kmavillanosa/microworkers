@@ -2669,6 +2669,13 @@ summary:focus-visible,
   .landing-pricing-grid { grid-template-columns: 1fr; }
 }
 
+@media (max-width: 600px) {
+  .landing-hero {
+    background-size: 100% auto;
+    background-position: center top;
+  }
+}
+
 /* Tablets and up: ensure nav doesn’t get too sparse */
 @media (min-width: 769px) {
   .app-nav { padding: 1rem 2rem; }
