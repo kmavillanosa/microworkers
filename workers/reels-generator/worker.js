@@ -28,6 +28,7 @@ const WORKER_SECRET = process.env.WORKER_SECRET
 const POLL_MS = parseInt(process.env.POLL_MS || '3000', 10)
 const POLL_MAX_DELAY_MS = parseInt(process.env.POLL_MAX_DELAY_MS || '30000', 10)
 const POLL_ERROR_LOG_EVERY = Math.max(1, parseInt(process.env.POLL_ERROR_LOG_EVERY || '10', 10))
+const POLL_TRANSIENT_RETRY_DELAY_MS = Math.max(0, parseInt(process.env.POLL_TRANSIENT_RETRY_DELAY_MS || '800', 10))
 const REPO_ROOT = process.env.REPO_ROOT || path.resolve(process.cwd(), '..')
 const VERBOSE = /^(1|true|yes)$/i.test(process.env.WORKER_VERBOSE || '')
 const WORKER_LOCK_PATH = process.env.WORKER_LOCK_PATH || path.join(REPO_ROOT, '.reels-generator-worker.lock')
@@ -59,6 +60,10 @@ function logVerbose(...args) {
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+function isTransientGatewayStatus(status) {
+  return status === 502 || status === 503 || status === 504
 }
 
 function formatErr(err) {
@@ -280,7 +285,23 @@ async function main() {
   while (true) {
     try {
       logVerbose('GET', pollUrl)
-      const res = await apiFetch(pollUrl, { headers: headers() })
+      let res = await apiFetch(pollUrl, { headers: headers() })
+
+      if (!res.ok && isTransientGatewayStatus(res.status)) {
+        logVerbose(`Transient gateway status ${res.status}; retrying poll in ${POLL_TRANSIENT_RETRY_DELAY_MS}ms`)
+        if (POLL_TRANSIENT_RETRY_DELAY_MS > 0) {
+          await sleep(POLL_TRANSIENT_RETRY_DELAY_MS)
+        }
+
+        const retryRes = await apiFetch(pollUrl, { headers: headers() })
+        if (retryRes.ok) {
+          logVerbose('Transient gateway error recovered on immediate retry')
+          res = retryRes
+        } else {
+          res = retryRes
+        }
+      }
+
       if (!res.ok) {
         const body = await res.text()
         const signature = `http-${res.status}`
