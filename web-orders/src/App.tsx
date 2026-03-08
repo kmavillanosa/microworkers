@@ -82,7 +82,6 @@ function App() {
         <NavLink to="/showcase" className="app-nav-link">See our work</NavLink>
         <NavLink to="/pricing" className="app-nav-link">Pricing</NavLink>
         <NavLink to="/faq" className="app-nav-link">FAQ</NavLink>
-        <NavLink to="/order" className="app-nav-link app-nav-cta">Order now</NavLink>
       </nav>
       <main id="main-content" className="app-main" tabIndex={-1}>
         <Routes>
