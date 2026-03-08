@@ -287,9 +287,11 @@ export default function Landing() {
                 min={0}
                 max={7200}
                 step={1}
+                inputMode="numeric"
+                pattern="[0-9]*"
                 value={safeDurationSeconds}
                 onChange={(e) => {
-                  const next = Number.isFinite(e.target.valueAsNumber) ? e.target.valueAsNumber : 0
+                  const next = Number.parseInt(e.target.value, 10)
                   setDurationSeconds(next)
                 }}
               />

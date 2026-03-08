@@ -1566,9 +1566,18 @@ summary:focus-visible,
   margin-bottom: 0;
 }
 
-.pricing-duration-range {
+.pricing-duration-controls input[type='number'] {
+  font-size: 16px;
+}
+
+.pricing-duration-controls .pricing-duration-range {
   width: 100%;
   accent-color: var(--accent);
+  min-height: auto;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
 }
 
 .pricing-summary {
@@ -1588,8 +1597,15 @@ summary:focus-visible,
   color: var(--color-text-secondary);
 }
 
+.pricing-summary-row span {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
 .pricing-summary-row strong {
   color: var(--color-dark);
+  flex: 0 0 auto;
+  text-align: right;
 }
 
 .pricing-summary-row-total {
@@ -2147,6 +2163,18 @@ summary:focus-visible,
 
 .landing-pricing-duration {
   margin-bottom: 0;
+}
+
+.landing-pricing-duration input[type='number'] {
+  font-size: 16px;
+}
+
+.landing-pricing-duration .pricing-duration-range {
+  min-height: auto;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
 }
 
 .landing-how-cta .landing-cta-secondary {
