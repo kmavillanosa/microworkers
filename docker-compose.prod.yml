@@ -109,8 +109,8 @@ services:
       dockerfile: workers/reels-generator/Dockerfile
     container_name: microworkers-prod-reels-generator
     environment:
-      VPS_API_URL: ${VPS_API_URL:-http://api:3000}
-      API_BASE_URL: ${VPS_API_URL:-http://api:3000}
+      VPS_API_URL: ${VPS_API_URL:-https://reelagad.com}
+      API_BASE_URL: ${VPS_API_URL:-https://reelagad.com}
       REPO_ROOT: /data
       REELS_PYTHON_EXE: /usr/bin/python3
       REELS_PYTHON_VERBOSE: "0"
