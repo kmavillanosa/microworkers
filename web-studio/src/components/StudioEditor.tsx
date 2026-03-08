@@ -127,7 +127,7 @@ export function StudioEditor({ outputSize, contextId, script, videoUrl, wordsPer
     }, [script, timelineContextId, videoUrl, width, height, wordsPerFrame])
 
     return (
-        <div className="h-full w-full min-h-0 overflow-hidden [&_.twick-editor-container]:h-full [&_.twick-editor-main-container]:h-full [&_.twick-editor-main-container]:overflow-hidden [&_.twick-editor-main-container]:rounded-none [&_.twick-editor-main-container]:border-0">
+        <div className="h-full w-full min-h-0 overflow-auto md:overflow-hidden [&_.twick-editor-container]:h-full [&_.twick-editor-main-container]:h-full [&_.twick-editor-main-container]:overflow-auto md:[&_.twick-editor-main-container]:overflow-hidden [&_.twick-editor-main-container]:rounded-none [&_.twick-editor-main-container]:border-0">
             <LivePlayerProvider>
                 <TimelineProvider
                     key={timelineContextId}

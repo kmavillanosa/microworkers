@@ -191,20 +191,20 @@ export function OutputsPage() {
                         </p>
                     </div>
 
-                    <div className="flex items-center gap-2">
+                    <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:flex-nowrap">
                         <button
                             type="button"
                             onClick={() => {
                                 void loadOutputs(true)
                             }}
                             disabled={refreshing}
-                            className="rounded-md border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-70 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800"
+                            className="w-full rounded-md border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-70 sm:w-auto dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800"
                         >
                             {refreshing ? 'Refreshing…' : 'Refresh'}
                         </button>
                         <Link
                             to="/orders"
-                            className="rounded-md border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-100 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800"
+                            className="w-full rounded-md border border-gray-300 px-3 py-1.5 text-center text-sm font-medium text-gray-700 hover:bg-gray-100 sm:w-auto dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800"
                         >
                             Back to orders
                         </Link>
@@ -332,7 +332,7 @@ export function OutputsPage() {
                                                 type="button"
                                                 onClick={() => handleSaveDetails(reel.id)}
                                                 disabled={isSaving}
-                                                className="rounded-md bg-blue-600 px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-70"
+                                                className="w-full rounded-md bg-blue-600 px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-70 lg:w-auto"
                                             >
                                                 {isSaving ? 'Saving…' : 'Save details'}
                                             </button>

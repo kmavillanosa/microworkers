@@ -408,7 +408,7 @@ export function CreateOrderPage({
     return (
         <>
             <Card>
-                <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex flex-wrap items-start justify-between gap-2">
                     <div>
                         <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Create order (no payment)</h2>
                         <p className="text-sm text-gray-600 dark:text-gray-300">
@@ -417,7 +417,7 @@ export function CreateOrderPage({
                     </div>
                     <Link
                         to="/orders"
-                        className="rounded-md border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-100 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800"
+                        className="w-full rounded-md border border-gray-300 px-3 py-1.5 text-center text-sm font-medium text-gray-700 hover:bg-gray-100 sm:w-auto dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800"
                     >
                         Back to orders
                     </Link>
@@ -430,7 +430,7 @@ export function CreateOrderPage({
             <Card>
                 <form
                     onSubmit={handleCreateOrder}
-                    className="grid gap-4 lg:grid-cols-[minmax(0,1.15fr)_minmax(280px,1fr)]"
+                    className="grid gap-4 xl:grid-cols-[minmax(0,1.15fr)_minmax(280px,1fr)]"
                 >
                     <section className="grid gap-3 rounded-md border border-gray-200 p-3 dark:border-gray-700 [&_video:not(.generated-preview-video)]:hidden">
                         <label className="space-y-1">
@@ -611,14 +611,14 @@ export function CreateOrderPage({
                             <button
                                 type="submit"
                                 disabled={submitting}
-                                className="rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-70"
+                                className="w-full rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-70 sm:w-auto"
                             >
                                 {submitting ? 'Creating…' : 'Create order (no payment)'}
                             </button>
                             {createdOrderId ? (
                                 <Link
                                     to="/orders"
-                                    className="rounded-md border border-gray-300 px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-100 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800"
+                                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-center text-xs font-medium text-gray-700 hover:bg-gray-100 sm:w-auto dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800"
                                 >
                                     Open orders list
                                 </Link>
@@ -646,7 +646,7 @@ export function CreateOrderPage({
                                     void handlePreviewVoice()
                                 }}
                                 disabled={(!resolvedVoice && !voicePreviewPlaying) || !narratorEnabled}
-                                className="inline-flex w-fit rounded-md bg-slate-800 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-900 disabled:cursor-not-allowed disabled:opacity-70 dark:bg-slate-700 dark:hover:bg-slate-600"
+                                className="inline-flex w-full rounded-md bg-slate-800 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-900 disabled:cursor-not-allowed disabled:opacity-70 sm:w-fit dark:bg-slate-700 dark:hover:bg-slate-600"
                             >
                                 {voicePreviewPlaying ? 'Stop sample' : 'Play voice sample'}
                             </button>

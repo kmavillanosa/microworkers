@@ -613,7 +613,7 @@ export function OrdersPage({
                     <p className="text-xs text-gray-500 dark:text-gray-400">
                         Showing {pageOrders.length} of {totalMatchingOrders} orders.
                     </p>
-                    <div className="flex items-center gap-2">
+                    <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:flex-nowrap">
                         <span className="text-xs text-gray-500 dark:text-gray-400">Rows</span>
                         <select
                             value={String(pageSize)}
@@ -635,7 +635,7 @@ export function OrdersPage({
                             type="button"
                             onClick={handleClearFilters}
                             disabled={!hasActiveFilters}
-                            className="rounded-md border border-gray-300 px-2 py-1 text-xs font-medium text-gray-700 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-800"
+                            className="w-full rounded-md border border-gray-300 px-2 py-1 text-xs font-medium text-gray-700 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-800"
                         >
                             Clear filters
                         </button>
@@ -662,13 +662,13 @@ export function OrdersPage({
                             ) : null}
                         </div>
 
-                        <div className={`mt-2 overflow-x-auto${isRefreshingOrders ? ' relative' : ''}`}>
+                        <div className={`mt-2 -mx-3 overflow-x-auto px-3 sm:mx-0 sm:px-0${isRefreshingOrders ? ' relative' : ''}`}>
                             {isRefreshingOrders ? (
                                 <div className="pointer-events-none absolute inset-0 z-10 bg-white/40 dark:bg-gray-900/40" />
                             ) : null}
 
                             <table
-                                className={`min-w-full divide-y divide-gray-200 text-sm dark:divide-gray-700${isRefreshingOrders ? ' opacity-70' : ''}`}
+                                className={`min-w-[980px] divide-y divide-gray-200 text-sm dark:divide-gray-700${isRefreshingOrders ? ' opacity-70' : ''}`}
                             >
                                 <thead className="bg-gray-100 dark:bg-gray-900">
                                     <tr>
@@ -825,7 +825,7 @@ export function OrdersPage({
                                                                 handleOrderStatusChange(order.id, event.target.value as OrderStatus)
                                                             }
                                                             disabled={isUpdatingOrderStatus || loadingOrders}
-                                                            className="w-full min-w-[160px] rounded-md border border-gray-300 bg-white px-2 py-1.5 text-xs text-gray-900 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
+                                                            className="w-full min-w-[130px] rounded-md border border-gray-300 bg-white px-2 py-1.5 text-xs text-gray-900 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
                                                         >
                                                             {ORDER_STATUS_ORDER.map((status) => (
                                                                 <option key={status} value={status}>
@@ -842,7 +842,7 @@ export function OrdersPage({
                                                 <td className="px-3 py-2">{computed.frames}</td>
                                                 <td className="px-3 py-2">{formatCurrency(computed.totalPrice)}</td>
                                                 <td className="px-3 py-2">
-                                                    <div className="flex flex-wrap items-center gap-2">
+                                                    <div className="flex flex-wrap items-stretch gap-2 sm:items-center">
                                                         <a
                                                             href={`/studio?orderId=${encodeURIComponent(order.id)}`}
                                                             target="_blank"
@@ -852,7 +852,7 @@ export function OrdersPage({
                                                             Studio
                                                         </a>
 
-                                                        <div className="ml-auto">
+                                                        <div className="sm:ml-auto">
                                                             <Dropdown label="Manage" size="xs" placement="bottom-end" dismissOnClick>
                                                                 <DropdownItem
                                                                     onClick={() => {
@@ -903,12 +903,12 @@ export function OrdersPage({
                             <p className="text-xs text-gray-500 dark:text-gray-400">
                                 Page {page} of {totalPages}
                             </p>
-                            <div className="flex items-center gap-2">
+                            <div className="flex w-full items-center gap-2 sm:w-auto">
                                 <button
                                     type="button"
                                     onClick={() => setPage((current) => Math.max(1, current - 1))}
                                     disabled={page <= 1 || loadingOrders}
-                                    className="rounded-md border border-gray-300 px-2 py-1 text-xs font-medium text-gray-700 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-800"
+                                    className="w-full rounded-md border border-gray-300 px-2 py-1 text-xs font-medium text-gray-700 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-800"
                                 >
                                     Previous
                                 </button>
@@ -916,7 +916,7 @@ export function OrdersPage({
                                     type="button"
                                     onClick={() => setPage((current) => Math.min(totalPages, current + 1))}
                                     disabled={page >= totalPages || loadingOrders}
-                                    className="rounded-md border border-gray-300 px-2 py-1 text-xs font-medium text-gray-700 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-800"
+                                    className="w-full rounded-md border border-gray-300 px-2 py-1 text-xs font-medium text-gray-700 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-800"
                                 >
                                     Next
                                 </button>

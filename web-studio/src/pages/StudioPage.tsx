@@ -91,7 +91,7 @@ export function StudioPage({ orders, reels, wordsPerFrame }: StudioPageProps) {
             : 4
 
     return (
-        <div className="h-dvh w-screen overflow-hidden">
+        <div className="h-dvh w-full overflow-hidden">
             {order && <StudioEditor
                 outputSize={outputSize}
                 contextId={contextId}

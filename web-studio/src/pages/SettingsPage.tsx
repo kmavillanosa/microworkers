@@ -148,10 +148,10 @@ function resolveOrderPricingValues(orderPricing: StudioBootstrap['orderPricing']
 
 function sectionButtonClass(isActive: boolean): string {
     if (isActive) {
-        return 'rounded-md border border-blue-600 bg-blue-600 px-3 py-2 text-sm font-medium text-white'
+        return 'inline-flex shrink-0 items-center whitespace-nowrap rounded-md border border-blue-600 bg-blue-600 px-3 py-2 text-sm font-medium text-white'
     }
 
-    return 'rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200'
+    return 'inline-flex shrink-0 items-center whitespace-nowrap rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200'
 }
 
 export function SettingsLayout() {
@@ -165,7 +165,7 @@ export function SettingsLayout() {
                     </p>
                 </div>
 
-                <div className="flex flex-wrap gap-2">
+                <div className="flex items-center gap-2 overflow-x-auto pb-1 [&::-webkit-scrollbar]:hidden" style={{ scrollbarWidth: 'none' }}>
                     {SETTINGS_SECTIONS.map((item) => (
                         <NavLink
                             key={item.id}
@@ -756,7 +756,7 @@ export function SettingsPaymentPage({
             </p>
 
             <div className="mt-3 rounded-md border border-amber-200 bg-amber-50/60 p-3 dark:border-amber-800 dark:bg-amber-900/20">
-                <div className="flex items-center justify-between gap-3">
+                <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <div>
                         <p className="text-sm font-medium text-gray-900 dark:text-white">Maintainance mode</p>
                         <p className="text-xs text-gray-600 dark:text-gray-300">
@@ -791,7 +791,7 @@ export function SettingsPaymentPage({
                     return (
                         <div
                             key={option.id}
-                            className="flex items-center justify-between rounded-md border border-gray-200 p-3 dark:border-gray-700"
+                            className="flex flex-col items-start gap-3 rounded-md border border-gray-200 p-3 sm:flex-row sm:items-center sm:justify-between dark:border-gray-700"
                         >
                             <div>
                                 <p className="text-sm font-medium text-gray-900 dark:text-white">{option.label}</p>
@@ -1126,7 +1126,7 @@ export function SettingsDangerPage({ dangerBusy, dangerMessage, onDeleteAllOrder
                 Permanently delete all orders, order-generated reels, and customer-uploaded order clips.
             </p>
             <div className="mt-3">
-                <Button color="failure" disabled={dangerBusy} onClick={() => void onDeleteAllOrders()}>
+                <Button className="w-full sm:w-auto" color="failure" disabled={dangerBusy} onClick={() => void onDeleteAllOrders()}>
                     {dangerBusy ? 'Deleting…' : 'Delete all orders and order-related data'}
                 </Button>
             </div>

@@ -30,10 +30,10 @@ type ClipType = 'game' | 'order'
 
 function topTabClass(isActive: boolean): string {
     if (isActive) {
-        return 'inline-flex items-center rounded-md bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white'
+        return 'inline-flex shrink-0 items-center whitespace-nowrap rounded-md bg-blue-600 px-3 py-2 text-xs font-semibold text-white'
     }
 
-    return 'inline-flex items-center rounded-md px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-800'
+    return 'inline-flex shrink-0 items-center whitespace-nowrap rounded-md px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-800'
 }
 
 const EMPTY_PRICING_EDIT: SettingsPricingEditState = {
@@ -781,7 +781,7 @@ function App() {
     }
 
     return (
-        <div className="min-h-screen bg-gray-50 p-4 dark:bg-gray-950 lg:p-6">
+        <div className="min-h-screen bg-gray-50 p-3 dark:bg-gray-950 sm:p-4 lg:p-6">
             <div className="mx-auto flex w-full max-w-[1800px] flex-col gap-3">
                 {error ? <Alert color="failure">{error}</Alert> : null}
 
@@ -789,42 +789,48 @@ function App() {
                     className="sticky top-2 z-20 rounded-lg border border-gray-200 bg-white/90 p-1.5 backdrop-blur dark:border-gray-800 dark:bg-gray-900/90"
                     aria-label="Primary"
                 >
-                    <div className="flex flex-wrap items-center gap-1">
-                        <NavLink to="/orders" end className={({ isActive }) => topTabClass(isActive)}>
-                            Orders
-                        </NavLink>
-                        <NavLink to="/orders/create" className={({ isActive }) => topTabClass(isActive)}>
-                            Create order
-                        </NavLink>
-                        <NavLink to="/outputs" className={({ isActive }) => topTabClass(isActive)}>
-                            Outputs
-                        </NavLink>
-                        <NavLink to="/settings" className={({ isActive }) => topTabClass(isActive)}>
-                            Settings
-                        </NavLink>
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                        <div className="flex min-w-0 items-center gap-1 overflow-x-auto pb-1 sm:flex-1 sm:pb-0 [&::-webkit-scrollbar]:hidden" style={{ scrollbarWidth: 'none' }}>
+                            <NavLink to="/orders" end className={({ isActive }) => topTabClass(isActive)}>
+                                Orders
+                            </NavLink>
+                            <NavLink to="/orders/create" className={({ isActive }) => topTabClass(isActive)}>
+                                Create order
+                            </NavLink>
+                            <NavLink to="/outputs" className={({ isActive }) => topTabClass(isActive)}>
+                                Outputs
+                            </NavLink>
+                            <NavLink to="/settings" className={({ isActive }) => topTabClass(isActive)}>
+                                Settings
+                            </NavLink>
+                        </div>
 
-                        <span
-                            className={`ml-auto inline-flex items-center rounded-md px-2 py-1 text-[11px] font-semibold ${isMaintainanceModeOn
-                                ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300'
-                                : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300'
-                                }`}
-                            title="Customer site maintenance mode status"
-                            aria-live="polite"
-                        >
-                            Maintenance: {isMaintainanceModeOn ? 'ON' : 'OFF'}
-                        </span>
+                        <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+                            <span
+                                className={`inline-flex items-center rounded-md px-2 py-1 text-[11px] font-semibold ${isMaintainanceModeOn
+                                    ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300'
+                                    : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300'
+                                    }`}
+                                title="Customer site maintenance mode status"
+                                aria-live="polite"
+                            >
+                                Maintenance: {isMaintainanceModeOn ? 'ON' : 'OFF'}
+                            </span>
 
-                        <span className="inline-flex items-center rounded-md border border-gray-200 px-2 py-1 text-[11px] font-medium text-gray-700 dark:border-gray-700 dark:text-gray-200">
-                            {authSession?.user?.email || 'Authenticated'}
-                        </span>
+                            <span className="inline-flex max-w-full items-center rounded-md border border-gray-200 px-2 py-1 text-[11px] font-medium text-gray-700 dark:border-gray-700 dark:text-gray-200">
+                                <span className="max-w-[180px] truncate sm:max-w-[220px]">
+                                    {authSession?.user?.email || 'Authenticated'}
+                                </span>
+                            </span>
 
-                        <button
-                            type="button"
-                            onClick={handleLogout}
-                            className="inline-flex items-center rounded-md border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-100 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200 dark:hover:bg-gray-800"
-                        >
-                            Logout
-                        </button>
+                            <button
+                                type="button"
+                                onClick={handleLogout}
+                                className="inline-flex w-full items-center justify-center rounded-md border border-gray-300 bg-white px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-100 sm:w-auto dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200 dark:hover:bg-gray-800"
+                            >
+                                Logout
+                            </button>
+                        </div>
                     </div>
                 </nav>
 

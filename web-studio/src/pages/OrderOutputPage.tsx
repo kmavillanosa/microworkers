@@ -175,7 +175,7 @@ export function OrderOutputPage() {
                     </div>
                     <Link
                         to="/orders"
-                        className="rounded-md border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-100 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800"
+                        className="w-full rounded-md border border-gray-300 px-3 py-1.5 text-center text-sm font-medium text-gray-700 hover:bg-gray-100 sm:w-auto dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800"
                     >
                         Back to orders
                     </Link>
@@ -272,7 +272,7 @@ export function OrderOutputPage() {
                                                             href={videoUrl}
                                                             target="_blank"
                                                             rel="noreferrer"
-                                                            className="rounded-md border border-gray-300 px-2 py-1 text-xs font-medium text-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-800"
+                                                            className="w-full rounded-md border border-gray-300 px-2 py-1 text-center text-xs font-medium text-gray-700 hover:bg-gray-100 sm:w-auto dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-800"
                                                         >
                                                             Open output
                                                         </a>
@@ -280,7 +280,7 @@ export function OrderOutputPage() {
                                                             href={srtUrl}
                                                             target="_blank"
                                                             rel="noreferrer"
-                                                            className="rounded-md border border-gray-300 px-2 py-1 text-xs font-medium text-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-800"
+                                                            className="w-full rounded-md border border-gray-300 px-2 py-1 text-center text-xs font-medium text-gray-700 hover:bg-gray-100 sm:w-auto dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-800"
                                                         >
                                                             Open SRT
                                                         </a>
@@ -288,7 +288,7 @@ export function OrderOutputPage() {
                                                             href={scriptUrl}
                                                             target="_blank"
                                                             rel="noreferrer"
-                                                            className="rounded-md border border-gray-300 px-2 py-1 text-xs font-medium text-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-800"
+                                                            className="w-full rounded-md border border-gray-300 px-2 py-1 text-center text-xs font-medium text-gray-700 hover:bg-gray-100 sm:w-auto dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-800"
                                                         >
                                                             Open script
                                                         </a>
