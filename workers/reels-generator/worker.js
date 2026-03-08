@@ -26,6 +26,8 @@ const API_BASE = (
 ).replace(/\/+$/, '')
 const WORKER_SECRET = process.env.WORKER_SECRET
 const POLL_MS = parseInt(process.env.POLL_MS || '3000', 10)
+const POLL_MAX_DELAY_MS = parseInt(process.env.POLL_MAX_DELAY_MS || '30000', 10)
+const POLL_ERROR_LOG_EVERY = Math.max(1, parseInt(process.env.POLL_ERROR_LOG_EVERY || '10', 10))
 const REPO_ROOT = process.env.REPO_ROOT || path.resolve(process.cwd(), '..')
 const VERBOSE = /^(1|true|yes)$/i.test(process.env.WORKER_VERBOSE || '')
 const WORKER_LOCK_PATH = process.env.WORKER_LOCK_PATH || path.join(REPO_ROOT, '.reels-generator-worker.lock')
@@ -53,6 +55,10 @@ function headers() {
 
 function logVerbose(...args) {
   if (VERBOSE) console.log('[worker]', ...args)
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
 function formatErr(err) {
@@ -231,23 +237,75 @@ async function main() {
 
   const pollUrl = `${API_BASE}/api/worker/reel-jobs?status=queued`
   let pollErrorCount = 0
+  let pollErrorSuppressed = 0
+  let pollDelayMs = POLL_MS
+  let lastPollErrorSignature = ''
+
+  const flushSuppressedPollErrors = () => {
+    if (pollErrorSuppressed <= 0) {
+      return
+    }
+
+    console.warn(`Poll error repeated ${pollErrorSuppressed} additional times.`)
+    pollErrorSuppressed = 0
+  }
+
+  const resetPollHealth = () => {
+    if (pollErrorCount > 0) {
+      flushSuppressedPollErrors()
+      console.log(`Polling recovered after ${pollErrorCount} error${pollErrorCount === 1 ? '' : 's'}.`)
+    }
+
+    pollErrorCount = 0
+    pollDelayMs = POLL_MS
+    lastPollErrorSignature = ''
+  }
+
+  const growPollBackoff = () => {
+    pollDelayMs = Math.min(POLL_MAX_DELAY_MS, Math.max(POLL_MS, Math.round(pollDelayMs * 1.5)))
+  }
+
+  const shouldLogPollError = (signature) => {
+    if (pollErrorCount <= 1) {
+      return true
+    }
+
+    if (signature !== lastPollErrorSignature) {
+      return true
+    }
+
+    return pollErrorCount % POLL_ERROR_LOG_EVERY === 0
+  }
+
   while (true) {
     try {
       logVerbose('GET', pollUrl)
       const res = await apiFetch(pollUrl, { headers: headers() })
       if (!res.ok) {
         const body = await res.text()
-        console.warn('Poll failed:', res.status, res.statusText, body ? body.slice(0, 200) : '')
-        if (res.status === 401 && !WORKER_SECRET) {
-          console.warn('  → API may require WORKER_SECRET. Set the same value in the worker env.')
+        const signature = `http-${res.status}`
+        pollErrorCount += 1
+        if (shouldLogPollError(signature)) {
+          flushSuppressedPollErrors()
+          console.warn('Poll failed:', res.status, res.statusText, body ? body.slice(0, 200) : '')
+          if (res.status === 401 && !WORKER_SECRET) {
+            console.warn('  → API may require WORKER_SECRET. Set the same value in the worker env.')
+          }
+        } else {
+          pollErrorSuppressed += 1
         }
-        await new Promise((r) => setTimeout(r, POLL_MS))
+
+        lastPollErrorSignature = signature
+        growPollBackoff()
+        await sleep(pollDelayMs)
         continue
       }
+
+      resetPollHealth()
       const jobs = await res.json()
       logVerbose('Poll ok, jobs:', Array.isArray(jobs) ? jobs.length : 0)
       if (!Array.isArray(jobs) || jobs.length === 0) {
-        await new Promise((r) => setTimeout(r, POLL_MS))
+        await sleep(POLL_MS)
         continue
       }
 
@@ -263,7 +321,7 @@ async function main() {
         if (claimRes.status === 401 && !WORKER_SECRET) {
           console.warn('  → Set WORKER_SECRET in the worker env to match the API.')
         }
-        await new Promise((r) => setTimeout(r, 2000))
+        await sleep(2000)
         continue
       }
       const claimed = await claimRes.json()
@@ -286,17 +344,28 @@ async function main() {
       }
     } catch (err) {
       pollErrorCount += 1
-      console.warn('Poll error:', err?.message || err)
-      console.warn('  (detail:', formatErr(err) + ')')
-      if (pollErrorCount === 1) {
-        console.warn(
-          '  → Ensure VPS_API_URL is reachable from this container (e.g. https://reelagad.com). Current:',
-          API_BASE,
-        )
+      const detail = formatErr(err)
+      const signature = `${err?.code || 'ERR'}:${err?.message || String(err)}`
+
+      if (shouldLogPollError(signature)) {
+        flushSuppressedPollErrors()
+        console.warn('Poll error:', err?.message || err)
+        console.warn('  (detail:', detail + ')')
+        if (pollErrorCount === 1) {
+          console.warn(
+            '  → Ensure VPS_API_URL is reachable from this container (e.g. https://reelagad.com). Current:',
+            API_BASE,
+          )
+        }
+      } else {
+        pollErrorSuppressed += 1
       }
+
+      lastPollErrorSignature = signature
+      growPollBackoff()
       if (VERBOSE && err?.stack) console.warn(err.stack)
     }
-    await new Promise((r) => setTimeout(r, POLL_MS))
+    await sleep(pollDelayMs)
   }
 }
 

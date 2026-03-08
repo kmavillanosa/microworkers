@@ -191,20 +191,20 @@ export function OutputsPage() {
                         </p>
                     </div>
 
-                    <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:flex-nowrap">
+                    <div className="webstudio-inline-actions">
                         <button
                             type="button"
                             onClick={() => {
                                 void loadOutputs(true)
                             }}
                             disabled={refreshing}
-                            className="w-full rounded-md border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-70 sm:w-auto dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800"
+                            className="webstudio-inline-action rounded-md border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-70 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800"
                         >
                             {refreshing ? 'Refreshing…' : 'Refresh'}
                         </button>
                         <Link
                             to="/orders"
-                            className="w-full rounded-md border border-gray-300 px-3 py-1.5 text-center text-sm font-medium text-gray-700 hover:bg-gray-100 sm:w-auto dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800"
+                            className="webstudio-inline-action rounded-md border border-gray-300 px-3 py-1.5 text-center text-sm font-medium text-gray-700 hover:bg-gray-100 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800"
                         >
                             Back to orders
                         </Link>

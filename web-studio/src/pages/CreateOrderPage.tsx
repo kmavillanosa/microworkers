@@ -417,7 +417,7 @@ export function CreateOrderPage({
                     </div>
                     <Link
                         to="/orders"
-                        className="w-full rounded-md border border-gray-300 px-3 py-1.5 text-center text-sm font-medium text-gray-700 hover:bg-gray-100 sm:w-auto dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800"
+                        className="webstudio-inline-action rounded-md border border-gray-300 px-3 py-1.5 text-center text-sm font-medium text-gray-700 hover:bg-gray-100 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800"
                     >
                         Back to orders
                     </Link>
@@ -611,14 +611,14 @@ export function CreateOrderPage({
                             <button
                                 type="submit"
                                 disabled={submitting}
-                                className="w-full rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-70 sm:w-auto"
+                                className="webstudio-inline-action rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-70"
                             >
                                 {submitting ? 'Creating…' : 'Create order (no payment)'}
                             </button>
                             {createdOrderId ? (
                                 <Link
                                     to="/orders"
-                                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-center text-xs font-medium text-gray-700 hover:bg-gray-100 sm:w-auto dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800"
+                                    className="webstudio-inline-action rounded-md border border-gray-300 px-3 py-2 text-center text-xs font-medium text-gray-700 hover:bg-gray-100 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800"
                                 >
                                     Open orders list
                                 </Link>
@@ -646,7 +646,7 @@ export function CreateOrderPage({
                                     void handlePreviewVoice()
                                 }}
                                 disabled={(!resolvedVoice && !voicePreviewPlaying) || !narratorEnabled}
-                                className="inline-flex w-full rounded-md bg-slate-800 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-900 disabled:cursor-not-allowed disabled:opacity-70 sm:w-fit dark:bg-slate-700 dark:hover:bg-slate-600"
+                                className="webstudio-inline-action inline-flex rounded-md bg-slate-800 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-900 disabled:cursor-not-allowed disabled:opacity-70 dark:bg-slate-700 dark:hover:bg-slate-600"
                             >
                                 {voicePreviewPlaying ? 'Stop sample' : 'Play voice sample'}
                             </button>

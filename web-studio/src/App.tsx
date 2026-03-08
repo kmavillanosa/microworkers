@@ -30,10 +30,10 @@ type ClipType = 'game' | 'order'
 
 function topTabClass(isActive: boolean): string {
     if (isActive) {
-        return 'inline-flex shrink-0 items-center whitespace-nowrap rounded-md bg-blue-600 px-3 py-2 text-xs font-semibold text-white'
+        return 'inline-flex shrink-0 items-center whitespace-nowrap rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white'
     }
 
-    return 'inline-flex shrink-0 items-center whitespace-nowrap rounded-md px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-800'
+    return 'inline-flex shrink-0 items-center whitespace-nowrap rounded-md px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-800'
 }
 
 const EMPTY_PRICING_EDIT: SettingsPricingEditState = {
@@ -789,8 +789,8 @@ function App() {
                     className="sticky top-2 z-20 rounded-lg border border-gray-200 bg-white/90 p-1.5 backdrop-blur dark:border-gray-800 dark:bg-gray-900/90"
                     aria-label="Primary"
                 >
-                    <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                        <div className="flex min-w-0 items-center gap-1 overflow-x-auto pb-1 sm:flex-1 sm:pb-0 [&::-webkit-scrollbar]:hidden" style={{ scrollbarWidth: 'none' }}>
+                    <div className="webstudio-nav-row">
+                        <div className="webstudio-nav-tabs flex-1">
                             <NavLink to="/orders" end className={({ isActive }) => topTabClass(isActive)}>
                                 Orders
                             </NavLink>
@@ -805,7 +805,7 @@ function App() {
                             </NavLink>
                         </div>
 
-                        <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+                        <div className="webstudio-nav-meta">
                             <span
                                 className={`inline-flex items-center rounded-md px-2 py-1 text-[11px] font-semibold ${isMaintainanceModeOn
                                     ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300'
@@ -826,7 +826,7 @@ function App() {
                             <button
                                 type="button"
                                 onClick={handleLogout}
-                                className="inline-flex w-full items-center justify-center rounded-md border border-gray-300 bg-white px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-100 sm:w-auto dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200 dark:hover:bg-gray-800"
+                                className="webstudio-nav-logout inline-flex items-center justify-center rounded-md border border-gray-300 bg-white px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-100 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200 dark:hover:bg-gray-800"
                             >
                                 Logout
                             </button>

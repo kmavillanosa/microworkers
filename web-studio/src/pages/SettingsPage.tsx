@@ -756,14 +756,14 @@ export function SettingsPaymentPage({
             </p>
 
             <div className="mt-3 rounded-md border border-amber-200 bg-amber-50/60 p-3 dark:border-amber-800 dark:bg-amber-900/20">
-                <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    <div>
+                <div className="webstudio-settings-row">
+                    <div className="webstudio-settings-row-start">
                         <p className="text-sm font-medium text-gray-900 dark:text-white">Maintainance mode</p>
                         <p className="text-xs text-gray-600 dark:text-gray-300">
                             Block the full `web-orders` customer UI and show a maintainance notice.
                         </p>
                     </div>
-                    <div className="flex items-center gap-3">
+                    <div className="webstudio-settings-row-end">
                         <ToggleSwitch
                             checked={isOnMaintainanceMode}
                             disabled={maintainanceModeSaving}
@@ -791,13 +791,13 @@ export function SettingsPaymentPage({
                     return (
                         <div
                             key={option.id}
-                            className="flex flex-col items-start gap-3 rounded-md border border-gray-200 p-3 sm:flex-row sm:items-center sm:justify-between dark:border-gray-700"
+                            className="webstudio-settings-row rounded-md border border-gray-200 p-3 dark:border-gray-700"
                         >
-                            <div>
+                            <div className="webstudio-settings-row-start">
                                 <p className="text-sm font-medium text-gray-900 dark:text-white">{option.label}</p>
                                 <p className="text-xs text-gray-500 dark:text-gray-400">{option.id}</p>
                             </div>
-                            <div className="flex items-center gap-3">
+                            <div className="webstudio-settings-row-end">
                                 <ToggleSwitch
                                     checked={enabled}
                                     disabled={paymentMethodsSaving}
@@ -1126,7 +1126,7 @@ export function SettingsDangerPage({ dangerBusy, dangerMessage, onDeleteAllOrder
                 Permanently delete all orders, order-generated reels, and customer-uploaded order clips.
             </p>
             <div className="mt-3">
-                <Button className="w-full sm:w-auto" color="failure" disabled={dangerBusy} onClick={() => void onDeleteAllOrders()}>
+                <Button className="webstudio-inline-action" color="failure" disabled={dangerBusy} onClick={() => void onDeleteAllOrders()}>
                     {dangerBusy ? 'Deleting…' : 'Delete all orders and order-related data'}
                 </Button>
             </div>

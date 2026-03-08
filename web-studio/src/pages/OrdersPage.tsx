@@ -613,7 +613,7 @@ export function OrdersPage({
                     <p className="text-xs text-gray-500 dark:text-gray-400">
                         Showing {pageOrders.length} of {totalMatchingOrders} orders.
                     </p>
-                    <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:flex-nowrap">
+                    <div className="webstudio-inline-actions">
                         <span className="text-xs text-gray-500 dark:text-gray-400">Rows</span>
                         <select
                             value={String(pageSize)}
@@ -635,7 +635,7 @@ export function OrdersPage({
                             type="button"
                             onClick={handleClearFilters}
                             disabled={!hasActiveFilters}
-                            className="w-full rounded-md border border-gray-300 px-2 py-1 text-xs font-medium text-gray-700 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-800"
+                            className="webstudio-inline-action rounded-md border border-gray-300 px-2 py-1 text-xs font-medium text-gray-700 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-800"
                         >
                             Clear filters
                         </button>
@@ -903,12 +903,12 @@ export function OrdersPage({
                             <p className="text-xs text-gray-500 dark:text-gray-400">
                                 Page {page} of {totalPages}
                             </p>
-                            <div className="flex w-full items-center gap-2 sm:w-auto">
+                            <div className="webstudio-inline-actions">
                                 <button
                                     type="button"
                                     onClick={() => setPage((current) => Math.max(1, current - 1))}
                                     disabled={page <= 1 || loadingOrders}
-                                    className="w-full rounded-md border border-gray-300 px-2 py-1 text-xs font-medium text-gray-700 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-800"
+                                    className="webstudio-inline-action rounded-md border border-gray-300 px-2 py-1 text-xs font-medium text-gray-700 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-800"
                                 >
                                     Previous
                                 </button>
@@ -916,7 +916,7 @@ export function OrdersPage({
                                     type="button"
                                     onClick={() => setPage((current) => Math.min(totalPages, current + 1))}
                                     disabled={page >= totalPages || loadingOrders}
-                                    className="w-full rounded-md border border-gray-300 px-2 py-1 text-xs font-medium text-gray-700 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-800"
+                                    className="webstudio-inline-action rounded-md border border-gray-300 px-2 py-1 text-xs font-medium text-gray-700 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-800"
                                 >
                                     Next
                                 </button>
