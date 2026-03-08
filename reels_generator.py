@@ -2,6 +2,7 @@ import argparse
 import asyncio
 import datetime as dt
 import json
+import math
 import os
 import re
 import random
@@ -257,47 +258,62 @@ def get_video_duration (video_path: Path) -> float:
 		clip.close()
 
 
-def compute_chunk_timings_from_segments (
-	segments: list[dict],
-	max_words_per_chunk: int,
-) -> tuple[list[str], list[tuple[float, float]]]:
-	chunks: list[str] = []
-	timings: list[tuple[float, float]] = []
-	for segment in segments:
-		text = str(segment.get('text', '')).strip()
-		if not text:
-			continue
-		words = text.split()
-		if not words:
-			continue
-		seg_chunks = [
-			' '.join(words[i:i + max_words_per_chunk])
-			for i in range(0, len(words), max_words_per_chunk)
-		]
-		seg_start = float(segment.get('start', 0))
-		seg_end = float(segment.get('end', seg_start))
-		seg_duration = max(0.05, seg_end - seg_start)
-		weights = [max(1, len(chunk.replace(' ', ''))) for chunk in seg_chunks]
-		total_weight = sum(weights)
-		current = seg_start
-		for idx, chunk in enumerate(seg_chunks):
-			if idx == len(seg_chunks) - 1:
-				end = seg_end if seg_end > seg_start else (current + seg_duration)
-			else:
-				duration = seg_duration * (weights[idx] / total_weight) if total_weight else (seg_duration / len(seg_chunks))
-				end = current + duration
-			chunks.append(chunk)
-			timings.append((current, end))
-			current = end
-	return chunks, timings
-
-
-def get_video_duration (video_path: Path) -> float:
-	clip = VideoFileClip(str(video_path))
+def _safe_float (
+	value,
+	default: float,
+) -> float:
 	try:
-		return float(clip.duration)
-	finally:
-		clip.close()
+		out = float(value)
+	except (TypeError, ValueError):
+		return default
+	if not math.isfinite(out):
+		return default
+	return out
+
+
+def normalize_caption_font_scale (value: float) -> float:
+	parsed = _safe_float(value, 1.0)
+	return max(0.5, min(2.0, parsed))
+
+
+def normalize_caption_bg_opacity (value: int) -> int:
+	parsed = int(round(_safe_float(value, 180.0)))
+	return max(0, min(255, parsed))
+
+
+def normalize_caption_position (value: str) -> str:
+	position = (value or 'bottom').strip().lower()
+	if position in {'top', 'center', 'bottom'}:
+		return position
+	return 'bottom'
+
+
+def validate_output_video (
+	video_path: Path,
+) -> None:
+	ffmpeg_exe = imageio_ffmpeg.get_ffmpeg_exe()
+	result = subprocess.run(
+		[
+			ffmpeg_exe,
+			'-v',
+			'error',
+			'-i',
+			str(video_path),
+			'-t',
+			'5',
+			'-f',
+			'null',
+			'-',
+		],
+		capture_output=True,
+		text=True,
+		check=False,
+	)
+
+	stderr = (result.stderr or '').strip()
+	if result.returncode != 0 or stderr:
+		detail = stderr.splitlines()[-1].strip() if stderr else f'ffmpeg exited with code {result.returncode}'
+		raise RuntimeError(f'Generated video validation failed: {detail}')
 
 
 def format_srt_timestamp (value: float) -> str:
@@ -549,7 +565,8 @@ def create_caption_image (
 
 	# Scale font size to ~5.5% of video width so it fits any resolution.
 	base_font_size = max(24, int(width * 0.055)) if font_size is None else font_size
-	font_size = max(14, int(base_font_size * max(0.5, min(2.0, float(font_scale)))))
+	resolved_font_scale = normalize_caption_font_scale(font_scale)
+	font_size = max(14, int(base_font_size * resolved_font_scale))
 
 	font = load_preferred_font(
 		font_size=font_size,
@@ -597,19 +614,22 @@ def create_caption_image (
 	box_w = max(1, int(round(text_w + padding_x * 2)))
 	box_h = max(1, int(round(text_h + padding_y * 2)))
 	box_x = int((width - box_w) // 2)
-	pos = (caption_position or 'bottom').strip().lower()
+	pos = normalize_caption_position(caption_position)
 	if pos == 'top':
 		box_y = max(0, int(height * 0.08))
 	elif pos == 'center':
 		box_y = max(0, (height - box_h) // 2)
 	else:
-		box_y = int(int(height * 0.72) - (box_h // 2))
+		bottom_anchor_y = int(height * 0.84)
+		box_y = bottom_anchor_y - (box_h // 2)
 
-	opacity = max(0, min(255, int(bg_opacity)))
+	box_y = max(0, min(height - box_h, box_y))
+
+	opacity = normalize_caption_bg_opacity(bg_opacity)
 
 	img = Image.new('RGBA', (box_w, box_h), (0, 0, 0, 0))
 	draw = ImageDraw.Draw(img)
-	radius = max(12, int(width * 0.025))
+	radius = max(12, min(box_h // 2, int(width * 0.04)))
 	draw.rounded_rectangle(
 		[0, 0, box_w, box_h],
 		radius=radius,
@@ -1320,6 +1340,12 @@ def build_reel (
 	layers = [background_clip]
 	caption_cache: dict[tuple, tuple[np.ndarray, tuple[int, int]]] = {}
 	caption_animation_mode = normalize_caption_animation_mode(caption_animation)
+	resolved_caption_position = normalize_caption_position(caption_position)
+	resolved_caption_font_scale = normalize_caption_font_scale(caption_font_scale)
+	resolved_caption_bg_opacity = normalize_caption_bg_opacity(caption_bg_opacity)
+	if title and resolved_caption_position == 'center':
+		# Keep script captions away from the opening title block.
+		resolved_caption_position = 'bottom'
 
 	for chunk, (start, end) in zip(chunks, timings):
 		word_timings = compute_word_timings_for_chunk(
@@ -1334,13 +1360,13 @@ def build_reel (
 			animation_mode=caption_animation_mode,
 		)
 		for highlight_count, word_start, word_end, scale_multiplier, y_offset in animation_steps:
-			effective_font_scale = caption_font_scale * scale_multiplier
+			effective_font_scale = resolved_caption_font_scale * scale_multiplier
 			cache_key = (
 				chunk,
 				highlight_count,
-				caption_position,
+				resolved_caption_position,
 				round(effective_font_scale, 4),
-				caption_bg_opacity,
+				resolved_caption_bg_opacity,
 			)
 			if cache_key not in caption_cache:
 				caption_cache[cache_key] = create_caption_image(
@@ -1349,8 +1375,8 @@ def build_reel (
 					height=size[1],
 					font_name=font_name,
 					highlight_words=highlight_count,
-					caption_position=caption_position,
-					bg_opacity=caption_bg_opacity,
+					caption_position=resolved_caption_position,
+					bg_opacity=resolved_caption_bg_opacity,
 					font_scale=effective_font_scale,
 				)
 			image, position = caption_cache[cache_key]
@@ -1426,6 +1452,7 @@ def build_reel (
 			audio_codec='aac',
 			preset=render_preset,
 			threads=4,
+			ffmpeg_params=['-movflags', '+faststart', '-pix_fmt', 'yuv420p'],
 		)
 	finally:
 		final_clip.close()
@@ -1443,6 +1470,9 @@ def build_reel (
 			closed_clip_ids.add(clip_id)
 		if clip_audio_temp_path is not None and clip_audio_temp_path.exists():
 			clip_audio_temp_path.unlink(missing_ok=True)
+
+	_emit_stage('Verifying output')
+	validate_output_video(output_path)
 
 	# Save narration audio for customer download (receipt) when we generated voiceover
 	if has_audio and audio_path.exists():

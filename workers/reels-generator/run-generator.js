@@ -97,6 +97,11 @@ function buildVoiceArgs(job) {
   return ['--voice-engine', 'edge', '--voice-name', job.voiceName || 'en-US-GuyNeural', '--edge-rate', '-5']
 }
 
+function toFiniteNumber(value) {
+  const parsed = Number(value)
+  return Number.isFinite(parsed) ? parsed : null
+}
+
 export async function runGenerator(job, apiBaseUrl, options = {}) {
   const { onProgress } = options
   await fs.mkdir(scriptsDir, { recursive: true })
@@ -157,11 +162,18 @@ export async function runGenerator(job, apiBaseUrl, options = {}) {
 
   args.push('--font-name', job.fontName || 'default')
 
-  const captionPosition = ['top', 'center', 'bottom'].includes(job.scriptPosition) ? job.scriptPosition : 'bottom'
+  const rawScriptPosition = typeof job.scriptPosition === 'string' ? job.scriptPosition.trim().toLowerCase() : ''
+  const captionPosition = ['top', 'center', 'bottom'].includes(rawScriptPosition) ? rawScriptPosition : 'bottom'
   args.push('--caption-position', captionPosition)
   const style = job.scriptStyle || {}
-  if (style.fontScale != null) args.push('--caption-font-scale', String(Number(style.fontScale)))
-  if (style.bgOpacity != null) args.push('--caption-bg-opacity', String(Math.max(0, Math.min(255, Number(style.bgOpacity)))))
+  const fontScale = toFiniteNumber(style.fontScale)
+  if (fontScale != null) {
+    args.push('--caption-font-scale', String(Math.max(0.5, Math.min(2, fontScale))))
+  }
+  const bgOpacity = toFiniteNumber(style.bgOpacity)
+  if (bgOpacity != null) {
+    args.push('--caption-bg-opacity', String(Math.round(Math.max(0, Math.min(255, bgOpacity)))))
+  }
   const animationMode = typeof style.animationMode === 'string' ? style.animationMode.trim().toLowerCase() : ''
   if (['calming', 'normal', 'extreme'].includes(animationMode)) {
     args.push('--caption-animation', animationMode)

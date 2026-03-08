@@ -63,6 +63,14 @@ const ORDER_AUDIO_FILTERS = new Set<OrderAudioFilter>([
   'clip_and_narrator',
 ]);
 
+type CaptionAnimationMode = 'calming' | 'normal' | 'extreme';
+
+type NormalizedScriptStyle = {
+  fontScale?: number;
+  bgOpacity?: number;
+  animationMode?: CaptionAnimationMode;
+};
+
 function parseBoundedInt(
   value: string | undefined,
   fallback: number,
@@ -119,6 +127,47 @@ export class OrdersController {
     private readonly paymongoService: PaymongoService,
     private readonly settingsService: SettingsService,
   ) {}
+
+  private normalizeScriptStyle(value: unknown): NormalizedScriptStyle | undefined {
+    const source =
+      typeof value === 'string'
+        ? (() => {
+            try {
+              const parsed = JSON.parse(value) as unknown;
+              return parsed;
+            } catch {
+              return null;
+            }
+          })()
+        : value;
+
+    if (!source || typeof source !== 'object' || Array.isArray(source)) {
+      return undefined;
+    }
+
+    const raw = source as Record<string, unknown>;
+    const style: NormalizedScriptStyle = {};
+
+    const rawFontScale = Number(raw.fontScale);
+    if (Number.isFinite(rawFontScale)) {
+      style.fontScale = Math.max(0.5, Math.min(2, rawFontScale));
+    }
+
+    const rawBgOpacity = Number(raw.bgOpacity);
+    if (Number.isFinite(rawBgOpacity)) {
+      style.bgOpacity = Math.round(Math.max(0, Math.min(255, rawBgOpacity)));
+    }
+
+    const animationMode =
+      typeof raw.animationMode === 'string'
+        ? raw.animationMode.trim().toLowerCase()
+        : '';
+    if (['calming', 'normal', 'extreme'].includes(animationMode)) {
+      style.animationMode = animationMode as CaptionAnimationMode;
+    }
+
+    return Object.keys(style).length > 0 ? style : undefined;
+  }
 
   private async resolveOrderPayloadScript(
     payload: Record<string, unknown>,
@@ -454,10 +503,38 @@ export class OrdersController {
     let script = body.script?.trim() ?? order.script?.trim() ?? '';
     let segments: Array<{ start: number; end: number; text: string }> | null =
       null;
-    const useClipAudio =
-      body.useClipAudio ?? order.useClipAudio ?? Boolean(order.clipName);
+    const orderUseClipAudio = order.useClipAudio === true;
+    const orderUseClipAudioWithNarrator =
+      order.useClipAudioWithNarrator === true;
+    const requestedUseClipAudio =
+      body.useClipAudio ??
+      (orderUseClipAudio || orderUseClipAudioWithNarrator);
+    const requestedUseClipAudioWithNarrator =
+      body.useClipAudioWithNarrator ?? orderUseClipAudioWithNarrator;
     const useClipAudioWithNarrator =
-      body.useClipAudioWithNarrator ?? order.useClipAudioWithNarrator ?? false;
+      requestedUseClipAudio && requestedUseClipAudioWithNarrator;
+    const useClipAudio = requestedUseClipAudio || useClipAudioWithNarrator;
+    const orderVoiceEngineRaw =
+      typeof order.voiceEngine === 'string'
+        ? order.voiceEngine.trim().toLowerCase()
+        : '';
+    const orderVoiceEngine = ['edge', 'pyttsx3', 'piper', 'none'].includes(
+      orderVoiceEngineRaw,
+    )
+      ? orderVoiceEngineRaw
+      : 'edge';
+    const orderVoiceName = order.voiceName?.trim() || undefined;
+    const fontName = order.fontId?.trim() || 'default';
+    const scriptPositionRaw =
+      typeof order.scriptPosition === 'string'
+        ? order.scriptPosition.trim().toLowerCase()
+        : '';
+    const scriptPosition = ['top', 'center', 'bottom'].includes(
+      scriptPositionRaw,
+    )
+      ? (scriptPositionRaw as 'top' | 'center' | 'bottom')
+      : 'bottom';
+    const scriptStyle = this.normalizeScriptStyle(order.scriptStyle);
     const scriptOverridden = Boolean(body.script?.trim());
     if (order.clipName) {
       const transcriptData = await this.clipsService.getTranscriptData(
@@ -503,13 +580,13 @@ export class OrdersController {
       script,
       title: order.title ?? undefined,
       clipName: order.clipName ?? undefined,
-      fontName: order.fontId,
+      fontName,
       voiceEngine:
         useClipAudio && !useClipAudioWithNarrator
           ? 'none'
-          : (order.voiceEngine as any),
+          : (orderVoiceEngine as any),
       voiceName:
-        useClipAudio && !useClipAudioWithNarrator ? undefined : order.voiceName,
+        useClipAudio && !useClipAudioWithNarrator ? undefined : orderVoiceName,
       ...(useClipAudio && {
         useClipAudio: true,
         useClipAudioWithNarrator: useClipAudioWithNarrator || undefined,
@@ -521,12 +598,8 @@ export class OrdersController {
       )
         ? (order.outputSize as 'phone' | 'tablet' | 'laptop' | 'desktop')
         : 'phone',
-      scriptPosition: ['top', 'center', 'bottom'].includes(
-        order.scriptPosition ?? '',
-      )
-        ? (order.scriptPosition as 'top' | 'center' | 'bottom')
-        : undefined,
-      scriptStyle: order.scriptStyle ?? undefined,
+      scriptPosition,
+      scriptStyle,
     });
 
     await this.ordersService.updateStatus(order.id, 'processing');

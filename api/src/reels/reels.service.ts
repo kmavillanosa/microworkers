@@ -748,22 +748,31 @@ export class ReelsService {
     }
 
     args.push('--font-name', job.fontName || 'default');
+    const scriptPositionRaw =
+      typeof job.scriptPosition === 'string'
+        ? job.scriptPosition.trim().toLowerCase()
+        : '';
     const captionPosition = ['top', 'center', 'bottom'].includes(
-      job.scriptPosition ?? '',
+      scriptPositionRaw,
     )
-      ? job.scriptPosition
+      ? scriptPositionRaw
       : 'bottom';
     args.push('--caption-position', captionPosition ?? 'bottom');
     const style = job.scriptStyle as
       | { fontScale?: number; bgOpacity?: number; animationMode?: string }
       | undefined;
-    if (style?.fontScale != null) {
-      args.push('--caption-font-scale', String(Number(style.fontScale)));
+    const fontScaleRaw = Number(style?.fontScale);
+    if (Number.isFinite(fontScaleRaw)) {
+      args.push(
+        '--caption-font-scale',
+        String(Math.max(0.5, Math.min(2, fontScaleRaw))),
+      );
     }
-    if (style?.bgOpacity != null) {
+    const bgOpacityRaw = Number(style?.bgOpacity);
+    if (Number.isFinite(bgOpacityRaw)) {
       args.push(
         '--caption-bg-opacity',
-        String(Math.max(0, Math.min(255, Number(style.bgOpacity)))),
+        String(Math.round(Math.max(0, Math.min(255, bgOpacityRaw)))),
       );
     }
     const animationModeRaw =
