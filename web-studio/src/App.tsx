@@ -905,9 +905,6 @@ function App() {
                                     paymentMethodsSaving={paymentMethodsSaving}
                                     paymentMethodsMessage={paymentMethodsMessage}
                                     onTogglePaymentMethodEnabled={handleTogglePaymentMethodEnabled}
-                                    maintainanceModeSaving={maintainanceModeSaving}
-                                    maintainanceModeMessage={maintainanceModeMessage}
-                                    onToggleMaintainanceMode={handleToggleMaintainanceMode}
                                 />
                             }
                         />
@@ -946,6 +943,10 @@ function App() {
                                     dangerBusy={dangerBusy}
                                     dangerMessage={dangerMessage}
                                     onDeleteAllOrders={handleDeleteAllOrders}
+                                    studioData={studioData}
+                                    maintainanceModeSaving={maintainanceModeSaving}
+                                    maintainanceModeMessage={maintainanceModeMessage}
+                                    onToggleMaintainanceMode={handleToggleMaintainanceMode}
                                 />
                             }
                         />

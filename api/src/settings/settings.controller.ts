@@ -7,13 +7,13 @@ import { VoicesService } from '../voices/voices.service';
 import { StudioJwtAuthGuard } from '../auth/studio-jwt-auth.guard';
 
 @Controller('api/settings')
-@UseGuards(StudioJwtAuthGuard)
 export class SettingsController {
   constructor(
     private readonly settingsService: SettingsService,
     private readonly voicesService: VoicesService,
   ) {}
 
+  @UseGuards(StudioJwtAuthGuard)
   @Get('payment-methods')
   async getPaymentMethods() {
     const enabled = await this.settingsService.getPaymentMethodTypes();
@@ -23,6 +23,7 @@ export class SettingsController {
     };
   }
 
+  @UseGuards(StudioJwtAuthGuard)
   @Patch('payment-methods')
   async updatePaymentMethods(@Body() body: { enabled: string[] }) {
     const enabled = Array.isArray(body?.enabled) ? body.enabled : [];
@@ -38,6 +39,7 @@ export class SettingsController {
     };
   }
 
+  @UseGuards(StudioJwtAuthGuard)
   @Patch('maintenance-mode')
   async updateMaintainanceMode(
     @Body()
@@ -58,11 +60,13 @@ export class SettingsController {
     };
   }
 
+  @UseGuards(StudioJwtAuthGuard)
   @Get('voices')
   async listVoices() {
     return this.voicesService.findAll();
   }
 
+  @UseGuards(StudioJwtAuthGuard)
   @Patch('voices/:id')
   async updateVoiceEnabled(
     @Param('id') id: string,

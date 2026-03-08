@@ -12,6 +12,10 @@ type SettingsDangerPageProps = {
     dangerBusy: boolean
     dangerMessage: string | null
     onDeleteAllOrders: () => Promise<void>
+    studioData: StudioBootstrap | null
+    maintainanceModeSaving: boolean
+    maintainanceModeMessage: string | null
+    onToggleMaintainanceMode: (isOnMaintainanceMode: boolean) => Promise<void>
 }
 
 type SettingsVoicesPageProps = SettingsDataProps & {
@@ -28,9 +32,6 @@ type SettingsPaymentPageProps = SettingsDataProps & {
     paymentMethodsSaving: boolean
     paymentMethodsMessage: string | null
     onTogglePaymentMethodEnabled: (paymentMethodId: string, enabled: boolean) => Promise<void>
-    maintainanceModeSaving: boolean
-    maintainanceModeMessage: string | null
-    onToggleMaintainanceMode: (isOnMaintainanceMode: boolean) => Promise<void>
 }
 
 type SettingsFontsPageProps = SettingsDataProps & {
@@ -146,7 +147,15 @@ function resolveOrderPricingValues(orderPricing: StudioBootstrap['orderPricing']
     }
 }
 
-function sectionButtonClass(isActive: boolean): string {
+function sectionButtonClass(isActive: boolean, isDanger: boolean): string {
+    if (isDanger) {
+        if (isActive) {
+            return 'inline-flex shrink-0 items-center whitespace-nowrap rounded-md border border-red-600 bg-red-600 px-3 py-2 text-sm font-medium text-white'
+        }
+
+        return 'inline-flex shrink-0 items-center whitespace-nowrap rounded-md border border-red-300 bg-white px-3 py-2 text-sm font-medium text-red-700 dark:border-red-800 dark:bg-gray-900 dark:text-red-300'
+    }
+
     if (isActive) {
         return 'inline-flex shrink-0 items-center whitespace-nowrap rounded-md border border-blue-600 bg-blue-600 px-3 py-2 text-sm font-medium text-white'
     }
@@ -170,7 +179,7 @@ export function SettingsLayout() {
                         <NavLink
                             key={item.id}
                             to={`/settings/${item.id}`}
-                            className={({ isActive }) => sectionButtonClass(isActive)}
+                            className={({ isActive }) => sectionButtonClass(isActive, item.id === 'danger')}
                         >
                             {item.label}
                         </NavLink>
@@ -741,12 +750,8 @@ export function SettingsPaymentPage({
     paymentMethodsSaving,
     paymentMethodsMessage,
     onTogglePaymentMethodEnabled,
-    maintainanceModeSaving,
-    maintainanceModeMessage,
-    onToggleMaintainanceMode,
 }: SettingsPaymentPageProps) {
     const paymentMethods = studioData?.paymentMethods
-    const isOnMaintainanceMode = studioData?.isOnMaintainanceMode === true
 
     return (
         <Card>
@@ -754,33 +759,6 @@ export function SettingsPaymentPage({
             <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">
                 Enabled methods: {paymentMethods?.enabled.length ?? 0}
             </p>
-
-            <div className="mt-3 rounded-md border border-amber-200 bg-amber-50/60 p-3 dark:border-amber-800 dark:bg-amber-900/20">
-                <div className="webstudio-settings-row">
-                    <div className="webstudio-settings-row-start">
-                        <p className="text-sm font-medium text-gray-900 dark:text-white">Maintainance mode</p>
-                        <p className="text-xs text-gray-600 dark:text-gray-300">
-                            Block the full `web-orders` customer UI and show a maintainance notice.
-                        </p>
-                    </div>
-                    <div className="webstudio-settings-row-end">
-                        <ToggleSwitch
-                            checked={isOnMaintainanceMode}
-                            disabled={maintainanceModeSaving}
-                            onChange={(checked) => {
-                                void onToggleMaintainanceMode(checked)
-                            }}
-                            sizing="sm"
-                        />
-                        <Badge color={isOnMaintainanceMode ? 'warning' : 'success'}>
-                            {maintainanceModeSaving ? 'saving...' : isOnMaintainanceMode ? 'enabled' : 'disabled'}
-                        </Badge>
-                    </div>
-                </div>
-                {maintainanceModeMessage ? (
-                    <p className="mt-2 text-xs text-gray-700 dark:text-gray-300">{maintainanceModeMessage}</p>
-                ) : null}
-            </div>
 
             {paymentMethodsMessage ? (
                 <p className="mt-2 text-sm text-gray-700 dark:text-gray-300">{paymentMethodsMessage}</p>
@@ -1118,10 +1096,46 @@ export function SettingsVoicesPage({
     )
 }
 
-export function SettingsDangerPage({ dangerBusy, dangerMessage, onDeleteAllOrders }: SettingsDangerPageProps) {
+export function SettingsDangerPage({
+    dangerBusy,
+    dangerMessage,
+    onDeleteAllOrders,
+    studioData,
+    maintainanceModeSaving,
+    maintainanceModeMessage,
+    onToggleMaintainanceMode,
+}: SettingsDangerPageProps) {
+    const isOnMaintainanceMode = studioData?.isOnMaintainanceMode === true
+
     return (
         <Card>
             <h3 className="text-base font-semibold text-red-600">Danger zone</h3>
+            <div className="mt-3 rounded-md border border-amber-200 bg-amber-50/60 p-3 dark:border-amber-800 dark:bg-amber-900/20">
+                <div className="webstudio-settings-row">
+                    <div className="webstudio-settings-row-start">
+                        <p className="text-sm font-medium text-gray-900 dark:text-white">Maintainance mode</p>
+                        <p className="text-xs text-gray-600 dark:text-gray-300">
+                            Block the full `web-orders` customer UI and show a maintainance notice.
+                        </p>
+                    </div>
+                    <div className="webstudio-settings-row-end">
+                        <ToggleSwitch
+                            checked={isOnMaintainanceMode}
+                            disabled={maintainanceModeSaving}
+                            onChange={(checked) => {
+                                void onToggleMaintainanceMode(checked)
+                            }}
+                            sizing="sm"
+                        />
+                        <Badge color={isOnMaintainanceMode ? 'warning' : 'success'}>
+                            {maintainanceModeSaving ? 'saving...' : isOnMaintainanceMode ? 'enabled' : 'disabled'}
+                        </Badge>
+                    </div>
+                </div>
+                {maintainanceModeMessage ? (
+                    <p className="mt-2 text-xs text-gray-700 dark:text-gray-300">{maintainanceModeMessage}</p>
+                ) : null}
+            </div>
             <p className="mt-2 text-sm text-gray-700 dark:text-gray-300">
                 Permanently delete all orders, order-generated reels, and customer-uploaded order clips.
             </p>
