@@ -42,13 +42,9 @@ function App() {
     }
 
     void syncMaintainanceMode()
-    const interval = window.setInterval(() => {
-      void syncMaintainanceMode()
-    }, 15000)
 
     return () => {
       active = false
-      window.clearInterval(interval)
     }
   }, [])
 
