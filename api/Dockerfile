@@ -21,17 +21,18 @@ ENV NODE_ENV=production
 EXPOSE 3000
 
 COPY requirements.txt /app/requirements.txt
-RUN apt-get update \
+RUN --mount=type=cache,target=/root/.cache/pip \
+  apt-get update \
   && apt-get install -y --no-install-recommends python3 python3-pip openssl \
-  && pip3 install --no-cache-dir -r /app/requirements.txt \
+  && pip3 install -r /app/requirements.txt \
   && rm -rf /var/lib/apt/lists/*
 
 # Default self-signed cert so API can serve HTTPS (override by mounting real certs at /app/ssl)
 RUN mkdir -p /app/ssl \
   && openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
-    -keyout /app/ssl/privkey.pem \
-    -out /app/ssl/fullchain.pem \
-    -subj "/CN=localhost" \
+  -keyout /app/ssl/privkey.pem \
+  -out /app/ssl/fullchain.pem \
+  -subj "/CN=localhost" \
   && chown -R node:node /app/ssl
 
 COPY api/package.json api/package-lock.json* ./

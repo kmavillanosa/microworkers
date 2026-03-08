@@ -127,6 +127,10 @@ Configure these in the repo: **Settings → Secrets and variables → Actions**.
 | **VITE_APP_ENV** | web-orders build | `production` |
 | **REELS_MAX_CONCURRENT_JOBS** | API (optional) | e.g. `5` |
 | **PAYMONGO_SECRET_KEY** | API PayMongo | From PayMongo dashboard |
+| **YOUTUBE_CLIENT_ID** | API YouTube OAuth | Google OAuth Web client ID for YouTube connect |
+| **YOUTUBE_CLIENT_SECRET** | API YouTube OAuth | Google OAuth Web client secret |
+| **YOUTUBE_REDIRECT_URI** | API YouTube OAuth callback | e.g. `https://api.reelagad.com/api/youtube/callback` or `https://admin.reelagad.com/api/youtube/callback` |
+| **YOUTUBE_WEB_REDIRECT_URL** | Post-connect redirect to web-studio | e.g. `https://admin.reelagad.com/settings` |
 | **VPS_API_URL** | reels-generator worker target API | e.g. `https://reelagad.com` (or `http://api:3000` when same Docker network) |
 | **WORKER_SECRET** | API + reels worker (optional) | Shared secret for worker endpoints |
 | **STUDIO_JWT_SECRET** | API studio auth token signing | Strong random secret (required for web-studio auth) |

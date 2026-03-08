@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1
 # Transcription worker: runs transcribe_clip.py for order clips (separate service, online).
 # Debian base so pip can use manylinux wheels for PyAV/faster_whisper (avoids Alpine build failures).
 # Build can take several minutes; deploy workflow uses a longer timeout and SSH keepalive.
@@ -31,6 +32,7 @@ ENV REPO_ROOT=/data
 ENV REELS_PYTHON_EXE=/usr/bin/python3
 
 # faster-whisper: local-only transcription, free, no API, no payments (CTranslate2 + Whisper)
-RUN pip3 install --break-system-packages --no-cache-dir faster_whisper
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip3 install --break-system-packages faster_whisper
 
 CMD ["node", "worker.js"]

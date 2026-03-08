@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1
 # Reels generator worker: runs video generation locally (heavy CPU).
 # Repo root is mounted at /data so reels_generator.py and assets/ are available.
 # Python + deps are installed here so the worker can run reels_generator.py inside the container.
@@ -10,7 +11,8 @@ RUN apt-get update \
   && apt-get install -y --no-install-recommends python3 python3-pip ffmpeg \
   && rm -rf /var/lib/apt/lists/*
 COPY requirements.txt /app/requirements.txt
-RUN pip3 install --no-cache-dir -r /app/requirements.txt
+RUN --mount=type=cache,target=/root/.cache/pip \
+  pip3 install -r /app/requirements.txt
 
 # Node worker
 COPY workers/reels-generator/package.json workers/reels-generator/package-lock.json* ./

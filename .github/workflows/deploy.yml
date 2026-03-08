@@ -1,6 +1,6 @@
 # Deploy microworkers to VPS.
 # Rebuild only changed services (api, web-orders, web-studio, transcription, reels-generator).
-# Required secrets: VPS_SSH_KEY, MYSQL_*, TYPEORM_*, CORS_ORIGINS, VITE_API_BASE_URL_WEB_ORDERS, and when enabling web-studio/reels-generator also VITE_API_BASE_URL, VITE_GOOGLE_CLIENT_ID, VPS_API_URL, STUDIO_JWT_SECRET.
+# Required secrets: VPS_SSH_KEY, MYSQL_*, TYPEORM_*, CORS_ORIGINS, VITE_API_BASE_URL_WEB_ORDERS, and when enabling web-studio/reels-generator also VITE_API_BASE_URL, VITE_GOOGLE_CLIENT_ID, VPS_API_URL, STUDIO_JWT_SECRET. For YouTube OAuth connect, also set YOUTUBE_CLIENT_ID, YOUTUBE_CLIENT_SECRET, YOUTUBE_REDIRECT_URI, YOUTUBE_WEB_REDIRECT_URL.
 
 name: Deploy to VPS
 
@@ -93,6 +93,9 @@ jobs:
 
           cd /microworkers
 
+          export DOCKER_BUILDKIT=1
+          export COMPOSE_DOCKER_CLI_BUILD=1
+
           mkdir -p assets/game-clips assets/order-clips assets/db assets/credentials \
             assets/cache/images assets/voices/piper output scripts
           [ -d assets/fonts ] || mkdir -p assets/fonts
@@ -119,6 +122,10 @@ jobs:
           export WORKER_SECRET="${{ secrets.WORKER_SECRET }}"
           export STUDIO_JWT_SECRET="${{ secrets.STUDIO_JWT_SECRET }}"
           export STUDIO_JWT_EXPIRES_IN="${{ secrets.STUDIO_JWT_EXPIRES_IN }}"
+          export YOUTUBE_CLIENT_ID="${{ secrets.YOUTUBE_CLIENT_ID }}"
+          export YOUTUBE_CLIENT_SECRET="${{ secrets.YOUTUBE_CLIENT_SECRET }}"
+          export YOUTUBE_REDIRECT_URI="${{ secrets.YOUTUBE_REDIRECT_URI }}"
+          export YOUTUBE_WEB_REDIRECT_URL="${{ secrets.YOUTUBE_WEB_REDIRECT_URL }}"
           export SLACK_ORDER_WEBHOOK_URL="${{ secrets.SLACK_ORDER_WEBHOOK_URL }}"
 
           if [ -z "$SLACK_ORDER_WEBHOOK_URL" ]; then
