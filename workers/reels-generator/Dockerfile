@@ -19,8 +19,8 @@ COPY workers/reels-generator/package.json workers/reels-generator/package-lock.j
 RUN npm ci --omit=dev 2>/dev/null || npm install --omit=dev
 COPY workers/reels-generator/worker.js workers/reels-generator/run-generator.js ./
 
-ENV VPS_API_URL=https://reelagad.com
-ENV API_BASE_URL=https://reelagad.com
+ENV VPS_API_URL=http://api:3000
+ENV API_BASE_URL=http://api:3000
 ENV REPO_ROOT=/data
 ENV REELS_PYTHON_EXE=/usr/bin/python3
 

@@ -6,7 +6,7 @@
  * Set VPS_API_URL to a URL the worker can reach:
  *   - Same host via nginx: https://reelagad.com (recommended; no port, uses your domain).
  *   - Direct API (if reachable): https://vps-ip:3010 (worker accepts self-signed certs).
- *   - Same Docker network as API: https://api:3000
+ *   - Same Docker network as API: http://api:3000
  * When using HTTPS with a self-signed cert, the worker accepts it automatically.
  * Optional: WORKER_SECRET on both sides for auth.
  */
